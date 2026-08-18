@@ -177,3 +177,59 @@ dependencies {
     androidTestImplementation(libs.work.testing)
     androidTestImplementation(libs.kotlinx.coroutines.test)
 }
+
+/**
+ * Garde-fou architectural exécuté à chaque `check`.
+ *
+ * La direction des dépendances est la seule chose qui garantit que le cœur
+ * métier reste testable sans émulateur. Une revue de code la laisse filer
+ * tôt ou tard ; une tâche Gradle, non.
+ */
+val checkCoreIsFrameworkFree by tasks.registering {
+    group = "verification"
+    description = "Vérifie que domain/ et application/ n'importent aucun framework."
+
+    val coreSources = listOf(
+        file("src/main/java/com/madhi/tracker/domain"),
+        file("src/main/java/com/madhi/tracker/application"),
+    )
+    val forbidden = listOf(
+        "import android.",
+        "import androidx.",
+        "import dagger.",
+        "import okhttp3.",
+        "import retrofit2.",
+        "import com.google.",
+    )
+
+    // Capturé à la configuration : le cache de configuration interdit de
+    // référencer le projet depuis l'exécution de la tâche.
+    val moduleDirectory = projectDir
+
+    inputs.files(coreSources.map { fileTree(it) })
+    outputs.upToDateWhen { true }
+
+    doLast {
+        val violations = coreSources
+            .filter { it.exists() }
+            .flatMap { root -> root.walkTopDown().filter { it.extension == "kt" } }
+            .flatMap { source ->
+                source.readLines().withIndex().mapNotNull { (index, line) ->
+                    forbidden.find { line.trimStart().startsWith(it) }
+                        ?.let { "${source.relativeTo(moduleDirectory)}:${index + 1}  $line" }
+                }
+            }
+
+        check(violations.isEmpty()) {
+            buildString {
+                appendLine("Le cœur métier importe un framework :")
+                violations.forEach { appendLine("  $it") }
+                appendLine()
+                appendLine("Le domaine et les use cases doivent rester compilables et")
+                appendLine("testables sans Android. Passez par un port.")
+            }
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(checkCoreIsFrameworkFree) }
