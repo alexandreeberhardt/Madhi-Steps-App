@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.madhi.tracker.application.usecase.RestoreTracking
+import com.madhi.tracker.application.usecase.RestoreTrigger
 import com.madhi.tracker.application.usecase.SyncOutcome
 import com.madhi.tracker.application.usecase.SyncPendingLocations
 import com.madhi.tracker.domain.error.SyncFailure
@@ -11,19 +13,34 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
 /**
- * Déclenche la synchronisation, et rien d'autre.
+ * Vide le backlog, et sert de watchdog.
  *
- * Ce worker existe indépendamment de l'acquisition GPS : il vide le backlog
- * même quand le suivi est désactivé, comme l'exige `arch/01` §8.
+ * Deux responsabilités, parce qu'elles ont le même déclencheur et le même
+ * rythme. La synchronisation est indépendante de l'acquisition GPS
+ * (`arch/01` §8) ; le watchdog relance le service de suivi si la surcouche
+ * constructeur l'a tué (ADR-007 §3.2).
+ *
+ * Cette résurrection n'est possible que grâce à l'exemption d'optimisation
+ * de batterie, qui figure parmi les exemptions autorisant le démarrage d'un
+ * service de premier plan depuis l'arrière-plan.
  */
 @HiltWorker
 class SyncWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted parameters: WorkerParameters,
     private val syncPendingLocations: SyncPendingLocations,
+    private val restoreTracking: RestoreTracking,
 ) : CoroutineWorker(context, parameters) {
 
-    override suspend fun doWork(): Result = when (val outcome = syncPendingLocations()) {
+    override suspend fun doWork(): Result {
+        // Le watchdog passe en premier : si le service a été tué, le
+        // relancer est plus urgent que de vider la file.
+        runCatching { restoreTracking(RestoreTrigger.WATCHDOG) }
+
+        return syncOutcome()
+    }
+
+    private suspend fun syncOutcome(): Result = when (val outcome = syncPendingLocations()) {
         is SyncOutcome.NothingToDo -> Result.success()
         is SyncOutcome.Completed -> Result.success()
 

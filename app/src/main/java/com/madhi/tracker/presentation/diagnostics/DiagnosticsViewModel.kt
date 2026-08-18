@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.madhi.tracker.application.usecase.BuildDiagnosticsReport
 import com.madhi.tracker.application.usecase.ChangeCaptureInterval
 import com.madhi.tracker.application.usecase.DiagnosticsReport
+import com.madhi.tracker.application.usecase.RestoreTracking
+import com.madhi.tracker.application.usecase.RestoreTrigger
 import com.madhi.tracker.application.usecase.StartTracking
 import com.madhi.tracker.application.usecase.StopTracking
 import com.madhi.tracker.domain.model.CaptureInterval
@@ -21,13 +23,20 @@ class DiagnosticsViewModel @Inject constructor(
     private val startTracking: StartTracking,
     private val stopTracking: StopTracking,
     private val changeCaptureInterval: ChangeCaptureInterval,
+    private val restoreTracking: RestoreTracking,
 ) : ViewModel() {
 
     private val _report = MutableStateFlow<DiagnosticsReport?>(null)
     val report: StateFlow<DiagnosticsReport?> = _report.asStateFlow()
 
     init {
-        refresh()
+        // Rattrapage à chaque ouverture : c'est le dernier filet quand le
+        // redémarrage automatique a été bloqué par la surcouche, ou qu'une
+        // mise à jour d'APK a effacé les tâches planifiées (`arch/01` §8).
+        viewModelScope.launch {
+            runCatching { restoreTracking(RestoreTrigger.APP_OPENED) }
+            refresh()
+        }
     }
 
     /**

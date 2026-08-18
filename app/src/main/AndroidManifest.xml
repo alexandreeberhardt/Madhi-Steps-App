@@ -93,6 +93,35 @@
             android:exported="false" />
 
         <!--
+          Sur MIUI comme sur OxygenOS, ce receveur n'est appelé que si le
+          démarrage automatique a été autorisé à la main. Quand il ne l'est
+          pas, rien n'échoue : il ne se passe rien (ADR-007 §3.1).
+        -->
+        <receiver
+            android:name=".adapter.input.boot.BootReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          L'application est mise à jour à la main pendant le voyage, hors
+          Play Store : une réinstallation annule les alarmes.
+        -->
+        <receiver
+            android:name=".adapter.input.boot.PackageReplacedReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
           WorkManager est initialisé par l'application, pas par son
           initialiseur automatique, afin que SyncWorker reçoive ses
           dépendances via la fabrique Hilt.
