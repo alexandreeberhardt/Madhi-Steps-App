@@ -1,0 +1,11 @@
+# Copier ce fichier en `local.properties` et renseigner les vraies valeurs.
+# `local.properties` n'est jamais versionné (voir .gitignore).
+
+# Chemin du SDK Android, renseigné automatiquement par Android Studio.
+sdk.dir=/Users/<vous>/Library/Android/sdk
+
+# URL de base de l'API, injectée dans BuildConfig au build.
+# Peut aussi venir des variables d'environnement MADHI_API_BASE_URL_DEBUG
+# et MADHI_API_BASE_URL_RELEASE, qui ont la priorité (utile en CI).
+madhi.api.baseUrl.debug=http://10.0.2.2:8080/api/v1
+madhi.api.baseUrl.release=https://example.invalid/api/v1

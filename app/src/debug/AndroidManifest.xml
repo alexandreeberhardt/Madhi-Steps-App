@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Exception debug uniquement, documentée : le serveur de simulation local
+      tourne en HTTP sur la machine de développement. Le build release n'hérite
+      pas de cette configuration et reste HTTPS strict.
+    -->
+    <application android:networkSecurityConfig="@xml/network_security_config" />
+
+</manifest>

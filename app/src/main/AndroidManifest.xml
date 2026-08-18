@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Chaque permission est justifiée dans arch/adr/002-execution-en-arriere-plan.md.
+      Aucune n'est présente « au cas où » : le tracking ne fonctionne pas sans elles.
+    -->
+
+    <!-- Acquisition GPS. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!--
+      Requise pour redémarrer le service de suivi après un redémarrage du
+      téléphone sans que l'application soit ouverte. Depuis Android 15/16, un
+      foreground service de type `location` ne peut pas être créé depuis
+      l'arrière-plan sans elle.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!--
+      Sans elle sur Android 13+, la notification du service est masquée : la
+      voyageuse perd le seul indicateur permanent que le suivi tourne.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Reprise après redémarrage. Bloquée par défaut sur MIUI : voir ADR-007. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+      Métronome d'acquisition. AllowWhileIdle traverse le Doze ; sans alarme
+      exacte, la cadence dérive de plusieurs dizaines de minutes en veille.
+      USE_EXACT_ALARM est réservée aux applications de réveil sur le Play Store,
+      mais cette application est distribuée par APK hors store.
+    -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
+    <!--
+      Ne sert pas qu'au Doze : l'exemption d'optimisation de batterie figure dans
+      la liste des exemptions autorisant le démarrage d'un foreground service
+      depuis l'arrière-plan. C'est elle qui rend possible la résurrection du
+      service par le watchdog après une mise à mort par MIUI.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- Maintenu uniquement pendant une acquisition, jamais en continu. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <uses-feature android:name="android.hardware.location.gps" android:required="true" />
+
+    <application
+        android:name=".MadhiTrackerApplication"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.MadhiTracker">
+
+        <activity
+            android:name=".presentation.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.MadhiTracker">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>
