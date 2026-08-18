@@ -16,6 +16,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.madhi.tracker.domain.model.TrackingProblem
+import com.madhi.tracker.presentation.activation.ActivationScreen
 import com.madhi.tracker.presentation.diagnostics.DiagnosticsScreen
 import com.madhi.tracker.presentation.map.MainScreen
 import com.madhi.tracker.presentation.onboarding.OnboardingScreen
@@ -24,6 +25,7 @@ import com.madhi.tracker.presentation.settings.SettingsScreen
 private const val ROUTE_MAIN = "main"
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_DIAGNOSTICS = "diagnostics"
+private const val ROUTE_ACTIVATION = "activation"
 
 /**
  * Trois destinations en pile, sans barre de navigation permanente
@@ -54,6 +56,7 @@ fun MadhiTrackerApp(viewModel: RootViewModel = hiltViewModel()) {
 
         RootDestination.Diagnostics -> {
             val navController = rememberNavController()
+            val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
 
             NavHost(navController = navController, startDestination = ROUTE_MAIN) {
                 composable(ROUTE_MAIN) {
@@ -65,7 +68,7 @@ fun MadhiTrackerApp(viewModel: RootViewModel = hiltViewModel()) {
                                 context = context,
                                 permissions = permissions,
                                 vendor = viewModel.vendor,
-                                openDiagnostics = { navController.navigate(ROUTE_DIAGNOSTICS) },
+                                openActivation = { navController.navigate(ROUTE_ACTIVATION) },
                             )
                         },
                     )
@@ -75,6 +78,14 @@ fun MadhiTrackerApp(viewModel: RootViewModel = hiltViewModel()) {
                     SettingsScreen(
                         onBack = { navController.popBackStack() },
                         onOpenDiagnostics = { navController.navigate(ROUTE_DIAGNOSTICS) },
+                        onOpenActivation = { navController.navigate(ROUTE_ACTIVATION) },
+                    )
+                }
+
+                composable(ROUTE_ACTIVATION) {
+                    ActivationScreen(
+                        onBack = { navController.popBackStack() },
+                        deviceName = deviceName,
                     )
                 }
 
@@ -98,7 +109,7 @@ private fun resolveProblem(
     context: Context,
     permissions: PermissionRequests,
     vendor: com.madhi.tracker.domain.model.DeviceVendor,
-    openDiagnostics: () -> Unit,
+    openActivation: () -> Unit,
 ) {
     when (problem) {
         TrackingProblem.LOCATION_PERMISSION_MISSING -> permissions.requestForeground()
@@ -109,10 +120,10 @@ private fun resolveProblem(
         TrackingProblem.AUTOSTART_BLOCKED -> openVendorSettings(context, vendor)
         TrackingProblem.NOTIFICATIONS_BLOCKED -> openNotificationSettings(context)
 
-        // Ces deux-là demandent une réactivation, qui n'a pas encore d'écran
-        // dédié hors onboarding : le diagnostic donne au moins l'état exact.
+        // Les deux se règlent par une saisie de code : un token révoqué se
+        // corrige exactement comme une première activation.
         TrackingProblem.DEVICE_NOT_ACTIVATED,
         TrackingProblem.AUTHENTICATION_FAILED,
-        -> openDiagnostics()
+        -> openActivation()
     }
 }

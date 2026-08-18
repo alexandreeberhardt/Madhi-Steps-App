@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -17,7 +16,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -25,11 +23,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.madhi.tracker.domain.error.ActivationFailure
+import com.madhi.tracker.presentation.activation.ActivationForm
 import com.madhi.tracker.presentation.common.TrackingStatusColors
 
 /**
@@ -148,29 +145,14 @@ private fun ActivationStep(
             style = MaterialTheme.typography.bodyLarge,
         )
 
-        OutlinedTextField(
-            value = state.activationCode,
-            onValueChange = viewModel::onActivationCodeChanged,
-            label = { Text("Code d'activation") },
-            singleLine = true,
-            enabled = !state.activating,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
-            modifier = Modifier.fillMaxWidth(),
+        ActivationForm(
+            code = state.activationCode,
+            onCodeChange = viewModel::onActivationCodeChanged,
+            onSubmit = { viewModel.onActivate(deviceName) },
+            busy = state.activating,
+            error = state.activationError,
+            submitLabel = "Activer",
         )
-
-        state.activationError?.let {
-            Text(activationErrorMessage(it), color = TrackingStatusColors.broken)
-        }
-
-        if (state.activating) {
-            CircularProgressIndicator()
-        } else {
-            Button(
-                onClick = { viewModel.onActivate(deviceName) },
-                enabled = state.activationCode.isNotBlank(),
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Activer") }
-        }
 
         // L'activation peut échouer faute de réseau au moment de la
         // configuration. Le suivi, lui, fonctionne sans : les positions
@@ -320,13 +302,4 @@ private fun StepLayout(
             OutlinedButton(onClick = onSecondary, modifier = Modifier.fillMaxWidth()) { Text(secondaryLabel) }
         }
     }
-}
-
-private fun activationErrorMessage(failure: ActivationFailure): String = when (failure) {
-    ActivationFailure.InvalidCode -> "Ce code n'est pas valide. Vérifie la saisie."
-    ActivationFailure.ExpiredCode -> "Ce code a expiré ou a déjà été utilisé. Demande-en un nouveau."
-    ActivationFailure.NoNetwork -> "Pas de réseau. Réessaie une fois connectée."
-    is ActivationFailure.RateLimited -> "Trop de tentatives. Attends quelques minutes."
-    is ActivationFailure.ServerError -> "Le serveur ne répond pas correctement. Réessaie plus tard."
-    is ActivationFailure.Unexpected -> "Erreur inattendue. Réessaie."
 }

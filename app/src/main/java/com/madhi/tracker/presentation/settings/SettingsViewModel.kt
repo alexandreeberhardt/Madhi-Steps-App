@@ -2,6 +2,7 @@ package com.madhi.tracker.presentation.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.madhi.tracker.application.port.DeviceCredentials
 import com.madhi.tracker.application.port.LocationStore
 import com.madhi.tracker.application.port.SyncJournalStore
 import com.madhi.tracker.application.port.TrackingIntentStore
@@ -24,6 +25,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val trackingIntentStore: TrackingIntentStore,
+    private val credentials: DeviceCredentials,
     private val locationStore: LocationStore,
     private val syncJournalStore: SyncJournalStore,
     private val changeCaptureInterval: ChangeCaptureInterval,
@@ -46,6 +48,7 @@ class SettingsViewModel @Inject constructor(
                     pendingCount = locationStore.pendingCount(),
                     oldestPendingAt = locationStore.oldestPendingRecordedAt(),
                     syncJournal = syncJournalStore.read(),
+                    deviceActivated = credentials.isActivated(),
                     loaded = true,
                 )
             }
@@ -73,5 +76,6 @@ data class SettingsState(
     val pendingCount: Int = 0,
     val oldestPendingAt: Instant? = null,
     val syncJournal: SyncJournal = SyncJournal.EMPTY,
+    val deviceActivated: Boolean = false,
     val appVersion: String = AppConfig.appVersion,
 )

@@ -42,6 +42,7 @@ import java.time.Instant
 fun SettingsScreen(
     onBack: () -> Unit,
     onOpenDiagnostics: () -> Unit,
+    onOpenActivation: () -> Unit,
     now: Instant = Instant.now(),
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -88,6 +89,13 @@ fun SettingsScreen(
                 Line("Points en attente", state.pendingCount.toString())
                 Line("Plus ancien en attente", relativeAge(state.oldestPendingAt, now))
                 Line("Dernier envoi réussi", relativeAge(state.syncJournal.lastSuccessAt, now))
+            }
+
+            Section("Appareil") {
+                Line("Relié au voyage", if (state.deviceActivated) "oui" else "non")
+                OutlinedButton(onClick = onOpenActivation, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (state.deviceActivated) "Réactiver l'appareil" else "Activer l'appareil")
+                }
             }
 
             Section("Diagnostic") {

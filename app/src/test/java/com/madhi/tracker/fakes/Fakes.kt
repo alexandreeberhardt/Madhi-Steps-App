@@ -11,6 +11,7 @@ import com.madhi.tracker.application.port.LocationSyncGateway
 import com.madhi.tracker.application.port.DeviceActivationGateway
 import com.madhi.tracker.application.port.DeviceCredentials
 import com.madhi.tracker.application.port.OnboardingStore
+import com.madhi.tracker.application.port.SyncJournalStore
 import com.madhi.tracker.application.port.RejectedPoint
 import com.madhi.tracker.application.port.RebootJournalStore
 import com.madhi.tracker.application.port.SyncScheduler
@@ -29,6 +30,7 @@ import com.madhi.tracker.domain.model.LocationFix
 import com.madhi.tracker.domain.model.LocationId
 import com.madhi.tracker.domain.model.LocationPoint
 import com.madhi.tracker.domain.model.RebootJournal
+import com.madhi.tracker.domain.model.SyncJournal
 import com.madhi.tracker.domain.model.SyncState
 import com.madhi.tracker.domain.model.TrackerEvent
 import com.madhi.tracker.domain.model.TrackingIntent
@@ -330,4 +332,28 @@ class FakeOnboardingStore : OnboardingStore {
     override suspend fun isCompleted(): Boolean = state.value
     override suspend fun markCompleted() { state.value = true }
     override fun observe(): Flow<Boolean> = state
+}
+
+class FakeSyncJournalStore : SyncJournalStore {
+    private val state = MutableStateFlow(SyncJournal.EMPTY)
+
+    override suspend fun read(): SyncJournal = state.value
+
+    override suspend fun recordAttempt(at: Instant, batchSize: Int) {
+        state.value = state.value.copy(lastAttemptAt = at, lastBatchSize = batchSize)
+    }
+
+    override suspend fun recordSuccess(at: Instant) {
+        state.value = state.value.copy(lastSuccessAt = at, lastFailureCode = null, consecutiveFailures = 0)
+    }
+
+    override suspend fun recordFailure(at: Instant, failure: com.madhi.tracker.domain.error.SyncFailure) {
+        state.value = state.value.copy(
+            lastAttemptAt = at,
+            lastFailureCode = failure.code,
+            consecutiveFailures = state.value.consecutiveFailures + 1,
+        )
+    }
+
+    override fun observe(): Flow<SyncJournal> = state
 }
