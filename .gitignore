@@ -1,1 +1,39 @@
+# Environment files with real values
 .env
+.env.*
+!.env.example
+
+# Android signing material
+*.jks
+*.keystore
+keystore.properties
+local.properties
+
+# Secrets and certificates
+*.key
+*.pem
+*.p12
+*.crt
+id_rsa*
+id_ed25519*
+
+# Database dumps and backups
+*.dump
+*_dump.sql
+*.backup.sql
+*.sqlite
+*.sqlite3
+backups/
+dumps/
+
+# Private build artifacts
+*.apk
+*.aab
+
+# Dependency and build output
+node_modules/
+dist/
+build/
+.gradle/
+__pycache__/
+.venv/
