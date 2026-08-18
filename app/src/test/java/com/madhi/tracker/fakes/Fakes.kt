@@ -8,6 +8,9 @@ import com.madhi.tracker.application.port.LocationSource
 import com.madhi.tracker.application.port.BatchAcknowledgement
 import com.madhi.tracker.application.port.LocationStore
 import com.madhi.tracker.application.port.LocationSyncGateway
+import com.madhi.tracker.application.port.DeviceActivationGateway
+import com.madhi.tracker.application.port.DeviceCredentials
+import com.madhi.tracker.application.port.OnboardingStore
 import com.madhi.tracker.application.port.RejectedPoint
 import com.madhi.tracker.application.port.RebootJournalStore
 import com.madhi.tracker.application.port.SyncScheduler
@@ -16,9 +19,12 @@ import com.madhi.tracker.application.port.TrackingIntentStore
 import com.madhi.tracker.application.port.TrackingRuntime
 import com.madhi.tracker.domain.Outcome
 import com.madhi.tracker.domain.error.LocationAcquisitionFailure
+import com.madhi.tracker.domain.error.ActivationFailure
 import com.madhi.tracker.domain.error.SyncFailure
+import com.madhi.tracker.domain.model.DeviceActivation
 import com.madhi.tracker.domain.failure
 import com.madhi.tracker.domain.model.CaptureInterval
+import com.madhi.tracker.domain.model.DeviceVendor
 import com.madhi.tracker.domain.model.LocationFix
 import com.madhi.tracker.domain.model.LocationId
 import com.madhi.tracker.domain.model.LocationPoint
@@ -155,6 +161,7 @@ class FakeTrackingEnvironment(
             canScheduleExactAlarms = true,
             isOnline = true,
             batteryPercent = 62,
+            vendor = DeviceVendor.OTHER,
         )
     }
 }
@@ -280,4 +287,47 @@ class FakeLocationSyncGateway : LocationSyncGateway {
     }
 
     fun serverHolds(id: LocationId): Boolean = id in storedOnServer
+}
+
+class FakeDeviceActivationGateway : DeviceActivationGateway {
+    var response: Outcome<DeviceActivation, ActivationFailure> =
+        success(DeviceActivation(deviceId = "device-42", deviceToken = "token-secret", tripId = "trip-7"))
+
+    var lastCode: String? = null
+    var lastDeviceName: String? = null
+    var callCount: Int = 0
+
+    override suspend fun activate(
+        activationCode: String,
+        deviceName: String,
+    ): Outcome<DeviceActivation, ActivationFailure> {
+        callCount++
+        lastCode = activationCode
+        lastDeviceName = deviceName
+        return response
+    }
+}
+
+class FakeDeviceCredentials : DeviceCredentials {
+    var activation: DeviceActivation? = null
+
+    override suspend fun store(activation: DeviceActivation) {
+        this.activation = activation
+    }
+
+    override suspend fun isActivated(): Boolean = activation != null
+    override suspend fun deviceId(): String? = activation?.deviceId
+    override suspend fun tripId(): String? = activation?.tripId
+    override suspend fun authorizationHeaderValue(): String? = activation?.let { "Bearer ${it.deviceToken}" }
+
+    override suspend fun clear() {
+        activation = null
+    }
+}
+
+class FakeOnboardingStore : OnboardingStore {
+    private val state = MutableStateFlow(false)
+    override suspend fun isCompleted(): Boolean = state.value
+    override suspend fun markCompleted() { state.value = true }
+    override fun observe(): Flow<Boolean> = state
 }

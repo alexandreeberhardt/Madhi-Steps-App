@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
+import com.madhi.tracker.adapter.output.persistence.datastore.DataStoreOnboardingStore
 import com.madhi.tracker.adapter.output.persistence.datastore.DataStoreRebootJournalStore
 import com.madhi.tracker.adapter.output.persistence.datastore.DataStoreSyncJournalStore
 import com.madhi.tracker.adapter.output.persistence.datastore.DataStoreTrackingIntentStore
@@ -14,6 +15,7 @@ import com.madhi.tracker.adapter.output.persistence.room.LocationDao
 import com.madhi.tracker.adapter.output.persistence.room.RoomLocationStore
 import com.madhi.tracker.adapter.output.persistence.room.TrackerDatabase
 import com.madhi.tracker.application.port.LocationStore
+import com.madhi.tracker.application.port.OnboardingStore
 import com.madhi.tracker.application.port.RebootJournalStore
 import com.madhi.tracker.application.port.SyncJournalStore
 import com.madhi.tracker.application.port.TrackingIntentStore
@@ -68,4 +70,7 @@ abstract class PersistenceBindings {
 
     @Binds
     abstract fun bindRebootJournalStore(store: DataStoreRebootJournalStore): RebootJournalStore
+
+    @Binds
+    abstract fun bindOnboardingStore(store: DataStoreOnboardingStore): OnboardingStore
 }

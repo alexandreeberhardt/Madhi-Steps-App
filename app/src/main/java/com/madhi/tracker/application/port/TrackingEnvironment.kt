@@ -1,5 +1,6 @@
 package com.madhi.tracker.application.port
 
+import com.madhi.tracker.domain.model.DeviceVendor
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -26,4 +27,5 @@ data class EnvironmentSnapshot(
     val canScheduleExactAlarms: Boolean,
     val isOnline: Boolean,
     val batteryPercent: Int?,
+    val vendor: DeviceVendor,
 )

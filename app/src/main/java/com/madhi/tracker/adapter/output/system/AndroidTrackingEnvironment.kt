@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
 import com.madhi.tracker.application.port.EnvironmentSnapshot
 import com.madhi.tracker.application.port.TrackingEnvironment
+import com.madhi.tracker.domain.model.DeviceVendor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -47,6 +48,7 @@ class AndroidTrackingEnvironment @Inject constructor(
         canScheduleExactAlarms = canScheduleExactAlarms(),
         isOnline = isOnline(),
         batteryPercent = batteryPercent(),
+        vendor = detectVendor(),
     )
 
     /**
@@ -75,6 +77,28 @@ class AndroidTrackingEnvironment @Inject constructor(
         connectivity?.registerDefaultNetworkCallback(callback)
         awaitClose { connectivity?.unregisterNetworkCallback(callback) }
     }.distinctUntilChanged()
+
+    /**
+     * `Build.MANUFACTURER` est renseigné par le constructeur et n'est pas
+     * normalisé : on compare en minuscules et on regroupe Oppo, Realme et
+     * OnePlus, qui partagent la même base ColorOS.
+     */
+    private fun detectVendor(): DeviceVendor {
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        return when {
+            manufacturer.contains("xiaomi") ||
+                manufacturer.contains("redmi") ||
+                manufacturer.contains("poco") -> DeviceVendor.XIAOMI
+
+            manufacturer.contains("oneplus") ||
+                manufacturer.contains("oppo") ||
+                manufacturer.contains("realme") -> DeviceVendor.ONEPLUS_OPPO
+
+            manufacturer.contains("samsung") -> DeviceVendor.SAMSUNG
+            manufacturer.contains("huawei") || manufacturer.contains("honor") -> DeviceVendor.HUAWEI
+            else -> DeviceVendor.OTHER
+        }
+    }
 
     private fun isGranted(permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED

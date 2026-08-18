@@ -12,49 +12,48 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.core.net.toUri
+import com.madhi.tracker.domain.model.DeviceVendor
 
 /**
- * Demande les autorisations dans l'ordre imposé par Android.
+ * Les demandes d'autorisation, séparées parce qu'Android l'impose.
  *
- * L'ordre n'est pas une préférence : depuis Android 11, la localisation en
- * arrière-plan ne peut pas être demandée en même temps que la localisation
- * précise. Elle doit l'être **après**, dans un second appel, et le système
- * renvoie alors l'utilisatrice vers les réglages.
- *
- * L'exemption d'optimisation de batterie et les alarmes exactes ne sont pas
- * des permissions runtime : ce sont des écrans système vers lesquels on ne
- * peut que rediriger.
+ * Depuis Android 11, la localisation en arrière-plan ne peut pas être
+ * demandée en même temps que la localisation précise : elle doit l'être
+ * dans un second appel, une fois la première accordée. C'est aussi pourquoi
+ * l'onboarding leur consacre deux écrans distincts.
  */
+class PermissionRequests(
+    val requestForeground: () -> Unit,
+    val requestBackground: () -> Unit,
+)
+
 @Composable
-fun rememberPermissionRequester(context: Context): () -> Unit {
+fun rememberPermissionRequests(): PermissionRequests {
     val backgroundLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { }
 
     val foregroundLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { granted ->
-        val hasForeground = granted[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            granted[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        // La demande d'arrière-plan n'a aucun sens tant que la localisation
-        // au premier plan n'est pas accordée : le système la refuserait.
-        if (hasForeground) {
-            backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        }
-    }
+    ) { }
 
-    return remember(context) {
-        {
-            foregroundLauncher.launch(
-                buildList {
-                    add(Manifest.permission.ACCESS_FINE_LOCATION)
-                    add(Manifest.permission.ACCESS_COARSE_LOCATION)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        add(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                }.toTypedArray(),
-            )
-        }
+    return remember(foregroundLauncher, backgroundLauncher) {
+        PermissionRequests(
+            requestForeground = {
+                foregroundLauncher.launch(
+                    buildList {
+                        add(Manifest.permission.ACCESS_FINE_LOCATION)
+                        add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            add(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }.toTypedArray(),
+                )
+            },
+            requestBackground = {
+                backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            },
+        )
     }
 }
 
@@ -69,31 +68,38 @@ fun rememberPermissionRequester(context: Context): () -> Unit {
 fun openBatteryOptimizationSettings(context: Context) {
     val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
         .setData("package:${context.packageName}".toUri())
-    context.startActivitySafely(intent)
+    if (!context.startActivitySafely(intent)) openApplicationDetails(context)
 }
 
 fun openExactAlarmSettings(context: Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
     val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
         .setData("package:${context.packageName}".toUri())
-    context.startActivitySafely(intent)
+    if (!context.startActivitySafely(intent)) openApplicationDetails(context)
 }
 
 /**
- * Écran de démarrage automatique de MIUI.
+ * Raccourci vers l'écran propriétaire du constructeur quand il en existe un.
  *
- * Ce composant n'est documenté nulle part par Xiaomi : il peut disparaître à
+ * Ces composants ne sont documentés par personne et peuvent disparaître à
  * la prochaine mise à jour de la surcouche. Le repli sur la fiche
- * d'application standard garantit que le bouton mène toujours quelque part.
+ * d'application standard garantit que le bouton mène toujours quelque part :
+ * aucune fonctionnalité ne dépend de leur présence.
  */
-fun openAutostartSettings(context: Context) {
-    val miuiAutostart = Intent().setClassName(
-        "com.miui.securitycenter",
-        "com.miui.permcenter.autostart.AutoStartManagementActivity",
-    )
-    if (!context.startActivitySafely(miuiAutostart)) {
-        openApplicationDetails(context)
+fun openVendorSettings(context: Context, vendor: DeviceVendor) {
+    val component = when (vendor) {
+        DeviceVendor.XIAOMI ->
+            "com.miui.securitycenter" to "com.miui.permcenter.autostart.AutoStartManagementActivity"
+        DeviceVendor.ONEPLUS_OPPO ->
+            "com.coloros.safecenter" to "com.coloros.safecenter.permission.startup.StartupAppListActivity"
+        else -> null
     }
+
+    val opened = component?.let { (pkg, cls) ->
+        context.startActivitySafely(Intent().setClassName(pkg, cls))
+    } ?: false
+
+    if (!opened) openApplicationDetails(context)
 }
 
 fun openApplicationDetails(context: Context) {
@@ -107,6 +113,6 @@ private fun Context.startActivitySafely(intent: Intent): Boolean = try {
     startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     true
 } catch (e: Exception) {
-    // Écran système absent sur cet appareil : aucune fonctionnalité n'en dépend.
+    // Écran système absent sur cet appareil : le repli prend le relais.
     false
 }
