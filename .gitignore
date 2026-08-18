@@ -37,3 +37,8 @@ build/
 .gradle/
 __pycache__/
 .venv/
+
+# Exports .docx generes depuis les .md, qui sont la source de verite
+# (arch/README_architecture.md). Les versionner ferait diverger deux copies
+# du meme document sans qu'on puisse relire la difference.
+arch/*.docx
