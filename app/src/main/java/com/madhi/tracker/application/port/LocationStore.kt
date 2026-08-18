@@ -24,6 +24,9 @@ interface LocationStore {
 
     suspend fun pendingCount(): Int
 
+    /** Nombre de points enregistrés depuis [since], base du détecteur de trous. */
+    suspend fun countRecordedSince(since: Instant): Int
+
     suspend fun lastRecordedAt(): Instant?
 
     /** Âge du plus vieux point non synchronisé, exigé au diagnostic (`arch/02` §6). */

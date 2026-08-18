@@ -1,22 +1,18 @@
 package com.madhi.tracker.presentation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.madhi.tracker.presentation.diagnostics.DiagnosticsScreen
 
 /**
- * Point d'entrée de la navigation. Reste vide tant que les écrans réels
- * n'existent pas : la phase de bootstrap ne livre aucune interface.
+ * Navigation réduite au strict nécessaire tant que l'écran principal
+ * carte-first n'existe pas. Le diagnostic est le premier écran livré parce
+ * que c'est lui qui permet de valider le suivi sur le terrain.
  */
 @Composable
 fun MadhiTrackerApp() {
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = "Madhi Tracker")
-        }
-    }
+    val context = LocalContext.current
+    val requestPermissions = rememberPermissionRequester(context)
+
+    DiagnosticsScreen(onRequestPermissions = requestPermissions)
 }

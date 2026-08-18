@@ -110,6 +110,9 @@ class FakeLocationStore : LocationStore {
 
     override suspend fun pendingCount(): Int = points.values.count { it.syncState == SyncState.PENDING }
 
+    override suspend fun countRecordedSince(since: Instant): Int =
+        points.values.count { !it.recordedAt.isBefore(since) }
+
     override suspend fun lastRecordedAt(): Instant? = points.values.maxOfOrNull { it.recordedAt }
 
     override suspend fun oldestPendingRecordedAt(): Instant? =

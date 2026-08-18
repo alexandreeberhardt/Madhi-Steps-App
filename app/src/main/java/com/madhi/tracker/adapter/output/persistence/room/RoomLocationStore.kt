@@ -39,6 +39,9 @@ class RoomLocationStore @Inject constructor(
 
     override suspend fun pendingCount(): Int = dao.pendingCount()
 
+    override suspend fun countRecordedSince(since: Instant): Int =
+        dao.countRecordedSince(since.toEpochMilli())
+
     override suspend fun lastRecordedAt(): Instant? = dao.lastRecordedAt()?.let(Instant::ofEpochMilli)
 
     override suspend fun oldestPendingRecordedAt(): Instant? =

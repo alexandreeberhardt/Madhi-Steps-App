@@ -61,6 +61,9 @@ interface LocationDao {
     @Query("SELECT COUNT(*) FROM locations WHERE sync_state = 'PENDING'")
     suspend fun pendingCount(): Int
 
+    @Query("SELECT COUNT(*) FROM locations WHERE recorded_at >= :sinceEpochMillis")
+    suspend fun countRecordedSince(sinceEpochMillis: Long): Int
+
     @Query("SELECT COUNT(*) FROM locations WHERE sync_state = 'PENDING'")
     fun observePendingCount(): Flow<Int>
 
