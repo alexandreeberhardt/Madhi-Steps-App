@@ -1,6 +1,5 @@
 package com.madhi.tracker.domain.model
 
-import com.madhi.tracker.domain.error.SyncFailure
 import java.time.Instant
 
 /**
@@ -11,7 +10,17 @@ import java.time.Instant
 data class SyncJournal(
     val lastAttemptAt: Instant? = null,
     val lastSuccessAt: Instant? = null,
-    val lastFailure: SyncFailure? = null,
+
+    /**
+     * Le code de la dernière erreur, pas l'erreur elle-même.
+     *
+     * Ce journal sert à afficher « dernière erreur : rate_limited » dans le
+     * diagnostic. Reconstruire la hiérarchie `SyncFailure` depuis une chaîne
+     * persistée serait lossy — un `ServerError(503)` reviendrait sans son
+     * statut — et n'apporterait rien à l'affichage.
+     */
+    val lastFailureCode: String? = null,
+
     val lastBatchSize: Int? = null,
     val consecutiveFailures: Int = 0,
 ) {

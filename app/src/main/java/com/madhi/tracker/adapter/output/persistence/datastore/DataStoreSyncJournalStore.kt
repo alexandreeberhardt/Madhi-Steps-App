@@ -13,13 +13,6 @@ import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Seul le code de l'échec est persisté, pas l'objet complet.
- *
- * Le journal sert à afficher « dernière erreur : rate_limited » dans le
- * diagnostic ; reconstruire la hiérarchie exacte n'apporterait rien et
- * ferait dépendre un format de stockage de la forme du code.
- */
 @Singleton
 class DataStoreSyncJournalStore @Inject constructor(
     private val dataStore: DataStore<Preferences>,
@@ -55,8 +48,7 @@ class DataStoreSyncJournalStore @Inject constructor(
         SyncJournal(
             lastAttemptAt = preferences[TrackerPreferences.SYNC_LAST_ATTEMPT_AT]?.let(Instant::ofEpochMilli),
             lastSuccessAt = preferences[TrackerPreferences.SYNC_LAST_SUCCESS_AT]?.let(Instant::ofEpochMilli),
-            lastFailure = preferences[TrackerPreferences.SYNC_LAST_FAILURE_CODE]
-                ?.let { code -> SyncFailure.Unexpected(code) },
+            lastFailureCode = preferences[TrackerPreferences.SYNC_LAST_FAILURE_CODE],
             lastBatchSize = preferences[TrackerPreferences.SYNC_LAST_BATCH_SIZE],
             consecutiveFailures = preferences[TrackerPreferences.SYNC_CONSECUTIVE_FAILURES] ?: 0,
         )

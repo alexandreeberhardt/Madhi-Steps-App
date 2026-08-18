@@ -107,6 +107,14 @@ android {
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}")
     }
+
+    testOptions {
+        unitTests {
+            // Room et DataStore ont besoin d'un vrai Context et des ressources
+            // de l'application pour tourner sous Robolectric.
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 kotlin {
@@ -167,6 +175,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.junit)
+    testImplementation(libs.room.testing)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.okhttp.mockwebserver)
