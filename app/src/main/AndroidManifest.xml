@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!--
       Chaque permission est justifiée dans arch/adr/002-execution-en-arriere-plan.md.
@@ -74,6 +75,38 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+
+        <!--
+          Le type `location` n'est pas décoratif : c'est lui qui donne au
+          processus le droit d'accéder à la localisation en arrière-plan, et
+          c'est le seul type qu'Android 15+ autorise encore à démarrer depuis
+          un receveur BOOT_COMPLETED (ADR-002).
+        -->
+        <service
+            android:name=".adapter.input.tracking.TrackingForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <receiver
+            android:name=".adapter.input.tracking.CaptureAlarmReceiver"
+            android:exported="false" />
+
+        <!--
+          WorkManager est initialisé par l'application, pas par son
+          initialiseur automatique, afin que SyncWorker reçoive ses
+          dépendances via la fabrique Hilt.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
     </application>
 

@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Madhi Tracker</string>
+
+    <string name="tracking_channel_name">Suivi du voyage</string>
+    <string name="tracking_channel_description">Indique que l\'enregistrement du trajet est en cours.</string>
+    <string name="tracking_notification_title">Suivi actif</string>
+    <string name="tracking_notification_text">Le trajet est enregistré.</string>
 </resources>

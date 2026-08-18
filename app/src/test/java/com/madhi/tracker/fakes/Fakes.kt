@@ -1,16 +1,22 @@
 package com.madhi.tracker.fakes
 
+import com.madhi.tracker.application.port.CaptureScheduler
 import com.madhi.tracker.application.port.Clock
 import com.madhi.tracker.application.port.EnvironmentSnapshot
 import com.madhi.tracker.application.port.EventLog
 import com.madhi.tracker.application.port.LocationSource
+import com.madhi.tracker.application.port.BatchAcknowledgement
 import com.madhi.tracker.application.port.LocationStore
+import com.madhi.tracker.application.port.LocationSyncGateway
+import com.madhi.tracker.application.port.RejectedPoint
 import com.madhi.tracker.application.port.RebootJournalStore
 import com.madhi.tracker.application.port.SyncScheduler
 import com.madhi.tracker.application.port.TrackingEnvironment
 import com.madhi.tracker.application.port.TrackingIntentStore
+import com.madhi.tracker.application.port.TrackingRuntime
 import com.madhi.tracker.domain.Outcome
 import com.madhi.tracker.domain.error.LocationAcquisitionFailure
+import com.madhi.tracker.domain.error.SyncFailure
 import com.madhi.tracker.domain.failure
 import com.madhi.tracker.domain.model.CaptureInterval
 import com.madhi.tracker.domain.model.LocationFix
@@ -187,4 +193,88 @@ class RecordingEventLog : EventLog {
         events += event
         details += event to detail
     }
+}
+
+class FakeCaptureScheduler : CaptureScheduler {
+    val scheduledDelays = mutableListOf<Duration>()
+    var cancellations: Int = 0
+    var exactAlarmsAllowed: Boolean = true
+
+    val lastDelay: Duration? get() = scheduledDelays.lastOrNull()
+
+    override fun scheduleNext(delay: Duration) {
+        scheduledDelays += delay
+    }
+
+    override fun cancel() {
+        cancellations++
+    }
+
+    override fun canScheduleExactly(): Boolean = exactAlarmsAllowed
+}
+
+class FakeTrackingRuntime : TrackingRuntime {
+    var running: Boolean = false
+    var starts: Int = 0
+    var stops: Int = 0
+
+    override fun start() {
+        running = true
+        starts++
+    }
+
+    override fun stop() {
+        running = false
+        stops++
+    }
+
+    override fun isRunning(): Boolean = running
+}
+
+/**
+ * Simule un serveur qui applique l'idempotence : il retient les
+ * identifiants déjà reçus et les renvoie en `duplicates`, exactement comme
+ * le prévoit `arch/03` §9.
+ */
+class FakeLocationSyncGateway : LocationSyncGateway {
+    private val storedOnServer = mutableSetOf<LocationId>()
+
+    /** Échecs servis dans l'ordre avant de reprendre le comportement normal. */
+    val failures: ArrayDeque<SyncFailure> = ArrayDeque()
+
+    /** Simule une réponse perdue : le serveur reçoit, le client ne voit rien. */
+    var dropNextResponse: Boolean = false
+
+    var rejectedIds: Set<LocationId> = emptySet()
+    val uploadedBatchSizes = mutableListOf<Int>()
+    var uploadCount: Int = 0
+
+    override suspend fun upload(points: List<LocationPoint>): Outcome<BatchAcknowledgement, SyncFailure> {
+        uploadCount++
+        uploadedBatchSizes += points.size
+
+        failures.removeFirstOrNull()?.let { return failure(it) }
+
+        val accepted = mutableListOf<LocationId>()
+        val duplicates = mutableListOf<LocationId>()
+        val rejected = mutableListOf<RejectedPoint>()
+
+        points.forEach { point ->
+            when {
+                point.id in rejectedIds -> rejected += RejectedPoint(point.id, "invalid_coordinates")
+                !storedOnServer.add(point.id) -> duplicates += point.id
+                else -> accepted += point.id
+            }
+        }
+
+        if (dropNextResponse) {
+            dropNextResponse = false
+            // Le serveur a bien enregistre : c'est la reponse qui se perd.
+            return failure(SyncFailure.Timeout)
+        }
+
+        return success(BatchAcknowledgement(accepted, duplicates, rejected))
+    }
+
+    fun serverHolds(id: LocationId): Boolean = id in storedOnServer
 }
