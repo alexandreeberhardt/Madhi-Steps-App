@@ -17,6 +17,11 @@ interface DeviceCredentials {
 
     suspend fun deviceId(): String?
 
+    /**
+     * Stocké dès l'activation mais volontairement inutilisé en V1 :
+     * l'application n'appelle aucun endpoint de lecture. Il sera nécessaire
+     * dès qu'elle consultera des données côté serveur.
+     */
     suspend fun tripId(): String?
 
     /**
@@ -24,6 +29,4 @@ interface DeviceCredentials {
      * depuis une autre couche saute aux yeux en relecture.
      */
     suspend fun authorizationHeaderValue(): String?
-
-    suspend fun clear()
 }

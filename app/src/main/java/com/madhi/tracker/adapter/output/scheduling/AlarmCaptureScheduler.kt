@@ -53,7 +53,8 @@ class AlarmCaptureScheduler @Inject constructor(
         alarmManager?.cancel(pendingIntent())
     }
 
-    override fun canScheduleExactly(): Boolean {
+    /** Une alarme exacte peut être refusée par le système (Android 12+). */
+    private fun canScheduleExactly(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
         return alarmManager?.canScheduleExactAlarms() == true
     }

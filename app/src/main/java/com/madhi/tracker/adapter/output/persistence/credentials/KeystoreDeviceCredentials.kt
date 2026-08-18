@@ -50,14 +50,6 @@ class KeystoreDeviceCredentials @Inject constructor(
     override suspend fun authorizationHeaderValue(): String? =
         read(ENCRYPTED_TOKEN)?.let { "Bearer ${decrypt(it)}" }
 
-    override suspend fun clear() {
-        dataStore.edit {
-            it.remove(DEVICE_ID)
-            it.remove(TRIP_ID)
-            it.remove(ENCRYPTED_TOKEN)
-        }
-    }
-
     private suspend fun read(key: Preferences.Key<String>): String? =
         dataStore.data.map { it[key] }.first()
 

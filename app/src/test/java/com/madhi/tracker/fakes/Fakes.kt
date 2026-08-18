@@ -210,7 +210,6 @@ class RecordingEventLog : EventLog {
 class FakeCaptureScheduler : CaptureScheduler {
     val scheduledDelays = mutableListOf<Duration>()
     var cancellations: Int = 0
-    var exactAlarmsAllowed: Boolean = true
 
     val lastDelay: Duration? get() = scheduledDelays.lastOrNull()
 
@@ -221,8 +220,6 @@ class FakeCaptureScheduler : CaptureScheduler {
     override fun cancel() {
         cancellations++
     }
-
-    override fun canScheduleExactly(): Boolean = exactAlarmsAllowed
 }
 
 class FakeTrackingRuntime : TrackingRuntime {
@@ -321,10 +318,6 @@ class FakeDeviceCredentials : DeviceCredentials {
     override suspend fun deviceId(): String? = activation?.deviceId
     override suspend fun tripId(): String? = activation?.tripId
     override suspend fun authorizationHeaderValue(): String? = activation?.let { "Bearer ${it.deviceToken}" }
-
-    override suspend fun clear() {
-        activation = null
-    }
 }
 
 class FakeOnboardingStore : OnboardingStore {

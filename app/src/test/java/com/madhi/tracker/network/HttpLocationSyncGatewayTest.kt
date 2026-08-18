@@ -38,7 +38,6 @@ class HttpLocationSyncGatewayTest {
         override suspend fun deviceId() = "device-42"
         override suspend fun tripId() = "trip-7"
         override suspend fun authorizationHeaderValue() = "Bearer secret-token"
-        override suspend fun clear() = Unit
     }
 
     private val point = LocationPoint(
