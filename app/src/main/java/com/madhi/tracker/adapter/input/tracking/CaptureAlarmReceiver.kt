@@ -17,6 +17,15 @@ import dagger.hilt.android.AndroidEntryPoint
 class CaptureAlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        TrackingForegroundService.requestCapture(context)
+        try {
+            TrackingForegroundService.requestCapture(context)
+        } catch (e: IllegalStateException) {
+            // Sans exemption d'optimisation de batterie, Android refuse de
+            // démarrer un service de premier plan depuis l'arrière-plan.
+            // Laisser remonter ferait planter à chaque réveil d'alarme : une
+            // dégradation deviendrait une boucle de plantages.
+        } catch (e: SecurityException) {
+            // Idem, selon la version d'Android et le constructeur.
+        }
     }
 }
