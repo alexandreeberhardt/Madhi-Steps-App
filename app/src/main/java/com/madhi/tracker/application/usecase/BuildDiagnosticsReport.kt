@@ -11,10 +11,10 @@ import com.madhi.tracker.application.port.TrackingIntentStore
 import com.madhi.tracker.application.port.TrackingRuntime
 import com.madhi.tracker.domain.RebootDetection
 import com.madhi.tracker.domain.TrackingCoverage
+import com.madhi.tracker.domain.TrackingProblemDetection
 import com.madhi.tracker.domain.TrackingHealthPolicy
 import com.madhi.tracker.domain.model.SyncJournal
 import com.madhi.tracker.domain.model.TrackingIntent
-import com.madhi.tracker.domain.model.TrackingProblem
 import com.madhi.tracker.domain.model.TrackingStatus
 import java.time.Instant
 import javax.inject.Inject
@@ -49,7 +49,17 @@ class BuildDiagnosticsReport @Inject constructor(
             uptime = clock.uptime(),
         )
 
-        val problems = detectProblems(snapshot, autostartBlocked, credentials.isActivated())
+        val problems = TrackingProblemDetection.detect(
+            hasForegroundLocationPermission = snapshot.hasForegroundLocationPermission,
+            hasBackgroundLocationPermission = snapshot.hasBackgroundLocationPermission,
+            hasNotificationPermission = snapshot.hasNotificationPermission,
+            isLocationEnabled = snapshot.isLocationEnabled,
+            isIgnoringBatteryOptimizations = snapshot.isIgnoringBatteryOptimizations,
+            canScheduleExactAlarms = snapshot.canScheduleExactAlarms,
+            autostartBlocked = autostartBlocked,
+            deviceActivated = credentials.isActivated(),
+            authenticationFailed = syncJournalStore.read().lastFailureCode == "unauthorized",
+        )
 
         val coverage = TrackingCoverage.evaluate(
             window = coverageWindow,
@@ -75,23 +85,6 @@ class BuildDiagnosticsReport @Inject constructor(
             coverageWindow = coverageWindow,
             generatedAt = now,
         )
-    }
-
-    private fun detectProblems(
-        snapshot: EnvironmentSnapshot,
-        autostartBlocked: Boolean,
-        activated: Boolean,
-    ): List<TrackingProblem> = buildList {
-        if (!activated) add(TrackingProblem.DEVICE_NOT_ACTIVATED)
-        if (!snapshot.hasForegroundLocationPermission) add(TrackingProblem.LOCATION_PERMISSION_MISSING)
-        if (!snapshot.hasBackgroundLocationPermission) {
-            add(TrackingProblem.BACKGROUND_LOCATION_PERMISSION_MISSING)
-        }
-        if (!snapshot.isLocationEnabled) add(TrackingProblem.LOCATION_DISABLED)
-        if (autostartBlocked) add(TrackingProblem.AUTOSTART_BLOCKED)
-        if (!snapshot.isIgnoringBatteryOptimizations) add(TrackingProblem.BATTERY_OPTIMIZATION_ENABLED)
-        if (!snapshot.canScheduleExactAlarms) add(TrackingProblem.EXACT_ALARM_NOT_PERMITTED)
-        if (!snapshot.hasNotificationPermission) add(TrackingProblem.NOTIFICATIONS_BLOCKED)
     }
 
     private companion object {

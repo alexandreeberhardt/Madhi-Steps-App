@@ -1,5 +1,6 @@
 package com.madhi.tracker.presentation
 
+import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,13 +12,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.madhi.tracker.domain.model.TrackingProblem
 import com.madhi.tracker.presentation.diagnostics.DiagnosticsScreen
+import com.madhi.tracker.presentation.map.MainScreen
 import com.madhi.tracker.presentation.onboarding.OnboardingScreen
+import com.madhi.tracker.presentation.settings.SettingsScreen
+
+private const val ROUTE_MAIN = "main"
+private const val ROUTE_SETTINGS = "settings"
+private const val ROUTE_DIAGNOSTICS = "diagnostics"
 
 /**
- * Navigation volontairement minimale : deux destinations, choisies une fois
- * au démarrage. Une bibliothèque de navigation n'apporterait rien tant que
- * l'écran principal carte-first n'existe pas (ADR-006).
+ * Trois destinations en pile, sans barre de navigation permanente
+ * (`arch/09` §5) : accueil, réglages, diagnostic. La navigation Jetpack
+ * n'est utilisée que pour la gestion correcte du bouton retour système,
+ * qu'un état maison gérerait mal.
  */
 @Composable
 fun MadhiTrackerApp(viewModel: RootViewModel = hiltViewModel()) {
@@ -40,8 +52,67 @@ fun MadhiTrackerApp(viewModel: RootViewModel = hiltViewModel()) {
             deviceName = "${Build.MANUFACTURER} ${Build.MODEL}",
         )
 
-        RootDestination.Diagnostics -> DiagnosticsScreen(
-            onRequestPermissions = permissions.requestForeground,
-        )
+        RootDestination.Diagnostics -> {
+            val navController = rememberNavController()
+
+            NavHost(navController = navController, startDestination = ROUTE_MAIN) {
+                composable(ROUTE_MAIN) {
+                    MainScreen(
+                        onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
+                        onFixProblem = { problem ->
+                            resolveProblem(
+                                problem = problem,
+                                context = context,
+                                permissions = permissions,
+                                vendor = viewModel.vendor,
+                                openDiagnostics = { navController.navigate(ROUTE_DIAGNOSTICS) },
+                            )
+                        },
+                    )
+                }
+
+                composable(ROUTE_SETTINGS) {
+                    SettingsScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenDiagnostics = { navController.navigate(ROUTE_DIAGNOSTICS) },
+                    )
+                }
+
+                composable(ROUTE_DIAGNOSTICS) {
+                    DiagnosticsScreen(onRequestPermissions = permissions.requestForeground)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Le bouton « Corriger » mène directement à l'écran qui règle le problème.
+ *
+ * C'est l'intention de `arch/09` §4 : la voyageuse ne doit pas avoir à
+ * chercher dans les réglages Android, ni à traduire un nom de permission en
+ * geste concret.
+ */
+private fun resolveProblem(
+    problem: TrackingProblem,
+    context: Context,
+    permissions: PermissionRequests,
+    vendor: com.madhi.tracker.domain.model.DeviceVendor,
+    openDiagnostics: () -> Unit,
+) {
+    when (problem) {
+        TrackingProblem.LOCATION_PERMISSION_MISSING -> permissions.requestForeground()
+        TrackingProblem.BACKGROUND_LOCATION_PERMISSION_MISSING -> permissions.requestBackground()
+        TrackingProblem.LOCATION_DISABLED -> openLocationSettings(context)
+        TrackingProblem.BATTERY_OPTIMIZATION_ENABLED -> openBatteryOptimizationSettings(context)
+        TrackingProblem.EXACT_ALARM_NOT_PERMITTED -> openExactAlarmSettings(context)
+        TrackingProblem.AUTOSTART_BLOCKED -> openVendorSettings(context, vendor)
+        TrackingProblem.NOTIFICATIONS_BLOCKED -> openNotificationSettings(context)
+
+        // Ces deux-là demandent une réactivation, qui n'a pas encore d'écran
+        // dédié hors onboarding : le diagnostic donne au moins l'état exact.
+        TrackingProblem.DEVICE_NOT_ACTIVATED,
+        TrackingProblem.AUTHENTICATION_FAILED,
+        -> openDiagnostics()
     }
 }

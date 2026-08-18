@@ -102,6 +102,18 @@ fun openVendorSettings(context: Context, vendor: DeviceVendor) {
     if (!opened) openApplicationDetails(context)
 }
 
+fun openLocationSettings(context: Context) {
+    if (!context.startActivitySafely(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))) {
+        openApplicationDetails(context)
+    }
+}
+
+fun openNotificationSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+    if (!context.startActivitySafely(intent)) openApplicationDetails(context)
+}
+
 fun openApplicationDetails(context: Context) {
     context.startActivitySafely(
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
