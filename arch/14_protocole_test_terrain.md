@@ -61,12 +61,30 @@ Ouvrir l'écran Diagnostic et vérifier que la carte **Système** affiche
 
 # 4. Installation
 
-    ./gradlew assembleDebug
-    adb install -r app/build/outputs/apk/debug/app-debug.apk
+**Les tests se passent sur le build release**, celui qui part en voyage :
 
-Le build debug n'a pas besoin de serveur : sans activation, les positions
-s'accumulent en `PENDING`. C'est volontaire — cela teste exactement le
-scénario hors ligne prolongé.
+    ./gradlew assembleRelease
+    adb install app/build/outputs/apk/release/app-release.apk
+
+R8 supprime du code que le build debug conserve. Valider le debug puis livrer
+le release reviendrait à ne pas avoir testé l'APK réel.
+
+Trois conséquences, vérifiées sur le OnePlus le 19 août 2026 :
+
+- Le release porte l'applicationId `com.madhi.tracker`, sans le suffixe
+  `.debug`. Il **s'installe à côté** du build de développement au lieu de le
+  remplacer : désinstaller le debug avant, sinon deux traqueurs se disputent
+  le GPS.
+- **Les réglages propriétaires sont attachés au paquet.** Ceux appliqués au
+  build debug ne valent pas pour le release : les cinq réglages de §3 sont à
+  refaire après l'installation, sans quoi le test reproduit les conditions de
+  l'échec de T1.
+- **`run-as` ne fonctionne pas** sur un paquet non débogable. La procédure de
+  copie de `madhi-tracker.db` ne s'applique donc plus. Le taux de couverture
+  se lit sur l'écran Diagnostic, et le décompte réel se vérifie côté serveur.
+
+Le build debug reste utile pour éprouver le scénario hors ligne prolongé :
+sans activation, les positions s'accumulent en `PENDING`.
 
 # 5. Tests
 
