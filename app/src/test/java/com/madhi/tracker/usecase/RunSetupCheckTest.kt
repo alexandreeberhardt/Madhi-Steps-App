@@ -1,6 +1,5 @@
 package com.madhi.tracker.usecase
 
-import com.madhi.tracker.application.usecase.CaptureLocation
 import com.madhi.tracker.application.usecase.RunSetupCheck
 import com.madhi.tracker.application.usecase.SyncPendingLocations
 import com.madhi.tracker.domain.error.LocationAcquisitionFailure
@@ -11,6 +10,8 @@ import com.madhi.tracker.domain.model.DeviceActivation
 import com.madhi.tracker.domain.model.LocationFix
 import com.madhi.tracker.domain.model.TrackingIntent
 import com.madhi.tracker.fakes.FakeClock
+import com.madhi.tracker.fakes.captureLocationWith
+import com.madhi.tracker.fakes.recordLocationWith
 import com.madhi.tracker.fakes.FakeDeviceCredentials
 import com.madhi.tracker.fakes.FakeLocationSource
 import com.madhi.tracker.fakes.FakeLocationStore
@@ -36,15 +37,12 @@ class RunSetupCheckTest {
     private val eventLog = RecordingEventLog()
 
     private val runSetupCheck = RunSetupCheck(
-        captureLocation = CaptureLocation(
+        captureLocation = captureLocationWith(
             locationSource = locationSource,
-            locationStore = locationStore,
             trackingIntentStore = FakeTrackingIntentStore(
                 TrackingIntent(enabled = true, captureInterval = CaptureInterval.FIVE),
             ),
-            environment = FakeTrackingEnvironment(),
-            rebootJournalStore = FakeRebootJournalStore(),
-            syncScheduler = FakeSyncScheduler(),
+            recordLocation = recordLocationWith(locationStore = locationStore, eventLog = eventLog, clock = clock),
             eventLog = eventLog,
             clock = clock,
         ),

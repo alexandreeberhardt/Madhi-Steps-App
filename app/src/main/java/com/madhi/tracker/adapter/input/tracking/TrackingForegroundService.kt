@@ -16,9 +16,11 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.madhi.tracker.R
 import com.madhi.tracker.application.usecase.RunScheduledCapture
+import com.madhi.tracker.application.usecase.TrackLocations
 import com.madhi.tracker.presentation.MainActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -42,6 +44,12 @@ class TrackingForegroundService : Service() {
     @Inject
     lateinit var runScheduledCapture: RunScheduledCapture
 
+    @Inject
+    lateinit var trackLocations: TrackLocations
+
+    /** Abonnement au flux de positions ; il vit aussi longtemps que le service. */
+    private var trackingJob: Job? = null
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     /** Une seule acquisition à la fois : deux GPS simultanés ne servent à rien. */
@@ -55,6 +63,10 @@ class TrackingForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForegroundIfNeeded()
 
+        // L'abonnement au flux est ce qui produit réellement les positions.
+        // Il est (ré)ouvert à chaque démarrage, et jamais dupliqué.
+        startTracking()
+
         if (intent?.action == ACTION_CAPTURE) {
             capture()
         }
@@ -63,6 +75,18 @@ class TrackingForegroundService : Service() {
         // tué. MIUI l'ignore souvent ; le watchdog WorkManager prend alors le
         // relais (ADR-007 §3.2). Cela ne coûte rien de le demander.
         return START_STICKY
+    }
+
+    private fun startTracking() {
+        if (trackingJob?.isActive == true) return
+        trackingJob = scope.launch {
+            try {
+                trackLocations()
+            } catch (e: Exception) {
+                // Le flux peut mourir sur une révocation de permission. Le
+                // filet de sécurité de l'alarme reprendra la main.
+            }
+        }
     }
 
     private fun capture() {
@@ -139,6 +163,7 @@ class TrackingForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        trackingJob?.cancel()
         scope.cancel()
         super.onDestroy()
     }

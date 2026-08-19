@@ -9,6 +9,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.madhi.tracker.adapter.output.location.AndroidLocationSource
 import com.madhi.tracker.application.port.Clock
+import com.madhi.tracker.fakes.RecordingEventLog
 import com.madhi.tracker.domain.error.LocationAcquisitionFailure
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.advanceTimeBy
@@ -43,7 +44,7 @@ class AndroidLocationSourceTest {
         override fun uptime() = 1.seconds
     }
 
-    private val source = AndroidLocationSource(application, clock)
+    private val source = AndroidLocationSource(application, RecordingEventLog(), clock)
 
     @Before
     fun setUp() {

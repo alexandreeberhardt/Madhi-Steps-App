@@ -8,16 +8,23 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import androidx.core.location.LocationListenerCompat
 import androidx.core.location.LocationManagerCompat
+import androidx.core.location.LocationRequestCompat
 import com.madhi.tracker.application.port.Clock
+import com.madhi.tracker.application.port.EventLog
 import com.madhi.tracker.application.port.LocationSource
 import com.madhi.tracker.domain.Outcome
 import com.madhi.tracker.domain.error.LocationAcquisitionFailure
 import com.madhi.tracker.domain.failure
 import com.madhi.tracker.domain.model.Coordinates
 import com.madhi.tracker.domain.model.LocationFix
+import com.madhi.tracker.domain.model.TrackerEvent
 import com.madhi.tracker.domain.success
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
@@ -27,31 +34,84 @@ import kotlin.coroutines.resume
 import kotlin.time.Duration
 
 /**
- * Acquisition ponctuelle via l'API système `LocationManager`.
- *
- * Le choix de `LocationManager` plutôt que Fused Location Provider est une
- * contrainte produit, pas une préférence technique : le suivi ne doit
- * dépendre ni de Google Play Services ni du Play Store (ADR-001).
- *
- * Le GPS n'est allumé que le temps d'un point. Une acquisition qui n'aboutit
- * pas est abandonnée au bout du délai imparti — laisser le récepteur allumé
- * en espérant un fix est le plus sûr moyen de vider la batterie en une nuit.
+ * Localisation via l'API système `LocationManager`, sans Google Play
+ * Services (ADR-001).
  */
 @Singleton
 class AndroidLocationSource @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val eventLog: EventLog,
     private val clock: Clock,
 ) : LocationSource {
 
     private val locationManager: LocationManager?
         get() = ContextCompat.getSystemService(context, LocationManager::class.java)
 
+    /**
+     * Abonnement continu à la cadence demandée.
+     *
+     * `LocationRequestCompat` exprime l'intervalle **et** une exigence de
+     * qualité : le système peut alors éteindre le récepteur entre deux
+     * points, ce qu'une boucle applicative ne saurait pas faire. C'est aussi
+     * ce qui rend cette voie moins coûteuse en batterie qu'un réveil forcé
+     * du processeur toutes les cinq minutes.
+     */
+    override fun stream(interval: Duration): Flow<LocationFix> = callbackFlow {
+        val manager = locationManager
+        if (manager == null || !hasLocationPermission()) {
+            eventLog.record(TrackerEvent.ACQUISITION_FAILED, "stream_permission_missing")
+            close()
+            return@callbackFlow
+        }
+
+        val request = LocationRequestCompat.Builder(interval.inWholeMilliseconds)
+            // Ne pas livrer plus vite que la moitié de l'intervalle, même si
+            // le système a un point sous la main : inutile de remplir la base.
+            .setMinUpdateIntervalMillis(interval.inWholeMilliseconds / 2)
+            // Précision suffisante plutôt que maximale (`arch/01` §4).
+            .setQuality(LocationRequestCompat.QUALITY_BALANCED_POWER_ACCURACY)
+            .build()
+
+        val listener = LocationListenerCompat { location -> trySend(location.toFix()) }
+
+        val providers = subscribableProviders(manager)
+        if (providers.isEmpty()) {
+            eventLog.record(TrackerEvent.ACQUISITION_FAILED, "stream_no_provider")
+            close()
+            return@callbackFlow
+        }
+
+        providers.forEach { provider ->
+            try {
+                LocationManagerCompat.requestLocationUpdates(
+                    manager,
+                    provider,
+                    request,
+                    ContextCompat.getMainExecutor(context),
+                    listener,
+                )
+            } catch (e: SecurityException) {
+                eventLog.record(TrackerEvent.ACQUISITION_FAILED, "stream_security")
+            }
+        }
+        eventLog.record(TrackerEvent.STREAM_STARTED, providers.joinToString("+"))
+
+        awaitClose {
+            try {
+                LocationManagerCompat.removeUpdates(manager, listener)
+            } catch (e: SecurityException) {
+                // La permission a pu être révoquée pendant l'abonnement : les
+                // mises à jour sont de toute façon arrêtées, et laisser
+                // remonter ferait planter à la fermeture du service.
+            }
+            eventLog.record(TrackerEvent.STREAM_STOPPED)
+        }
+    }
+
     override suspend fun acquire(timeout: Duration): Outcome<LocationFix, LocationAcquisitionFailure> {
         if (!hasLocationPermission()) return failure(LocationAcquisitionFailure.PermissionMissing)
 
-        val manager = locationManager
-            ?: return failure(LocationAcquisitionFailure.LocationDisabled)
-
+        val manager = locationManager ?: return failure(LocationAcquisitionFailure.LocationDisabled)
         if (!LocationManagerCompat.isLocationEnabled(manager)) {
             return failure(LocationAcquisitionFailure.LocationDisabled)
         }
@@ -63,15 +123,27 @@ class AndroidLocationSource @Inject constructor(
     }
 
     /**
+     * S'abonner aux deux fournisseurs plutôt qu'au seul GPS.
+     *
+     * Le test T1 a passé une nuit entière sans qu'un fix GPS n'aboutisse en
+     * intérieur. Le fournisseur réseau donne alors une position approximative,
+     * ce qui vaut mieux qu'un trou : une position à cinq cents mètres reste
+     * exploitable pour un trajet à vélo.
+     */
+    private fun subscribableProviders(manager: LocationManager): List<String> = buildList {
+        if (manager.isProviderEnabledSafely(LocationManager.GPS_PROVIDER)) add(LocationManager.GPS_PROVIDER)
+        if (manager.isProviderEnabledSafely(LocationManager.NETWORK_PROVIDER)) add(LocationManager.NETWORK_PROVIDER)
+    }
+
+    /**
      * Traduit le rappel de `LocationManager` en appel suspendu annulable.
      *
      * `invokeOnCancellation` est le point critique : sans lui, un délai
-     * dépassé ou une coroutine annulée laisserait le GPS enregistré et donc
-     * allumé indéfiniment.
+     * dépassé laisserait le GPS enregistré, donc allumé indéfiniment.
      */
     private suspend fun awaitSingleUpdate(manager: LocationManager): Location? =
         suspendCancellableCoroutine { continuation ->
-            val provider = chooseProvider(manager)
+            val provider = subscribableProviders(manager).firstOrNull()
             if (provider == null) {
                 continuation.resume(null)
                 return@suspendCancellableCoroutine
@@ -83,8 +155,6 @@ class AndroidLocationSource @Inject constructor(
                     if (continuation.isActive) continuation.resume(location)
                 }
 
-                // Obligatoires avant Android 12, sans quoi certains appareils
-                // lèvent une AbstractMethodError sur le rappel du fournisseur.
                 override fun onProviderEnabled(provider: String) = Unit
                 override fun onProviderDisabled(provider: String) {
                     manager.removeUpdatesSafely(this)
@@ -103,17 +173,6 @@ class AndroidLocationSource @Inject constructor(
             }
         }
 
-    /**
-     * Le GPS est préféré parce que sa précision est celle qui donne un tracé
-     * exploitable. Le fournisseur réseau sert de repli lorsque le GPS est
-     * indisponible : mieux vaut un point à cinq cents mètres que pas de point.
-     */
-    private fun chooseProvider(manager: LocationManager): String? = when {
-        manager.isProviderEnabledSafely(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
-        manager.isProviderEnabledSafely(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
-        else -> null
-    }
-
     private fun hasLocationPermission(): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED ||
@@ -122,8 +181,8 @@ class AndroidLocationSource @Inject constructor(
 
     private fun Location.toFix(): LocationFix = LocationFix(
         coordinates = Coordinates(latitude, longitude),
-        // L'horodatage du fix prime sur l'heure courante : il correspond au
-        // moment où la position a été mesurée, pas à celui où on la traite.
+        // L'horodatage du fix prime : il correspond au moment de la mesure,
+        // pas à celui du traitement.
         recordedAt = if (time > 0L) Instant.ofEpochMilli(time) else clock.now(),
         accuracyMeters = if (hasAccuracy()) accuracy else null,
         altitudeMeters = if (hasAltitude()) altitude else null,

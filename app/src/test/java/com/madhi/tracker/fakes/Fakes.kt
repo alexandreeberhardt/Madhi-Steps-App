@@ -36,6 +36,7 @@ import com.madhi.tracker.domain.model.TrackerEvent
 import com.madhi.tracker.domain.model.TrackingIntent
 import com.madhi.tracker.domain.success
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -61,6 +62,17 @@ class FakeClock(
 }
 
 class FakeLocationSource : LocationSource {
+    /** Positions poussées par le flux ; les tests y émettent à la demande. */
+    val streamed = MutableSharedFlow<LocationFix>(extraBufferCapacity = 64)
+    var lastStreamInterval: Duration? = null
+    var streamSubscriptions: Int = 0
+
+    override fun stream(interval: Duration): Flow<LocationFix> {
+        lastStreamInterval = interval
+        streamSubscriptions++
+        return streamed
+    }
+
     /** Réponses servies dans l'ordre ; la dernière est répétée si besoin. */
     var responses: MutableList<Outcome<LocationFix, LocationAcquisitionFailure>> = mutableListOf()
     var lastTimeout: Duration? = null

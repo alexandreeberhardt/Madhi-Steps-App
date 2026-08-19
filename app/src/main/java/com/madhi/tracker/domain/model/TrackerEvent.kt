@@ -20,6 +20,13 @@ enum class TrackerEvent {
      */
     CAPTURE_SCHEDULED,
 
+    /** Abonnement au flux de positions ouvert, avec les fournisseurs retenus. */
+    STREAM_STARTED,
+    STREAM_STOPPED,
+
+    /** Le flux n'a rien livré depuis trop longtemps : le filet prend le relais. */
+    STREAM_SILENT,
+
     LOCATION_ACQUIRED,
     LOCATION_SAVED,
     LOCATION_REJECTED,

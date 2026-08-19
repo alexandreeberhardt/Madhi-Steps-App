@@ -1,0 +1,37 @@
+package com.madhi.tracker.application.usecase
+
+import com.madhi.tracker.application.port.LocationSource
+import com.madhi.tracker.application.port.TrackingIntentStore
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+
+/**
+ * Le suivi continu : le sous-système de localisation cadence, l'application
+ * enregistre.
+ *
+ * C'est le mécanisme principal depuis l'échec du test T1, où l'alarme
+ * demandée exacte revenait avec une fenêtre de 225 secondes imposée par le
+ * constructeur, sans que l'application puisse le détecter.
+ *
+ * Changer l'intervalle dans les réglages réabonne automatiquement : c'est le
+ * rôle de `flatMapLatest`, qui referme le flux précédent — donc relâche le
+ * récepteur — avant d'en ouvrir un nouveau.
+ */
+class TrackLocations @Inject constructor(
+    private val locationSource: LocationSource,
+    private val trackingIntentStore: TrackingIntentStore,
+    private val recordLocation: RecordLocation,
+) {
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    suspend operator fun invoke() {
+        trackingIntentStore.observe()
+            .map { it.captureInterval }
+            .distinctUntilChanged()
+            .flatMapLatest { interval -> locationSource.stream(interval.duration) }
+            .collect { fix -> recordLocation(fix) }
+    }
+}

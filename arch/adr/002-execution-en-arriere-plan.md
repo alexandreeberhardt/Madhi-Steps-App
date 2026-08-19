@@ -123,3 +123,17 @@ L'appareil cible étant un Xiaomi sous MIUI 14, cet ADR est complété par
 blocage de démarrage automatique, la résurrection du service par WorkManager et
 l'onboarding spécifique MIUI. Les décisions ci-dessus restent valables telles
 quelles ; MIUI ne les remet pas en cause, il les rend insuffisantes à elles seules.
+
+# Amendement — 2026-08-19
+
+Le métronome décrit ci-dessus **ne fonctionne pas** sur les surcouches
+constructeur. Le test T1 a mesuré 36 % de couverture sur OxygenOS, l'alarme
+demandée exacte étant reposée avec une fenêtre de 225 secondes.
+
+La cadence est désormais confiée au fournisseur de localisation :
+voir [ADR-008](008-cadence-par-le-flux-de-localisation.md). L'alarme décrite
+ici subsiste comme filet de sécurité, plus comme mécanisme principal.
+
+Le reste de cet ADR — service de premier plan de type `location`, permissions,
+exemption d'optimisation de batterie, reprise après redémarrage — reste
+valable et nécessaire.

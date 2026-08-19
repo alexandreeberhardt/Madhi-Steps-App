@@ -1,30 +1,35 @@
 package com.madhi.tracker.usecase
 
 import com.madhi.tracker.application.usecase.CaptureLocation
+import com.madhi.tracker.application.usecase.CaptureResult
 import com.madhi.tracker.application.usecase.RunScheduledCapture
 import com.madhi.tracker.domain.error.LocationAcquisitionFailure
 import com.madhi.tracker.domain.model.CaptureInterval
 import com.madhi.tracker.domain.model.Coordinates
 import com.madhi.tracker.domain.model.LocationFix
+import com.madhi.tracker.domain.model.LocationId
+import com.madhi.tracker.domain.model.LocationPoint
+import com.madhi.tracker.domain.model.TrackerEvent
 import com.madhi.tracker.domain.model.TrackingIntent
 import com.madhi.tracker.fakes.FakeCaptureScheduler
 import com.madhi.tracker.fakes.FakeClock
 import com.madhi.tracker.fakes.FakeLocationSource
 import com.madhi.tracker.fakes.FakeLocationStore
 import com.madhi.tracker.fakes.FakeRebootJournalStore
-import com.madhi.tracker.fakes.FakeSyncScheduler
-import com.madhi.tracker.fakes.FakeTrackingEnvironment
 import com.madhi.tracker.fakes.FakeTrackingIntentStore
 import com.madhi.tracker.fakes.RecordingEventLog
+import com.madhi.tracker.fakes.captureLocationWith
+import com.madhi.tracker.fakes.recordLocationWith
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * La chaîne d'alarmes est ce qui fait vivre le suivi pendant un an. Un seul
- * maillon manquant l'arrête définitivement, sans erreur visible.
+ * Depuis l'échec de T1, l'alarme n'est plus le métronome : elle surveille
+ * que le flux du fournisseur de localisation livre bien des positions.
  */
 class RunScheduledCaptureTest {
 
@@ -35,20 +40,22 @@ class RunScheduledCaptureTest {
         TrackingIntent(enabled = true, captureInterval = CaptureInterval.FIVE),
     )
     private val captureScheduler = FakeCaptureScheduler()
+    private val eventLog = RecordingEventLog()
 
     private val runScheduledCapture = RunScheduledCapture(
-        captureLocation = CaptureLocation(
+        captureLocation = captureLocationWith(
             locationSource = locationSource,
-            locationStore = locationStore,
             trackingIntentStore = intentStore,
-            environment = FakeTrackingEnvironment(),
+            recordLocation = recordLocationWith(locationStore = locationStore, clock = clock),
             rebootJournalStore = FakeRebootJournalStore(),
-            syncScheduler = FakeSyncScheduler(),
-            eventLog = RecordingEventLog(),
+            eventLog = eventLog,
             clock = clock,
         ),
         captureScheduler = captureScheduler,
         trackingIntentStore = intentStore,
+        locationStore = locationStore,
+        eventLog = eventLog,
+        clock = clock,
     )
 
     private fun validFix() = LocationFix(
@@ -59,60 +66,59 @@ class RunScheduledCaptureTest {
         speedMetersPerSecond = null,
     )
 
+    private suspend fun givenPointRecorded(minutesAgo: Long) {
+        locationStore.save(
+            LocationPoint(
+                id = LocationId.random(),
+                coordinates = Coordinates(48.85, 2.29),
+                recordedAt = clock.instant.minusSeconds(minutesAgo * 60),
+            ),
+        )
+    }
+
     @Test
-    fun `une capture reussie programme la suivante`() = runTest {
+    fun `ne rallume pas le GPS quand le flux vient de livrer`() = runTest {
+        givenPointRecorded(minutesAgo = 2)
         locationSource.willReturn(validFix())
 
-        runScheduledCapture()
+        val result = runScheduledCapture()
 
-        assertEquals(5.minutes, captureScheduler.lastDelay)
+        assertNull(result)
+        assertEquals(0, locationSource.acquisitionCount)
     }
 
     @Test
-    fun `une acquisition ratee programme quand meme la suivante`() = runTest {
-        // Le cas qui tue un suivi : un tunnel, un echec, et plus jamais
-        // d'alarme pour le reste du voyage.
-        locationSource.willFail(LocationAcquisitionFailure.Timeout)
+    fun `tolere un retard d'un intervalle sans intervenir`() = runTest {
+        // Le systeme a le droit de decaler une livraison : l'objectif produit
+        // dit « environ » cinq minutes.
+        givenPointRecorded(minutesAgo = 7)
 
-        runScheduledCapture()
-
-        assertEquals(5.minutes, captureScheduler.lastDelay)
+        assertNull(runScheduledCapture())
+        assertEquals(0, locationSource.acquisitionCount)
     }
 
     @Test
-    fun `une position invalide programme quand meme la suivante`() = runTest {
-        locationSource.willReturn(validFix().copy(coordinates = Coordinates(0.0, 0.0)))
-
-        runScheduledCapture()
-
-        assertEquals(5.minutes, captureScheduler.lastDelay)
-    }
-
-    @Test
-    fun `la localisation desactivee programme quand meme la suivante`() = runTest {
-        // La voyageuse peut rallumer le GPS a tout moment : il faut etre la
-        // pour le prochain creneau.
-        locationSource.willFail(LocationAcquisitionFailure.LocationDisabled)
-
-        runScheduledCapture()
-
-        assertEquals(5.minutes, captureScheduler.lastDelay)
-    }
-
-    @Test
-    fun `la chaine se poursuit sur une longue serie d'echecs`() = runTest {
-        locationSource.willFail(LocationAcquisitionFailure.Timeout)
-
-        repeat(100) { runScheduledCapture() }
-
-        assertEquals(100, captureScheduler.scheduledDelays.size)
-        assertTrue(captureScheduler.scheduledDelays.all { it == 5.minutes })
-    }
-
-    @Test
-    fun `le nouvel intervalle est pris en compte des la capture suivante`() = runTest {
+    fun `capture quand le flux s'est tu au-dela de deux intervalles`() = runTest {
+        givenPointRecorded(minutesAgo = 12)
         locationSource.willReturn(validFix())
-        intentStore.setCaptureInterval(CaptureInterval.FIFTEEN)
+
+        val result = runScheduledCapture()
+
+        assertTrue(result is CaptureResult.Captured)
+        assertEquals(1, locationSource.acquisitionCount)
+        assertTrue(eventLog.events.contains(TrackerEvent.STREAM_SILENT))
+    }
+
+    @Test
+    fun `capture quand aucune position n'existe encore`() = runTest {
+        locationSource.willReturn(validFix())
+
+        assertTrue(runScheduledCapture() is CaptureResult.Captured)
+    }
+
+    @Test
+    fun `surveille trois fois moins souvent que la cadence de capture`() = runTest {
+        givenPointRecorded(minutesAgo = 1)
 
         runScheduledCapture()
 
@@ -120,8 +126,29 @@ class RunScheduledCaptureTest {
     }
 
     @Test
-    fun `un arret pendant l'acquisition annule la chaine au lieu de la poursuivre`() = runTest {
-        locationSource.willReturn(validFix())
+    fun `une acquisition ratee reprogramme quand meme la surveillance`() = runTest {
+        // Le cas qui tue un suivi : un echec, et plus jamais de verification.
+        givenPointRecorded(minutesAgo = 30)
+        locationSource.willFail(LocationAcquisitionFailure.Timeout)
+
+        runScheduledCapture()
+
+        assertEquals(15.minutes, captureScheduler.lastDelay)
+    }
+
+    @Test
+    fun `la surveillance se poursuit sur une longue serie d'echecs`() = runTest {
+        locationSource.willFail(LocationAcquisitionFailure.Timeout)
+
+        repeat(50) { runScheduledCapture() }
+
+        assertEquals(50, captureScheduler.scheduledDelays.size)
+        assertTrue(captureScheduler.scheduledDelays.all { it == 15.minutes })
+    }
+
+    @Test
+    fun `un arret pendant la verification annule la surveillance`() = runTest {
+        givenPointRecorded(minutesAgo = 1)
         intentStore.setEnabled(false)
 
         runScheduledCapture()
@@ -131,30 +158,41 @@ class RunScheduledCaptureTest {
     }
 
     @Test
-    fun `une exception inattendue ne laisse pas la chaine sans alarme`() = runTest {
+    fun `l'intervalle configure change la cadence de surveillance`() = runTest {
+        givenPointRecorded(minutesAgo = 1)
+        intentStore.setCaptureInterval(CaptureInterval.TWO)
+
+        runScheduledCapture()
+
+        assertEquals(6.minutes, captureScheduler.lastDelay)
+    }
+
+    @Test
+    fun `une exception inattendue ne laisse pas la surveillance sans alarme`() = runTest {
         val explosive = object : com.madhi.tracker.application.port.LocationSource {
-            override suspend fun acquire(timeout: kotlin.time.Duration) =
-                throw IllegalStateException("panne inattendue du fournisseur")
+            override fun stream(interval: kotlin.time.Duration) = throw IllegalStateException("panne")
+            override suspend fun acquire(timeout: kotlin.time.Duration) = throw IllegalStateException("panne")
         }
         val useCase = RunScheduledCapture(
             captureLocation = CaptureLocation(
                 locationSource = explosive,
-                locationStore = locationStore,
                 trackingIntentStore = intentStore,
-                environment = FakeTrackingEnvironment(),
+                recordLocation = recordLocationWith(locationStore = locationStore, clock = clock),
                 rebootJournalStore = FakeRebootJournalStore(),
-                syncScheduler = FakeSyncScheduler(),
-                eventLog = RecordingEventLog(),
+                eventLog = eventLog,
                 clock = clock,
             ),
             captureScheduler = captureScheduler,
             trackingIntentStore = intentStore,
+            locationStore = locationStore,
+            eventLog = eventLog,
+            clock = clock,
         )
 
         runCatching { useCase() }
 
         // L'exception remonte pour etre visible, mais l'alarme suivante est
-        // programmee avant : le suivi survit a un bug.
-        assertEquals(5.minutes, captureScheduler.lastDelay)
+        // programmee avant : la surveillance survit a un bug.
+        assertEquals(15.minutes, captureScheduler.lastDelay)
     }
 }
