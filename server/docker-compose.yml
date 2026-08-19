@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: postgres:16.4-bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-madhi_tracker}
+      POSTGRES_USER: ${POSTGRES_USER:-madhi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-madhi_dev_password}
+    volumes:
+      # Volume a sauvegarder : si ces donnees disparaissent, les positions serveur disparaissent.
+      - madhi_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  migrate:
+    build:
+      context: .
+      target: runtime
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://madhi:madhi_dev_password@postgres:5432/madhi_tracker}
+      DEVICE_TOKEN_HASH_SECRET: ${DEVICE_TOKEN_HASH_SECRET:-dev-secret-change-me}
+      ACTIVATION_CODE_HASH_SECRET: ${ACTIVATION_CODE_HASH_SECRET:-dev-secret-change-me}
+      INITIAL_TRIP_ID: ${INITIAL_TRIP_ID:-8f14e45f-ceea-467a-9f4e-2b1c9a1a1a1a}
+      INITIAL_TRIP_NAME: ${INITIAL_TRIP_NAME:-Madhi 2026}
+      INITIAL_ACTIVATION_CODE: ${INITIAL_ACTIVATION_CODE:-XXXX-XXXX}
+      PUBLIC_READ_TOKEN: ${PUBLIC_READ_TOKEN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    command: ["python", "-m", "app.migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      target: runtime
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://madhi:madhi_dev_password@postgres:5432/madhi_tracker}
+      DEVICE_TOKEN_HASH_SECRET: ${DEVICE_TOKEN_HASH_SECRET:-dev-secret-change-me}
+      ACTIVATION_CODE_HASH_SECRET: ${ACTIVATION_CODE_HASH_SECRET:-dev-secret-change-me}
+      INITIAL_TRIP_ID: ${INITIAL_TRIP_ID:-8f14e45f-ceea-467a-9f4e-2b1c9a1a1a1a}
+      INITIAL_TRIP_NAME: ${INITIAL_TRIP_NAME:-Madhi 2026}
+      INITIAL_ACTIVATION_CODE: ${INITIAL_ACTIVATION_CODE:-XXXX-XXXX}
+      ACTIVATION_CODE_TTL_MINUTES: ${ACTIVATION_CODE_TTL_MINUTES:-60}
+      MAX_BATCH_POINTS: ${MAX_BATCH_POINTS:-200}
+      MAX_REQUEST_BYTES: ${MAX_REQUEST_BYTES:-1048576}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
+      PUBLIC_READ_TOKEN: ${PUBLIC_READ_TOKEN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).read()"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  test:
+    profiles: ["test"]
+    build:
+      context: .
+      target: test
+    environment:
+      MADHI_TEST_INTEGRATION: "1"
+      MADHI_TEST_BASE_URL: http://api:8080/api/v1
+      TEST_DATABASE_URL: postgresql://madhi:madhi_dev_password@postgres:5432/madhi_tracker
+      ACTIVATION_CODE_HASH_SECRET: ${ACTIVATION_CODE_HASH_SECRET:-dev-secret-change-me}
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+volumes:
+  madhi_postgres_data:
