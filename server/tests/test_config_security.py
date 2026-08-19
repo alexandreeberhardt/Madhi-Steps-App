@@ -69,19 +69,21 @@ def test_activation_code_format(code: str, malformed: bool):
     assert activation_code_malformed(code) is malformed
 
 
-def test_real_client_ip_prefers_forwarded_header():
+def test_real_client_ip_prefers_x_real_ip():
     request = SimpleNamespace(
-        headers={"Forwarded": 'for="203.0.113.10";proto=https', "X-Forwarded-For": "198.51.100.20"},
+        headers={"X-Real-IP": "203.0.113.10", "X-Forwarded-For": "198.51.100.20"},
         client=SimpleNamespace(host="172.18.0.2"),
     )
 
     assert real_client_ip(request) == "203.0.113.10"
 
 
-def test_real_client_ip_falls_back_to_x_forwarded_for():
+def test_real_client_ip_ignores_client_forgeable_headers():
+    # Sans `X-Real-IP`, un client qui envoie ces en-tetes ne doit pas pouvoir
+    # choisir son compartiment de rate limiting.
     request = SimpleNamespace(
-        headers={"X-Forwarded-For": "198.51.100.20, 172.18.0.1"},
+        headers={"Forwarded": 'for="203.0.113.10"', "X-Forwarded-For": "198.51.100.20"},
         client=SimpleNamespace(host="172.18.0.2"),
     )
 
-    assert real_client_ip(request) == "198.51.100.20"
+    assert real_client_ip(request) == "172.18.0.2"

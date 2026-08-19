@@ -50,6 +50,9 @@ Definir `APP_ENV=production` et fournir de vraies valeurs pour :
 Le serveur refuse de demarrer si un secret de production manque, garde une
 valeur d'exemple ou est trop court.
 
-L'API est prevue pour etre derriere un reverse proxy HTTPS. Elle lit
-`Forwarded` puis `X-Forwarded-For` pour le rate limiting et ne construit pas
-d'URL absolue depuis l'en-tete `Host`.
+L'API est prevue pour etre derriere un reverse proxy HTTPS. Elle identifie le
+client par `X-Real-IP` pour le rate limiting, et par lui seul : `Forwarded` et
+`X-Forwarded-For` sont fabricables par le client et permettraient de changer de
+compartiment a chaque requete. Le proxy doit donc poser `X-Real-IP`, sans quoi
+tout le trafic tombe dans le meme compartiment. L'API ne construit pas d'URL
+absolue depuis l'en-tete `Host`.

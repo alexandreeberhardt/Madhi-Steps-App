@@ -79,14 +79,44 @@ PostgreSQL est lance par Docker Compose et stocke les donnees dans le volume :
 
 Ce volume contient les positions serveur et doit etre sauvegarde.
 
-## Nginx
+## Nginx et HTTPS
 
-La configuration versionnee est :
+Le domaine est servi en HTTPS par un certificat Let's Encrypt obtenu avec
+`certbot --nginx`, et le port 80 redirige en 301 vers le 443.
+
+Le fichier versionne :
 
     tools/nginx/madhi-server.alexeber.fr
 
-Appliquer la configuration sur le VPS :
+n'est que la configuration d'amorcage en HTTP seul, celle qui a servi a obtenir
+le premier certificat. **Certbot a depuis reecrit le fichier sur le VPS.** Le
+recopier par-dessus supprimerait l'ecoute en 443 : le contrat API impose HTTPS
+et l'application refuse le trafic en clair, donc la synchronisation s'arreterait.
 
-    sudo cp tools/nginx/madhi-server.alexeber.fr /etc/nginx/sites-available/madhi-server.alexeber.fr
+Pour modifier la configuration, partir du fichier deploye, pas du fichier
+versionne :
+
+    sudo cat /etc/nginx/sites-available/madhi-server.alexeber.fr
     sudo nginx -t
     sudo systemctl reload nginx
+
+`X-Real-IP` doit rester pose par le proxy : c'est le seul en-tete sur lequel le
+serveur compte pour le rate limiting.
+
+## Renouvellement du certificat
+
+Le certificat courant expire le **17 novembre 2026**, soit pendant le voyage.
+S'il n'est pas renouvele, l'application ne peut plus synchroniser : les
+positions restent en attente sur le telephone au lieu d'etre perdues, mais la
+panne est silencieuse cote famille.
+
+Verifier que le renouvellement automatique est arme :
+
+    systemctl list-timers | grep certbot
+    sudo certbot renew --dry-run
+
+Verifier la date d'expiration a distance, sans acces au VPS :
+
+    echo | openssl s_client -connect madhi-server.alexeber.fr:443 \
+      -servername madhi-server.alexeber.fr 2>/dev/null \
+      | openssl x509 -noout -dates

@@ -1,3 +1,14 @@
+# Configuration d'amorcage, en HTTP seul.
+#
+# Elle sert uniquement a obtenir le premier certificat : une fois
+# `certbot --nginx` passe, c'est certbot qui reecrit ce fichier sur le VPS pour
+# y ajouter l'ecoute en 443, le certificat et la redirection 80 -> 443. Le
+# fichier deploye ne ressemble donc plus a celui-ci.
+#
+# Ne jamais recopier ce fichier par-dessus le fichier deploye : cela supprimerait
+# HTTPS, alors que le contrat API impose HTTPS et que l'application refuse le
+# trafic en clair. Voir SERVER_DEPLOYMENT.md, section Nginx.
+
 server {
     listen 80;
     listen [::]:80;
