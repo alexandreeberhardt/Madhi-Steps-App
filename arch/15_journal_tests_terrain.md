@@ -73,39 +73,58 @@ installé.
 
 ## Anomalie non expliquée — à reprendre en priorité
 
-Entre 00:31:02 et 00:31:43 UTC, cinq positions ont été enregistrées **à dix
-secondes d'intervalle** au lieu de cinq minutes :
+À partir de 00:31:02 UTC, les positions ont été enregistrées **toutes les dix
+secondes** au lieu de cinq minutes, et cela a duré environ treize minutes,
+jusqu'à 00:44. Une quarantaine de positions inutiles.
 
     00:27:48   —        (test de fin d'onboarding)
     00:30:52   +184 s   (« Démarrer le suivi »)
     00:31:02   +10 s    ┐
-    00:31:12   +10 s    │
-    00:31:22   +10 s    ├ rafale
-    00:31:32   +10 s    │
-    00:31:43   +11 s    ┘
-    puis cadence redevenue normale (9 points à 00:37:31)
+    …                   ├ cadence de 9 à 11 s, sans interruption
+    00:44:09   +10 s    ┘
+    puis retour à 252 s après réinstallation de l'APK
 
-La rafale s'est arrêtée seule et coïncide exactement avec une séquence de
-réinstallation d'APK, arrêt forcé et relances rapprochées de l'application.
+Sur 35 écarts mesurés en base, 31 étaient compris entre 9 et 11 secondes.
 
-**La cause n'est pas établie.** Hypothèses à départager, par ordre de
-vraisemblance :
+**Ce qui est établi :**
 
-1. Le backoff minimal de WorkManager est de dix secondes. Si `SyncWorker`
-   renvoyait `retry` en boucle, chaque réessai appellerait
-   `RestoreTracking(WATCHDOG)`, donc `scheduleNext`. Reste à expliquer
-   pourquoi cela déclencherait une capture immédiate.
-2. Plusieurs appels rapprochés à `RestoreTracking` — `PACKAGE_REPLACED` puis
-   `APP_OPENED` — se seraient chevauchés avec une alarme déjà en retard.
-3. Un `PendingIntent` dupliqué malgré `FLAG_UPDATE_CURRENT`.
+- L'alarme était bien reprogrammée avec un délai proche de zéro. Le système
+  affichait `whenElapsed=+2s177ms` pour la prochaine capture, et cinquante
+  réveils cumulés du receveur d'alarme.
+- Le phénomène a démarré pendant une séquence de réinstallation d'APK, arrêt
+  forcé et relances rapprochées de l'application.
+- Il **ne s'est pas arrêté seul** : il a cessé net à la réinstallation
+  suivante, ce qui oriente vers un état accumulé plutôt que vers un défaut de
+  la logique nominale.
+- Après réinstallation, le délai demandé est correct : `CAPTURE_SCHEDULED dans
+  252s`, soit l'intervalle de cinq minutes moins le temps déjà écoulé.
+
+**Hypothèse écartée par la mesure :** une avance de l'horodatage GPS sur
+l'horloge du téléphone, qui aurait fait renvoyer zéro à
+`CaptureSchedule.delayUntilNext`. L'écart mesuré était de +1,8 s, donc positif.
+
+**Hypothèses restantes**, par ordre de vraisemblance :
+
+1. Plusieurs exécutions de `SyncWorker` empilées, chacune appelant
+   `RestoreTracking(WATCHDOG)` donc `scheduleNext`. Le minimum de backoff de
+   WorkManager est justement de dix secondes.
+2. Des `PendingIntent` d'alarme dupliqués malgré `FLAG_UPDATE_CURRENT`, par
+   exemple si l'ancien processus survivait à la réinstallation.
+3. Un chevauchement entre `PACKAGE_REPLACED` et `APP_OPENED` produisant un
+   délai calculé à partir d'un état de base non encore visible.
 
 **Pourquoi c'est important** : à dix secondes, le GPS reste allumé en
-permanence et l'autonomie s'effondre. Même transitoire, le cas doit être
-compris avant le départ.
+permanence. Une nuit dans cet état vide la batterie.
 
-**Comment le reproduire** : réinstaller l'APK pendant que le suivi tourne,
-puis relancer l'application plusieurs fois de suite, et relire les
-horodatages en base.
+**Instrumentation ajoutée pour trancher** : `AlarmCaptureScheduler` journalise
+désormais le délai réellement demandé (`CAPTURE_SCHEDULED dans Xs`). Si le
+phénomène revient, ce journal dira immédiatement si le délai demandé est
+aberrant, ou si l'alarme se déclenche plus souvent que demandé — deux causes
+très différentes.
+
+**Comment reproduire** : réinstaller l'APK pendant que le suivi tourne, forcer
+l'arrêt, relancer l'application plusieurs fois de suite, puis lire les délais
+journalisés.
 
 ## Autres observations
 
@@ -114,10 +133,10 @@ affichait `windowLength 31058` et un retard de vingt-cinq secondes sur notre
 alarme exacte, alors qu'elle était à `windowLength=0` au démarrage. À
 surveiller sur la durée : c'est le premier signe d'un throttling.
 
-**Logcat est devenu muet** en fin de session alors que l'application
-continuait d'enregistrer des points. Le filtre `-s MadhiTracker` ne rendait
-plus rien. Cause inconnue ; à vérifier avant de s'appuyer sur les logs pour
-un test long.
+**Le filtre `-s` de logcat ne fonctionne pas sur cet appareil.** `adb logcat
+-d -s MadhiTracker` ne rend rien alors que les lignes sont bien présentes.
+Utiliser `adb logcat -d | grep -i madhitracker`. Cela m'a fait conclure à tort
+que l'application n'écrivait plus rien.
 
 **L'acquisition a réussi instantanément**, `LocationManager` ayant livré un
 fix en cache. Une acquisition à froid n'a donc pas encore été éprouvée, et

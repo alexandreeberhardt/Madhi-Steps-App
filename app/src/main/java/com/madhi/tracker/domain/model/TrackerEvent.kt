@@ -13,6 +13,13 @@ enum class TrackerEvent {
     TRACKING_STOPPED,
     CAPTURE_INTERVAL_CHANGED,
 
+    /**
+     * Délai réellement demandé pour la prochaine acquisition. Une cadence
+     * qui dérive est invisible autrement : on ne voit que ses effets, des
+     * mois plus tard, sur la batterie.
+     */
+    CAPTURE_SCHEDULED,
+
     LOCATION_ACQUIRED,
     LOCATION_SAVED,
     LOCATION_REJECTED,

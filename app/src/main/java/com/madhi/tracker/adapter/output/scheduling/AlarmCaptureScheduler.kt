@@ -9,6 +9,8 @@ import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import com.madhi.tracker.adapter.input.tracking.CaptureAlarmReceiver
 import com.madhi.tracker.application.port.CaptureScheduler
+import com.madhi.tracker.application.port.EventLog
+import com.madhi.tracker.domain.model.TrackerEvent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,6 +32,7 @@ import kotlin.time.Duration
 @Singleton
 class AlarmCaptureScheduler @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val eventLog: EventLog,
 ) : CaptureScheduler {
 
     private val alarmManager: AlarmManager?
@@ -37,6 +40,8 @@ class AlarmCaptureScheduler @Inject constructor(
 
     override fun scheduleNext(delay: Duration) {
         val alarms = alarmManager ?: return
+        eventLog.record(TrackerEvent.CAPTURE_SCHEDULED, "dans ${delay.inWholeSeconds}s")
+
         val triggerAt = SystemClock.elapsedRealtime() + delay.inWholeMilliseconds
 
         // Une alarme exacte peut être refusée par le système. Le repli n'est
