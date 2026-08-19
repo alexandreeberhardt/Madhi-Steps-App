@@ -45,11 +45,12 @@ class TrackLocationsTest {
             syncScheduler = syncScheduler,
             clock = clock,
         ),
+        locationStore = locationStore,
     )
 
-    private fun fixAt(latitude: Double) = LocationFix(
+    private fun fixAt(latitude: Double, minutesLater: Long = 0) = LocationFix(
         coordinates = Coordinates(latitude, 2.29),
-        recordedAt = clock.instant,
+        recordedAt = clock.instant.plusSeconds(minutesLater * 60),
         accuracyMeters = 12f,
         altitudeMeters = null,
         speedMetersPerSecond = null,
@@ -59,8 +60,10 @@ class TrackLocationsTest {
     fun `chaque position livree par le flux est enregistree en attente d'envoi`() = runTest {
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { trackLocations() }
 
+        // Espacees d'un intervalle : deux livraisons rapprochees seraient
+        // ecartees par le filtre anti-doublon, et c'est voulu.
         locationSource.streamed.emit(fixAt(48.85))
-        locationSource.streamed.emit(fixAt(48.86))
+        locationSource.streamed.emit(fixAt(48.86, minutesLater = 5))
 
         assertEquals(2, locationStore.points.size)
         assertTrue(locationStore.points.values.all { it.syncState == SyncState.PENDING })
@@ -112,6 +115,7 @@ class TrackLocationsTest {
                 syncScheduler = syncScheduler,
                 clock = clock,
             ),
+            locationStore = locationStore,
         )
 
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { useCase() }
@@ -135,6 +139,7 @@ class TrackLocationsTest {
                 syncScheduler = syncScheduler,
                 clock = clock,
             ),
+            locationStore = locationStore,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { useCase() }
 
@@ -176,6 +181,19 @@ class TrackLocationsTest {
         locationSource.streamed.emit(fixAt(48.86))
 
         // Le point zero-zero est refuse, le suivant passe : le flux survit.
+        assertEquals(1, locationStore.points.size)
+        job.cancelAndJoin()
+    }
+
+    @Test
+    fun `la seconde livraison du meme intervalle est ecartee`() = runTest {
+        // Les deux fournisseurs livrent independamment : sur appareil reel,
+        // cela produisait 205 % de la couverture attendue.
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { trackLocations() }
+
+        locationSource.streamed.emit(fixAt(48.85))
+        locationSource.streamed.emit(fixAt(48.86, minutesLater = 1))
+
         assertEquals(1, locationStore.points.size)
         job.cancelAndJoin()
     }

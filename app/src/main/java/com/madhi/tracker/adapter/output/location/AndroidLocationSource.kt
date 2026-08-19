@@ -65,9 +65,10 @@ class AndroidLocationSource @Inject constructor(
         }
 
         val request = LocationRequestCompat.Builder(interval.inWholeMilliseconds)
-            // Ne pas livrer plus vite que la moitié de l'intervalle, même si
-            // le système a un point sous la main : inutile de remplir la base.
-            .setMinUpdateIntervalMillis(interval.inWholeMilliseconds / 2)
+            // Ne jamais livrer plus vite que l'intervalle demandé. La valeur
+            // précédente, la moitié de l'intervalle, autorisait explicitement
+            // une livraison deux fois trop rapide — l'inverse de l'intention.
+            .setMinUpdateIntervalMillis(interval.inWholeMilliseconds)
             // Précision suffisante plutôt que maximale (`arch/01` §4).
             .setQuality(LocationRequestCompat.QUALITY_BALANCED_POWER_ACCURACY)
             .build()

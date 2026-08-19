@@ -1,6 +1,8 @@
 package com.madhi.tracker.application.usecase
 
 import com.madhi.tracker.application.port.LocationSource
+import com.madhi.tracker.application.port.LocationStore
+import com.madhi.tracker.domain.CaptureThrottle
 import com.madhi.tracker.application.port.TrackingIntentStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -24,6 +26,7 @@ class TrackLocations @Inject constructor(
     private val locationSource: LocationSource,
     private val trackingIntentStore: TrackingIntentStore,
     private val recordLocation: RecordLocation,
+    private val locationStore: LocationStore,
 ) {
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -37,6 +40,15 @@ class TrackLocations @Inject constructor(
                     emptyFlow()
                 }
             }
-            .collect { fix -> recordLocation(fix) }
+            .collect { fix ->
+                // Les deux fournisseurs livrent indépendamment : sans ce
+                // filtre on enregistre deux points par intervalle.
+                val redundant = CaptureThrottle.isRedundant(
+                    lastRecordedAt = locationStore.lastRecordedAt(),
+                    candidateAt = fix.recordedAt,
+                    interval = trackingIntentStore.read().captureInterval,
+                )
+                if (!redundant) recordLocation(fix)
+            }
     }
 }
