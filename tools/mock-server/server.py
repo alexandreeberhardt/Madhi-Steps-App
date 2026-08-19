@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import functools
 import json
+import os
 import re
 import secrets
 import threading
@@ -245,9 +246,19 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--port", type=int, default=8080)
-    parser.add_argument("--code", default=None, help="code d'activation (aleatoire par defaut)")
-    parser.add_argument("--max-batch", type=int, default=200, help="au-dela, repondre 413")
+    parser.add_argument("--host", default=os.environ.get("MOCK_SERVER_HOST", "127.0.0.1"))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("MOCK_SERVER_PORT", "8080")))
+    parser.add_argument(
+        "--code",
+        default=os.environ.get("MOCK_SERVER_ACTIVATION_CODE"),
+        help="code d'activation (aleatoire par defaut)",
+    )
+    parser.add_argument(
+        "--max-batch",
+        type=int,
+        default=int(os.environ.get("MOCK_SERVER_MAX_BATCH", "200")),
+        help="au-dela, repondre 413",
+    )
     args = parser.parse_args()
 
     code = args.code or f"{secrets.token_hex(2).upper()}-{secrets.token_hex(2).upper()}"
@@ -255,7 +266,7 @@ def main() -> None:
     Handler.max_batch = args.max_batch
 
     print("Serveur de simulation Madhi Tracker — developpement uniquement")
-    print(f"  ecoute        http://127.0.0.1:{args.port}{API_PREFIX}")
+    print(f"  ecoute        http://{args.host}:{args.port}{API_PREFIX}")
     print(f"  code d'activation : {code}")
     print()
     print("Depuis un telephone branche en USB :")
@@ -263,7 +274,7 @@ def main() -> None:
     print(f"  puis configurer madhi.api.baseUrl.debug=http://localhost:{args.port}{API_PREFIX}")
     print()
 
-    ThreadingHTTPServer(("0.0.0.0", args.port), Handler).serve_forever()
+    ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()
 
 
 if __name__ == "__main__":
