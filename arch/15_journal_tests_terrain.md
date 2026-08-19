@@ -408,3 +408,197 @@ le type de panne muette que le projet cherche à éliminer.
   `STREAM_STOPPED` sans `STREAM_STARTED` qui suive.
 - Vérifier si le filet a dû intervenir : la présence de `STREAM_SILENT`
   signalerait que le flux se tait par moments.
+
+# Session 4 — 19 août 2026, premier contact avec le serveur réel
+
+*Première session sur un build release, et première fois que l'application
+parle au vrai serveur plutôt qu'au simulateur.*
+
+## Conditions
+
+| | |
+|---|---|
+| Appareil | OnePlus 8T KB2005, Android 14 |
+| Rôle | pré-validation — l'appareil du voyage reste le Redmi Note 11 |
+| Build | `0.1.0` **release**, signé, minifié par R8 — jamais construit auparavant |
+| Serveur | `https://madhi-server.alexeber.fr`, POC réel en HTTPS |
+| Connexion | débogage sans fil |
+| Durée | environ 18 h 00 à 18 h 35, application au premier plan |
+
+Les deux jalons de la session sont indépendants et se valident mutuellement :
+l'APK qui part réellement en voyage, et le serveur qui recevra ses positions
+pendant un an. Ni l'un ni l'autre n'avait jamais servi.
+
+## Ce qui a été validé
+
+**Le serveur déployé respecte le contrat `arch/13`**, sondé endpoint par
+endpoint depuis l'extérieur :
+
+    code d'activation malformé   → 400 invalid_activation_code
+    code inconnu                 → 410 expired_or_unknown_code
+    batch sans token / token faux→ 401 unauthorized
+    lecture d'un trip au hasard  → 403 forbidden
+    payload invalide             → 400 invalid_payload
+    /_control/state              → 404  (le simulateur ne répond plus)
+    http://                      → 301 vers https, certificat Let's Encrypt
+
+**La chaîne complète, contre le serveur réel, deux fois** — une fois sur le
+build debug, une fois sur le release :
+
+    DEVICE_ACTIVATED
+    LOCATION_ACQUIRED → LOCATION_SAVED → SYNC_STARTED → SYNC_SUCCESS
+    TRACKING_STARTED → STREAM_STARTED gps+network
+
+**Le backlog part en une seule fois.** Le build debug portait 104 positions en
+attente, accumulées depuis le matin et destinées au simulateur devenu
+injoignable. Après réactivation contre le serveur réel, elles sont toutes
+parties en **moins de 300 ms**, en un seul lot. La base est passée de 104 en
+attente à zéro. Cela éprouve d'un coup le backlog, le découpage en lots,
+l'idempotence et le remplacement du token — avec du volume réel.
+
+**R8 ne casse rien.** C'était l'inconnue principale : kotlinx.serialization,
+OkHttp, Room, Hilt et le chiffrement du token par le Keystore survivent tous à
+la minification. L'APK passe de 36,9 Mo à 3,3 Mo. L'étiquette `MadhiTracker`
+survit aussi dans Logcat, ce qui n'était pas acquis et conditionne toute
+l'observabilité des tests terrain.
+
+**Le `CaptureThrottle` de T1-bis, enfin confirmé sur appareil.** Il restait
+« non vérifié » depuis la session 3. Sur le release, deux captures
+consécutives espacées de **4 min 49 s**, avec `CAPTURE_SCHEDULED dans 299s`.
+Plus trace du doublement de cadence dû aux deux fournisseurs.
+
+**Recoupement côté serveur**, indispensable parce que tout le reste est vu du
+téléphone :
+
+    OnePlus KB2005 | 107 points | 09:31:17Z → 16:19:08Z
+    OnePlus KB2005 |   1 point  | 16:28:57Z
+
+Aucune divergence avec ce que l'application annonçait.
+
+**Deux confirmations au passage** : `TRACKING_SERVICE_REVIVED PACKAGE_REPLACED`
+à chaque réinstallation, et l'onboarding qui se rafraîchit seul au retour de
+chaque écran système — le correctif `LifecycleEventEffect(ON_RESUME)` de la
+session 1 tient dans le release.
+
+## Défauts trouvés et corrigés pendant la session
+
+**1. Le build release ne passait pas du tout.** `arch/01` §2 prévoit que le
+téléphone du voyage porte un APK release signé. Personne ne l'avait jamais
+construit : `assembleRelease` échouait à la sérialisation du cache de
+configuration, parce que la tâche de garde `validateReleaseConfig` lisait
+`releaseApiBaseUrl` depuis son `doLast`, ce qui capture le script de build.
+L'échec arrivait **avant** R8, donc la minification n'avait jamais tourné non
+plus. Corrigé par une copie locale de la valeur.
+
+**2. Le journal de synchronisation n'était jamais écrit.** Après la
+synchronisation réussie des 104 points, l'écran Réglages affichait toujours
+« Dernier envoi réussi : aucune », alors que le compteur de points en attente,
+lui, était bien passé à zéro. `SyncJournalStore` était entièrement en place —
+implémentation DataStore, port, fake de test, trois lecteurs qui l'affichent —
+et **aucun appelant n'écrivait dedans**. `recordAttempt`, `recordSuccess` et
+`recordFailure` n'étaient référencés nulle part hors de leur déclaration.
+
+C'est la panne muette que le projet cherche à éliminer, en pire : pendant un
+an, le seul écran qui répond à « est-ce que ça envoie ? » aurait répondu
+« jamais rien envoyé » même quand tout marche. `SyncPendingLocations` l'écrit
+désormais sur ses quatre sorties, avec quatre tests dont un qui vérifie qu'une
+file vide ne fait pas croire à un envoi réussi.
+
+**3. Le rate limiting du serveur se contournait avec un en-tête.** Le limiteur
+identifiait le client par `Forwarded` puis `X-Forwarded-For`. Or nginx n'émet
+pas le premier et *ajoute* au second : la valeur envoyée par le client se
+retrouvait en tête de liste, donc n'importe qui pouvait changer de
+compartiment à chaque requête. Il ne lit plus que `X-Real-IP`.
+
+**4. La procédure nginx documentée aurait supprimé HTTPS.** Certbot a réécrit
+la configuration sur le VPS pour y ajouter le 443 et la redirection. Le fichier
+versionné était resté celui d'amorçage, en HTTP seul, et `SERVER_DEPLOYMENT.md`
+disait de le recopier par-dessus.
+
+**5. Le protocole de test visait le mauvais build** — voir ci-dessous.
+
+## Ce qui change le protocole de test
+
+Constaté en installant le release, et reporté dans `arch/14` §4 :
+
+- **L'applicationId du release n'a pas le suffixe `.debug`.** Il s'installe
+  donc **à côté** du build de développement au lieu de le remplacer. Deux
+  traqueurs se disputeraient le GPS : désinstaller le debug d'abord.
+- **Les réglages propriétaires du constructeur sont attachés au paquet.** Ceux
+  appliqués au build debug ne protègent pas le release. Les cinq réglages de
+  `arch/14` §3 sont à refaire après chaque passage debug → release.
+- **`run-as` échoue sur un paquet non débogable.** La procédure de copie de
+  `madhi-tracker.db` documentée en session 1 ne s'applique donc plus au build
+  qui part. Le taux de couverture se lira sur l'écran Diagnostic, et le
+  décompte réel côté serveur.
+
+Ce dernier point est structurant : à partir de maintenant, la base de
+l'appareil n'est plus une source d'observation pendant les tests.
+
+## Points en suspens
+
+**`CAPTURE_SCHEDULED dans 0s` au démarrage du suivi.** Au `TRACKING_STARTED`,
+un délai nul apparaît, puis `dans 900s` cinq secondes plus tard, et aucune
+position n'est enregistrée entre les deux. Le résultat est bon — pas de point
+parasite — mais les journaux ne disent pas si le `CaptureThrottle` a écarté la
+capture ou si l'alarme a été replanifiée avant de se déclencher. Ce sont deux
+causes différentes, et c'est exactement la distinction que l'instrumentation
+ajoutée en session 3 devait permettre. À reprendre si l'anomalie de cadence
+revient.
+
+**Une centaine de positions ne sera jamais sur le serveur.** Environ 106 points
+étaient déjà marqués `SYNCED` contre le simulateur : l'application ne les
+renvoie donc jamais. Ils ne vivent plus que dans
+`~/madhi-backups/debug-db-final-1820/`. Sans conséquence — ce sont des points
+pris à la maison, que `started_at` écartera de toute façon — mais le serveur ne
+contient pas tout ce que le téléphone a enregistré ce jour-là.
+
+**Le certificat expire le 17 novembre 2026**, pendant le voyage. Le
+`certbot.timer` est armé et a tourné, mais la panne serait silencieuse côté
+famille : les positions resteraient en attente sur le téléphone.
+
+**Le healthcheck noie les journaux applicatifs.** Il tape `/health` toutes les
+dix secondes ; sur un an, les vrais événements deviendront illisibles.
+
+## État à la clôture
+
+- Build release actif, suivi en cours, service de premier plan (`types=00000008`).
+- Exemption d'optimisation de batterie accordée, bucket App Standby à 5.
+- **Les trois réglages OxygenOS ne sont pas appliqués** au nouveau paquet
+  `com.madhi.tracker`, et cela se voit déjà : l'alarme porte
+  `windowLength 674999`, soit une fenêtre de 675 secondes. C'est le symptôme
+  exact qui a fait échouer T1 à 36 %. Lancer T1 dans cet état reproduirait
+  l'échec sans rien apprendre.
+- Batterie descendue de 53 % à 35 % pendant la manipulation, écran allumé.
+- 277 tests unitaires verts, `check` et `assembleRelease` passent.
+
+## Reprendre la session
+
+Le mDNS découvre l'appareil deux fois, ce qui fait échouer toute commande sans
+sélecteur. Fixer le serial :
+
+    export ANDROID_SERIAL="adb-7130b82a-vwbrhL._adb-tls-connect._tcp"
+
+Un code d'activation est à usage unique et expire en 60 minutes. Le semer
+**juste avant** d'en avoir besoin, en recréant le conteneur — un simple
+`restart` ne relit pas le `.env` :
+
+    # INITIAL_ACTIVATION_CODE=XXXX-XXXX dans server/.env
+    docker compose -f server/docker-compose.yml up -d --force-recreate api
+    docker compose -f server/docker-compose.yml logs --tail=50 api | grep server_started
+
+Décompte réel côté serveur, sans token de lecture :
+
+    docker compose -f server/docker-compose.yml exec postgres \
+      psql -U madhi -d madhi_tracker -c \
+      "select d.name, count(l.id), min(l.recorded_at), max(l.recorded_at)
+         from devices d left join locations l on l.device_id = d.id
+        group by d.id, d.name order by 3;"
+
+## Avant de lancer T1
+
+1. Appliquer les trois réglages OxygenOS au paquet `com.madhi.tracker`.
+2. Charger à 90 %, puis débrancher — c'est la décharge écran éteint qu'on mesure.
+3. Poser le téléphone près d'une fenêtre : la nuit de T1 s'est déroulée à
+   l'intérieur, où aucun fix GPS n'aboutissait.
+4. Relever l'heure de départ, `windowLength` et le compteur de positions.
