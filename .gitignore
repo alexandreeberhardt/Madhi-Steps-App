@@ -35,6 +35,8 @@ node_modules/
 dist/
 build/
 .gradle/
+.android-sdk/
+.cache/
 __pycache__/
 .venv/
 *.log
