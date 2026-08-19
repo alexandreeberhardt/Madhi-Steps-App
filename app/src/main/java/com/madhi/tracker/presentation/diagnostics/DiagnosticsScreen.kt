@@ -29,6 +29,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
@@ -50,6 +52,10 @@ fun DiagnosticsScreen(
     viewModel: DiagnosticsViewModel = hiltViewModel(),
 ) {
     val report by viewModel.report.collectAsStateWithLifecycle()
+
+    // Idem : au retour d'un écran de réglages système, le rapport doit
+    // refléter le nouvel état sans intervention.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
