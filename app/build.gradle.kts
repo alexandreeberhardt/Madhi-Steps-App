@@ -41,14 +41,18 @@ android {
     defaultConfig {
         applicationId = "com.madhi.tracker"
 
-        // Android 8 : borne basse du projet. Le téléphone cible est sous
-        // Android 13 ; les branches héritées restent limitées.
-        minSdk = 26
+        // Android 10 : première version où ACCESS_BACKGROUND_LOCATION et
+        // foregroundServiceType existent nativement. En dessous, le code
+        // devrait porter des branches héritées pour un cas qui ne se
+        // présentera jamais — l'appareil du voyage est sous Android 13.
+        minSdk = 29
 
-        // Dernière cible stable retenue pour ce bootstrap. Le téléphone cible
-        // tourne sous Android 13, mais le projet doit rester sain sur un
-        // appareil de remplacement récent.
-        targetSdk = 36
+        // Android 14 volontairement, pas la dernière version. L'appareil
+        // cible tourne sous Android 13 : viser plus haut ne change rien à
+        // son comportement, mais ferait hériter du durcissement des quotas
+        // de jobs d'Android 16 si l'appareil était remplacé en cours de
+        // voyage. Voir arch/adr/007-contraintes-miui-redmi-note-11.md §3.5.
+        targetSdk = 34
 
         versionCode = 1
         versionName = "0.1.0"
