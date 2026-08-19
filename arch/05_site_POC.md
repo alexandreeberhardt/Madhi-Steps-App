@@ -52,6 +52,17 @@ secondaires.
 
 - Les types LocationPointV1 sont définis dans un fichier unique.
 
+- **Le site ne montre le voyage qu'à partir de `startedAt`.** Le trip contient
+  aussi les positions de pré-validation et des tests terrain T1 à T6, prises à
+  la maison avant le départ : elles ne sont pas supprimées, elles sont
+  antérieures à `started_at` (voir `SERVER_DEPLOYMENT.md`, « Le jour du
+  départ »). L'historique se demande donc avec `from=startedAt`, lu depuis
+  `/trips/{id}/status`.
+
+- À corriger côté serveur en même temps : `latest_location` ignore `started_at`
+  et renvoie le point le plus récent quel qu'il soit. Avant le départ, la
+  « dernière position » serait donc une position prise à la maison.
+
 # 6. Carte
 
 - MapLibre ou Leaflet.

@@ -79,6 +79,38 @@ PostgreSQL est lance par Docker Compose et stocke les donnees dans le volume :
 
 Ce volume contient les positions serveur et doit etre sauvegarde.
 
+## Le jour du depart
+
+Toutes les positions vivent dans un seul trip, y compris celles qui ne sont pas
+le voyage : la pre-validation sur le OnePlus, puis les tests T1 a T6 du Redmi,
+soit une semaine et demie de points pris a la maison.
+
+Elles ne sont pas supprimees. Le depart se marque par une date, pas par une
+purge : `trips.started_at` existe depuis la premiere migration et n'est ecrit
+par rien pour l'instant. Le site filtrera l'historique avec `from=startedAt`.
+
+Garder les points de test a un interet direct : ce sont eux qui documentent les
+anomalies de cadence, et les jeter reviendrait a jeter les donnees qui servent a
+les comprendre.
+
+Le jour du depart, une seule commande :
+
+    docker compose -f server/docker-compose.yml exec postgres \
+      psql -U madhi -d madhi_tracker \
+      -c "update trips set started_at = now() where id = '<INITIAL_TRIP_ID>';"
+
+Verifier :
+
+    curl -H "Authorization: Bearer <PUBLIC_READ_TOKEN>" \
+      https://madhi-server.alexeber.fr/api/v1/trips/<INITIAL_TRIP_ID>/status
+
+`startedAt` ne doit plus etre `null`.
+
+Reserve connue : `latest_location` ne filtre pas sur `started_at` et renvoie le
+point le plus recent quel qu'il soit. Avant le depart, le site afficherait donc
+une position prise a la maison. Sans objet une fois sur la route, mais a
+corriger en meme temps que le site (`arch/05`).
+
 ## Nginx et HTTPS
 
 Le domaine est servi en HTTPS par un certificat Let's Encrypt obtenu avec
