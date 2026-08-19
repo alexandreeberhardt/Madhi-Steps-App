@@ -66,6 +66,25 @@ class RecordLocationTest {
         assertEquals(clock.uptime, rebootJournalStore.journal.lastSeenUptime)
     }
 
+    @Test
+    fun `une panne de planification d'envoi ne fait pas echouer l'enregistrement`() = runTest {
+        val useCase = RecordLocation(
+            locationStore,
+            environment,
+            rebootJournalStore,
+            ExplodingSyncScheduler(),
+            eventLog,
+            clock,
+        )
+
+        val result = useCase(validFix())
+
+        // Le point est durablement en base ; si la demande immediate echoue,
+        // le worker periodique reprendra. Le flux ne doit pas mourir pour ca.
+        assertTrue(result is CaptureResult.Captured)
+        assertEquals(1, locationStore.points.size)
+    }
+
     private fun validFix() = LocationFix(
         coordinates = Coordinates(48.85837, 2.29448),
         recordedAt = clock.instant,
@@ -87,5 +106,10 @@ class RecordLocationTest {
             check(locationStore.points.isNotEmpty())
             immediateRequests++
         }
+    }
+
+    private class ExplodingSyncScheduler : SyncScheduler {
+        override fun ensurePeriodicSyncScheduled() = Unit
+        override fun requestImmediateSync() = throw IllegalStateException("workmanager indisponible")
     }
 }

@@ -4,8 +4,8 @@ import com.madhi.tracker.application.port.LocationSource
 import com.madhi.tracker.application.port.TrackingIntentStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 /**
@@ -29,9 +29,14 @@ class TrackLocations @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend operator fun invoke() {
         trackingIntentStore.observe()
-            .map { it.captureInterval }
             .distinctUntilChanged()
-            .flatMapLatest { interval -> locationSource.stream(interval.duration) }
+            .flatMapLatest { intent ->
+                if (intent.enabled) {
+                    locationSource.stream(intent.captureInterval.duration)
+                } else {
+                    emptyFlow()
+                }
+            }
             .collect { fix -> recordLocation(fix) }
     }
 }

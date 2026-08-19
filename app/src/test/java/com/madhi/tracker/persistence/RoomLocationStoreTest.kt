@@ -3,6 +3,7 @@ package com.madhi.tracker.persistence
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.madhi.tracker.adapter.output.persistence.room.LocationEntity
 import com.madhi.tracker.adapter.output.persistence.room.RoomLocationStore
 import com.madhi.tracker.adapter.output.persistence.room.TrackerDatabase
 import com.madhi.tracker.domain.model.Coordinates
@@ -193,6 +194,91 @@ class RoomLocationStoreTest {
         assertNull(store.lastRecordedAt())
         assertNull(store.oldestPendingRecordedAt())
         assertEquals(0, store.pendingCount())
+    }
+
+    @Test
+    fun un_etat_de_synchronisation_inconnu_reste_dans_le_backlog() = runTest {
+        database.locationDao().insert(
+            LocationEntity(
+                id = "point-ancien-schema",
+                latitude = 48.85,
+                longitude = 2.29,
+                recordedAtEpochMillis = baseTime.toEpochMilli(),
+                accuracyMeters = 12f,
+                altitudeMeters = null,
+                speedMetersPerSecond = null,
+                batteryPercent = 62,
+                syncState = "ARCHIVED_BY_FUTURE_VERSION",
+                attemptCount = 0,
+                lastAttemptAtEpochMillis = null,
+                lastErrorCode = null,
+            ),
+        )
+
+        val pending = store.oldestPending(limit = 10).single()
+
+        // Le fallback de conversion ne sert a rien si la requete SQL rend le
+        // point invisible : une valeur inconnue doit rester a envoyer.
+        assertEquals(LocationId("point-ancien-schema"), pending.id)
+        assertEquals(SyncState.PENDING, pending.syncState)
+        assertEquals(1, store.pendingCount())
+        assertEquals(baseTime, store.oldestPendingRecordedAt())
+    }
+
+    @Test
+    fun un_etat_inconnu_peut_etre_confirme_par_le_serveur() = runTest {
+        database.locationDao().insert(
+            LocationEntity(
+                id = "point-a-confirmer",
+                latitude = 48.85,
+                longitude = 2.29,
+                recordedAtEpochMillis = baseTime.toEpochMilli(),
+                accuracyMeters = null,
+                altitudeMeters = null,
+                speedMetersPerSecond = null,
+                batteryPercent = null,
+                syncState = "VALEUR_INATTENDUE",
+                attemptCount = 0,
+                lastAttemptAtEpochMillis = null,
+                lastErrorCode = null,
+            ),
+        )
+
+        store.markSynced(listOf(LocationId("point-a-confirmer")), at = baseTime.plusSeconds(60))
+
+        assertEquals(0, store.pendingCount())
+        assertTrue(store.oldestPending(limit = 10).isEmpty())
+    }
+
+    @Test
+    fun un_etat_inconnu_garde_la_trace_d_un_echec_d_envoi() = runTest {
+        database.locationDao().insert(
+            LocationEntity(
+                id = "point-en-erreur",
+                latitude = 48.85,
+                longitude = 2.29,
+                recordedAtEpochMillis = baseTime.toEpochMilli(),
+                accuracyMeters = null,
+                altitudeMeters = null,
+                speedMetersPerSecond = null,
+                batteryPercent = null,
+                syncState = "ETAT_INATTENDU",
+                attemptCount = 0,
+                lastAttemptAtEpochMillis = null,
+                lastErrorCode = null,
+            ),
+        )
+
+        store.recordFailedAttempt(
+            listOf(LocationId("point-en-erreur")),
+            at = baseTime.plusSeconds(60),
+            errorCode = "timeout",
+        )
+
+        val stored = store.oldestPending(limit = 10).single()
+        assertEquals(SyncState.PENDING, stored.syncState)
+        assertEquals(1, stored.attemptCount)
+        assertEquals("timeout", stored.lastErrorCode)
     }
 
     @Test

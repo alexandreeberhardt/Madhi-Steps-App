@@ -100,6 +100,65 @@ class TrackLocationsTest {
     }
 
     @Test
+    fun `le flux ne demarre pas quand le suivi est arrete`() = runTest {
+        val stoppedIntentStore = FakeTrackingIntentStore(
+            TrackingIntent(enabled = false, captureInterval = CaptureInterval.FIVE),
+        )
+        val useCase = TrackLocations(
+            locationSource = locationSource,
+            trackingIntentStore = stoppedIntentStore,
+            recordLocation = recordLocationWith(
+                locationStore = locationStore,
+                syncScheduler = syncScheduler,
+                clock = clock,
+            ),
+        )
+
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { useCase() }
+
+        assertEquals(0, locationSource.streamSubscriptions)
+        locationSource.streamed.emit(fixAt(48.85))
+        assertTrue(locationStore.points.isEmpty())
+        job.cancelAndJoin()
+    }
+
+    @Test
+    fun `changer la cadence suivi arrete ne demarre pas le flux`() = runTest {
+        val stoppedIntentStore = FakeTrackingIntentStore(
+            TrackingIntent(enabled = false, captureInterval = CaptureInterval.FIVE),
+        )
+        val useCase = TrackLocations(
+            locationSource = locationSource,
+            trackingIntentStore = stoppedIntentStore,
+            recordLocation = recordLocationWith(
+                locationStore = locationStore,
+                syncScheduler = syncScheduler,
+                clock = clock,
+            ),
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { useCase() }
+
+        stoppedIntentStore.setCaptureInterval(CaptureInterval.TWO)
+
+        assertEquals(0, locationSource.streamSubscriptions)
+        job.cancelAndJoin()
+    }
+
+    @Test
+    fun `arreter le suivi coupe le flux et ignore les positions tardives`() = runTest {
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { trackLocations() }
+        locationSource.streamed.emit(fixAt(48.85))
+
+        intentStore.setEnabled(false)
+        locationSource.streamed.emit(fixAt(48.86))
+
+        // Une position livree apres l'arret volontaire ne doit pas relancer
+        // le tracé : elle appartient a un abonnement en cours de fermeture.
+        assertEquals(1, locationStore.points.size)
+        job.cancelAndJoin()
+    }
+
+    @Test
     fun `chaque position declenche une demande d'envoi`() = runTest {
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { trackLocations() }
 

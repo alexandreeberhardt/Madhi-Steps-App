@@ -54,7 +54,7 @@ class RecordLocation @Inject constructor(
 
         // Le point est en base : demander l'envoi ne peut plus rien lui faire
         // perdre. Si la demande échoue, le worker périodique reprendra.
-        syncScheduler.requestImmediateSync()
+        runCatching { syncScheduler.requestImmediateSync() }
         return point
     }
 }

@@ -116,6 +116,19 @@ class WorkManagerSyncSchedulerTest {
         assertFalse(spec.backOffOnSystemInterruptions ?: false)
     }
 
+    @Test
+    fun `replanifier le periodique plusieurs fois ne cree pas de doublon`() {
+        repeat(5) { scheduler.ensurePeriodicSyncScheduled() }
+
+        val infos = workInfos(SyncWorker.PERIODIC_WORK_NAME)
+
+        // Le periodic est le filet de sécurité permanent : le recréer à
+        // chaque ouverture ne doit pas empiler cinq workers concurrents.
+        assertEquals(1, infos.size)
+        assertEquals(WorkInfo.State.ENQUEUED, infos.single().state)
+        assertEquals(15.minutesInMillis, infos.single().periodicityInfo!!.repeatIntervalMillis)
+    }
+
     private fun markBackedOff(id: String) {
         val dao = workDatabase().workSpecDao()
         dao.incrementWorkSpecRunAttemptCount(id)

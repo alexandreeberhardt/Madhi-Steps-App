@@ -26,7 +26,7 @@ interface LocationDao {
     @Query(
         """
         SELECT * FROM locations
-        WHERE sync_state = 'PENDING'
+        WHERE sync_state != 'SYNCED'
         ORDER BY recorded_at ASC
         LIMIT :limit
         """,
@@ -34,15 +34,16 @@ interface LocationDao {
     suspend fun oldestPending(limit: Int): List<LocationEntity>
 
     /**
-     * La clause `sync_state = 'PENDING'` est un garde-fou, pas une
+     * La clause `sync_state != 'SYNCED'` est un garde-fou, pas une
      * optimisation : elle empêche de réécrire un point déjà confirmé si deux
-     * synchronisations se recouvraient.
+     * synchronisations se recouvraient, tout en gardant les valeurs inconnues
+     * dans le backlog.
      */
     @Query(
         """
         UPDATE locations
         SET sync_state = 'SYNCED', last_attempt_at = :atEpochMillis, last_error_code = NULL
-        WHERE id IN (:ids) AND sync_state = 'PENDING'
+        WHERE id IN (:ids) AND sync_state != 'SYNCED'
         """,
     )
     suspend fun markSynced(ids: List<String>, atEpochMillis: Long): Int
@@ -53,18 +54,18 @@ interface LocationDao {
         SET attempt_count = attempt_count + 1,
             last_attempt_at = :atEpochMillis,
             last_error_code = :errorCode
-        WHERE id IN (:ids) AND sync_state = 'PENDING'
+        WHERE id IN (:ids) AND sync_state != 'SYNCED'
         """,
     )
     suspend fun recordFailedAttempt(ids: List<String>, atEpochMillis: Long, errorCode: String): Int
 
-    @Query("SELECT COUNT(*) FROM locations WHERE sync_state = 'PENDING'")
+    @Query("SELECT COUNT(*) FROM locations WHERE sync_state != 'SYNCED'")
     suspend fun pendingCount(): Int
 
     @Query("SELECT COUNT(*) FROM locations WHERE recorded_at >= :sinceEpochMillis")
     suspend fun countRecordedSince(sinceEpochMillis: Long): Int
 
-    @Query("SELECT COUNT(*) FROM locations WHERE sync_state = 'PENDING'")
+    @Query("SELECT COUNT(*) FROM locations WHERE sync_state != 'SYNCED'")
     fun observePendingCount(): Flow<Int>
 
     @Query("SELECT MAX(recorded_at) FROM locations")
@@ -73,6 +74,6 @@ interface LocationDao {
     @Query("SELECT MAX(recorded_at) FROM locations")
     fun observeLastRecordedAt(): Flow<Long?>
 
-    @Query("SELECT MIN(recorded_at) FROM locations WHERE sync_state = 'PENDING'")
+    @Query("SELECT MIN(recorded_at) FROM locations WHERE sync_state != 'SYNCED'")
     suspend fun oldestPendingRecordedAt(): Long?
 }

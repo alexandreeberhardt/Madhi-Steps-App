@@ -9,6 +9,7 @@ import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import androidx.work.testing.TestListenableWorkerBuilder
 import com.madhi.tracker.adapter.input.sync.SyncWorker
+import com.madhi.tracker.application.port.TrackingIntentStore
 import com.madhi.tracker.application.usecase.RestoreTracking
 import com.madhi.tracker.application.usecase.SyncPendingLocations
 import com.madhi.tracker.domain.error.SyncFailure
@@ -25,7 +26,10 @@ import com.madhi.tracker.fakes.FakeSyncScheduler
 import com.madhi.tracker.fakes.FakeTrackingIntentStore
 import com.madhi.tracker.fakes.FakeTrackingRuntime
 import com.madhi.tracker.fakes.RecordingEventLog
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -56,6 +60,17 @@ class SyncWorkerTest {
         assertWorkerSucceedsAfter(SyncFailure.ServerError(503))
     }
 
+    @Test
+    fun `une panne du watchdog n'empeche pas de vider le backlog`() = runTest {
+        givenPendingPoint()
+
+        val result = worker(restoreTrackingWithBrokenIntent()).doWork()
+
+        assertTrue(result is ListenableWorker.Result.Success)
+        assertEquals(0, store.pendingCount())
+        assertEquals(1, gateway.uploadCount)
+    }
+
     private suspend fun assertWorkerSucceedsAfter(failure: SyncFailure) {
         givenPendingPoint()
         gateway.failures.addLast(failure)
@@ -77,12 +92,12 @@ class SyncWorkerTest {
         )
     }
 
-    private fun worker(): SyncWorker =
+    private fun worker(restoreTracking: RestoreTracking = defaultRestoreTracking()): SyncWorker =
         TestListenableWorkerBuilder<SyncWorker>(context)
-            .setWorkerFactory(workerFactory())
+            .setWorkerFactory(workerFactory(restoreTracking))
             .build()
 
-    private fun workerFactory() = object : WorkerFactory() {
+    private fun workerFactory(restoreTracking: RestoreTracking) = object : WorkerFactory() {
         override fun createWorker(
             appContext: Context,
             workerClassName: String,
@@ -94,17 +109,35 @@ class SyncWorkerTest {
                 appContext,
                 workerParameters,
                 SyncPendingLocations(store, gateway, eventLog, clock),
-                RestoreTracking(
-                    trackingIntentStore = FakeTrackingIntentStore(TrackingIntent.INITIAL),
-                    trackingRuntime = FakeTrackingRuntime(),
-                    captureScheduler = FakeCaptureScheduler(),
-                    syncScheduler = FakeSyncScheduler(),
-                    rebootJournalStore = FakeRebootJournalStore(),
-                    locationStore = store,
-                    eventLog = eventLog,
-                    clock = clock,
-                ),
+                restoreTracking,
             )
         }
     }
+
+    private fun defaultRestoreTracking() = RestoreTracking(
+        trackingIntentStore = FakeTrackingIntentStore(TrackingIntent.INITIAL),
+        trackingRuntime = FakeTrackingRuntime(),
+        captureScheduler = FakeCaptureScheduler(),
+        syncScheduler = FakeSyncScheduler(),
+        rebootJournalStore = FakeRebootJournalStore(),
+        locationStore = store,
+        eventLog = eventLog,
+        clock = clock,
+    )
+
+    private fun restoreTrackingWithBrokenIntent() = RestoreTracking(
+        trackingIntentStore = object : TrackingIntentStore {
+            override suspend fun read(): TrackingIntent = throw IllegalStateException("datastore indisponible")
+            override suspend fun setEnabled(enabled: Boolean) = Unit
+            override suspend fun setCaptureInterval(interval: com.madhi.tracker.domain.model.CaptureInterval) = Unit
+            override fun observe(): Flow<TrackingIntent> = emptyFlow()
+        },
+        trackingRuntime = FakeTrackingRuntime(),
+        captureScheduler = FakeCaptureScheduler(),
+        syncScheduler = FakeSyncScheduler(),
+        rebootJournalStore = FakeRebootJournalStore(),
+        locationStore = store,
+        eventLog = eventLog,
+        clock = clock,
+    )
 }
