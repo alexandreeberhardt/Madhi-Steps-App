@@ -7,7 +7,10 @@ import com.madhi.tracker.application.port.LocationSyncGateway
 import com.madhi.tracker.domain.Outcome
 import com.madhi.tracker.domain.error.SyncFailure
 import com.madhi.tracker.domain.model.TrackerEvent
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Vide la file des points en attente, par lots, du plus ancien au plus récent.
@@ -16,6 +19,7 @@ import javax.inject.Inject
  * point non confirmé par le serveur reste `PENDING`, quelle que soit
  * l'erreur, quel que soit le nombre de tentatives (ADR-003).
  */
+@Singleton
 class SyncPendingLocations @Inject constructor(
     private val locationStore: LocationStore,
     private val gateway: LocationSyncGateway,
@@ -23,7 +27,17 @@ class SyncPendingLocations @Inject constructor(
     private val clock: Clock,
 ) {
 
-    suspend operator fun invoke(): SyncOutcome {
+    /**
+     * Une seule synchronisation à la fois, comme l'exige le contrat API §7.
+     *
+     * Sans ce verrou, la capture et le worker périodique peuvent partir
+     * ensemble et envoyer deux fois le même lot. L'idempotence côté serveur
+     * l'absorbe, mais la requête en trop coûte de la radio et de la
+     * batterie — et le cas s'est produit dès le premier test sur appareil.
+     */
+    suspend operator fun invoke(): SyncOutcome = mutex.withLock { syncOnce() }
+
+    private suspend fun syncOnce(): SyncOutcome {
         if (locationStore.pendingCount() == 0) return SyncOutcome.NothingToDo
 
         eventLog.record(TrackerEvent.SYNC_STARTED)
@@ -83,6 +97,8 @@ class SyncPendingLocations @Inject constructor(
         eventLog.record(TrackerEvent.SYNC_SUCCESS)
         return SyncOutcome.Completed(confirmed)
     }
+
+    private val mutex = Mutex()
 
     private companion object {
         const val DEFAULT_BATCH_SIZE = 200
