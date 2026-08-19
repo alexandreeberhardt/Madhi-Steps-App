@@ -135,8 +135,12 @@ ksp {
 }
 
 val validateReleaseConfig = tasks.register("validateReleaseConfig") {
+    // Copie locale volontaire : lire `releaseApiBaseUrl` depuis `doLast` capturerait
+    // le script de build lui-même, que le cache de configuration ne sait pas
+    // sérialiser — et le build release échouait pour cette seule raison.
+    val apiBaseUrl = releaseApiBaseUrl
     doLast {
-        check(!releaseApiBaseUrl.contains("example.invalid")) {
+        check(!apiBaseUrl.contains("example.invalid")) {
             "Build release sans API_BASE_URL. Renseignez MADHI_API_BASE_URL_RELEASE " +
                 "ou madhi.api.baseUrl.release dans local.properties."
         }

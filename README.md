@@ -67,13 +67,21 @@ un import de framework s'y glisse.
 Prérequis : JDK 17 ou plus récent, SDK Android.
 
     ./gradlew assembleDebug        # APK de développement
+    ./gradlew assembleRelease      # APK du voyage, signé et minifié par R8
     ./gradlew check                # tests et vérifications d'architecture
 
 Les tests tournent sur la JVM, sans émulateur ni téléphone : Robolectric
 couvre Room et DataStore, le reste s'appuie sur des doubles simples.
 
 Le build release **échoue volontairement** si l'URL de l'API n'est pas
-configurée, plutôt que de produire un APK pointant vers une valeur factice.
+configurée, plutôt que de produire un APK pointant vers une valeur factice. Il
+échoue aussi sans matériel de signature, pour ne pas livrer un APK signé avec la
+clé de debug.
+
+C'est le build release qui part en voyage (`arch/01` §2), donc c'est lui qui
+doit passer les tests terrain : R8 supprime du code que le build debug conserve.
+Conserver `app/build/outputs/mapping/release/mapping.txt` de chaque version
+installée — sans lui, une pile d'appel remontée du voyage est illisible.
 
 ## Configuration
 
@@ -87,8 +95,9 @@ ont la priorité sur ces fichiers, ce qui évite d'avoir à les créer en CI.
 
 ## Serveur de simulation
 
-Permet de valider l'application avant que le serveur réel existe, et sert de
-spécification exécutable pour son idempotence.
+Le serveur réel est déployé (voir `SERVER_DEPLOYMENT.md`) et les builds le
+visent désormais. Le serveur de simulation reste utile pour travailler hors
+ligne et sert de spécification exécutable de l'idempotence.
 
     python3 tools/mock-server/server.py
 
