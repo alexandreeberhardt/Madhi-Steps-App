@@ -1,7 +1,6 @@
 package com.madhi.tracker.adapter.output.scheduling
 
 import android.content.Context
-import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
@@ -32,17 +31,19 @@ class WorkManagerSyncScheduler @Inject constructor(
     private val workManager: WorkManager get() = WorkManager.getInstance(context)
 
     override fun ensurePeriodicSyncScheduled() {
+        // Pas de backoff : le worker ne renvoie jamais `retry`, et la période
+        // de quinze minutes est elle-même le mécanisme de réessai.
         val request = PeriodicWorkRequestBuilder<SyncWorker>(PERIOD_MINUTES, TimeUnit.MINUTES)
             .setConstraints(networkRequired)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_SECONDS, TimeUnit.SECONDS)
             .build()
 
-        // KEEP et non UPDATE : replanifier à chaque ouverture de
-        // l'application remettrait le compteur à zéro et repousserait
-        // indéfiniment la prochaine exécution.
+        // UPDATE conserve la planification en cours mais remplace la
+        // spécification. C'est ce qui permet à une version corrigée de
+        // reprendre la main sur un travail hérité, sans attendre que
+        // l'utilisatrice réinstalle — elle ne réinstallera pas.
         workManager.enqueueUniquePeriodicWork(
             SyncWorker.PERIODIC_WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.UPDATE,
             request,
         )
     }
@@ -50,14 +51,21 @@ class WorkManagerSyncScheduler @Inject constructor(
     override fun requestImmediateSync() {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(networkRequired)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_SECONDS, TimeUnit.SECONDS)
             .build()
 
-        // KEEP : si un envoi est déjà en cours ou en attente de réseau,
-        // en empiler un second ne ferait qu'user la radio.
+        // REPLACE et non KEEP.
+        //
+        // Avec KEEP, un travail hérité coincé sur une contrainte de délai
+        // bloque indéfiniment toute nouvelle tentative : c'est exactement ce
+        // qui s'est produit le 19 août, où le backlog d'une nuit refusait de
+        // partir alors que le réseau était revenu.
+        //
+        // Remplacer est sans danger : la synchronisation confirme chaque lot
+        // au fur et à mesure, donc une exécution interrompue reprend là où
+        // elle s'était arrêtée, et aucun point n'est perdu.
         workManager.enqueueUniqueWork(
             SyncWorker.IMMEDIATE_WORK_NAME,
-            ExistingWorkPolicy.KEEP,
+            ExistingWorkPolicy.REPLACE,
             request,
         )
     }
@@ -67,6 +75,5 @@ class WorkManagerSyncScheduler @Inject constructor(
 
     private companion object {
         const val PERIOD_MINUTES = 15L
-        const val BACKOFF_SECONDS = 60L
     }
 }

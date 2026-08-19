@@ -6,7 +6,6 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.madhi.tracker.application.usecase.RestoreTracking
 import com.madhi.tracker.application.usecase.RestoreTrigger
-import com.madhi.tracker.application.usecase.SyncOutcome
 import com.madhi.tracker.application.usecase.SyncPendingLocations
 import com.madhi.tracker.domain.error.SyncFailure
 import dagger.assisted.Assisted
@@ -40,19 +39,25 @@ class SyncWorker @AssistedInject constructor(
         return syncOutcome()
     }
 
-    private suspend fun syncOutcome(): Result = when (val outcome = syncPendingLocations()) {
-        is SyncOutcome.NothingToDo -> Result.success()
-        is SyncOutcome.Completed -> Result.success()
-
-        is SyncOutcome.Failed -> if (outcome.failure.isRetryable) {
-            // WorkManager applique son propre backoff exponentiel.
-            Result.retry()
-        } else {
-            // Authentification ou payload refusé : réessayer en boucle ne
-            // corrigera rien et userait la batterie. L'exécution périodique
-            // reprendra de toute façon, et aucun point n'est perdu.
-            Result.success()
-        }
+    /**
+     * Ce worker ne renvoie **jamais** `retry`.
+     *
+     * Le backoff exponentiel de WorkManager est un piège ici. Après une nuit
+     * hors réseau, il atteint plusieurs heures — plafonnées à cinq — et le
+     * travail reste bloqué sur une contrainte `TIMING_DELAY` même une fois le
+     * réseau revenu. Comme la demande immédiate utilise `KEEP`, les nouvelles
+     * tentatives sont alors ignorées au profit de celle qui attend.
+     *
+     * Le cas réel : trois jours sans réseau, puis vingt minutes de wifi dans
+     * un café, et rien ne part. Observé sur appareil le 19 août 2026.
+     *
+     * L'exécution périodique de quinze minutes **est** le mécanisme de
+     * réessai. Un backoff par-dessus n'ajoute rien et retire beaucoup.
+     * Aucun point n'est perdu : ils restent en attente jusqu'à confirmation.
+     */
+    private suspend fun syncOutcome(): Result {
+        syncPendingLocations()
+        return Result.success()
     }
 
     companion object {
