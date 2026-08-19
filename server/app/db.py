@@ -46,7 +46,7 @@ async def seed_configured_trip_and_activation_code(pool: asyncpg.Pool, settings:
                 """,
                 activation_hash,
                 UUID(settings.initial_trip_id),
-                settings.activation_code_ttl_minutes,
+                str(settings.activation_code_ttl_minutes),
             )
 
 

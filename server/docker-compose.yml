@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16.4-bookworm
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-madhi_tracker}
       POSTGRES_USER: ${POSTGRES_USER:-madhi}
@@ -37,6 +38,7 @@ services:
     build:
       context: .
       target: runtime
+    restart: unless-stopped
     environment:
       APP_ENV: ${APP_ENV:-development}
       DATABASE_URL: ${DATABASE_URL:-postgresql://madhi:madhi_dev_password@postgres:5432/madhi_tracker}
@@ -52,7 +54,7 @@ services:
       PUBLIC_READ_TOKEN: ${PUBLIC_READ_TOKEN:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
-      - "8080:8080"
+      - "${API_BIND:-127.0.0.1:8111}:8080"
     depends_on:
       postgres:
         condition: service_healthy

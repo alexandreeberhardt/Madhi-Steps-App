@@ -1,4 +1,4 @@
-# Deploiement serveur actuel
+# Deploiement serveur POC
 
 ## Etat
 
@@ -10,64 +10,85 @@ L'API Android utilise cette base :
 
     https://madhi-server.alexeber.fr/api/v1
 
-Le service systemd utilisateur qui tourne sur le VPS est :
+Le serveur POC tourne avec Docker Compose :
 
-    madhi-mock-server.service
+    docker compose -f server/docker-compose.yml up -d
 
-Il expose le serveur localement sur :
+L'API est publiee localement sur :
 
-    http://127.0.0.1:8110
+    http://127.0.0.1:8111
 
 Nginx sert de reverse proxy HTTPS entre `madhi-server.alexeber.fr` et
-`127.0.0.1:8110`.
+`127.0.0.1:8111`.
+
+Le serveur de simulation `madhi-mock-server.service` doit rester arrete et
+desactive.
 
 ## Verification
 
-Verifier que le service local tourne :
+Verifier que les conteneurs tournent :
 
-    systemctl --user is-active madhi-mock-server.service
+    docker compose -f server/docker-compose.yml ps
 
-Verifier l'etat public du serveur :
+Verifier l'API locale :
+
+    curl http://127.0.0.1:8111/health
+
+Verifier l'API publique :
+
+    curl https://madhi-server.alexeber.fr/health
+
+Reponse attendue :
+
+    {"status":"ok"}
+
+Verifier que le domaine ne pointe plus vers le mock :
 
     curl https://madhi-server.alexeber.fr/_control/state
 
-Reponse attendue quand le mock est vierge :
-
-    {
-      "activated": false,
-      "devices": 0,
-      "locations": 0,
-      "batches": 0,
-      "firstRecordedAt": null,
-      "lastRecordedAt": null,
-      "pendingForcedFailures": []
-    }
+La reponse attendue est une erreur 404, car `/_control/state` n'existe que sur
+le serveur de simulation.
 
 Lire les logs :
 
-    journalctl --user -u madhi-mock-server.service -n 50 --no-pager
+    docker compose -f server/docker-compose.yml logs --tail=100 api
 
-Redemarrer le service :
+Redemarrer le serveur POC :
 
-    systemctl --user restart madhi-mock-server.service
+    docker compose -f server/docker-compose.yml up -d
 
 ## Activation
 
-Code d'activation configure actuellement :
+Le code d'activation est configure dans `server/.env` via :
 
-    MADHI-2026
+    INITIAL_ACTIVATION_CODE
 
-L'activation est a usage unique dans le mock. Si le code est consomme pendant
-un test, redemarrer `madhi-mock-server.service` remet le mock dans son etat
-initial avec le meme code.
+Le format attendu par le serveur POC est `XXXX-XXXX` avec quatre caracteres,
+un tiret, puis quatre caracteres.
 
-## Limite importante
+Le code actuellement configure sur le VPS est :
 
-Le serveur actuellement deploye est le serveur de simulation du depot, pas le
-serveur reel persistant.
+    233B-F3D6
 
-Il permet de tester l'application Android via le vrai domaine HTTPS, avec le
-contrat API attendu, mais ses donnees sont stockees en memoire et disparaissent
-au redemarrage du service.
+L'activation est a usage unique. Une fois consomme, il faut creer un nouveau
+code ou reseeder la base avec un nouveau `INITIAL_ACTIVATION_CODE`.
 
-Il ne faut pas le considerer comme le serveur de production final.
+## Donnees
+
+PostgreSQL est lance par Docker Compose et stocke les donnees dans le volume :
+
+    server_madhi_postgres_data
+
+Ce volume contient les positions serveur et doit etre sauvegarde.
+
+## Nginx
+
+La configuration versionnee est :
+
+    tools/nginx/madhi-server.alexeber.fr
+
+Appliquer la configuration sur le VPS :
+
+    sudo cp tools/nginx/madhi-server.alexeber.fr /etc/nginx/sites-available/madhi-server.alexeber.fr
+    sudo nginx -t
+    sudo systemctl reload nginx
