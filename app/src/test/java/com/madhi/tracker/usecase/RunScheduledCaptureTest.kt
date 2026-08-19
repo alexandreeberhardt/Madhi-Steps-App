@@ -158,6 +158,20 @@ class RunScheduledCaptureTest {
     }
 
     @Test
+    fun `une alarme heritee ne capture pas quand le suivi est deja arrete`() = runTest {
+        // StopTracking annule l'alarme, mais Android peut encore livrer un
+        // PendingIntent deja parti. L'intention utilisatrice doit primer.
+        intentStore.setEnabled(false)
+        locationSource.willReturn(validFix())
+
+        val result = runScheduledCapture()
+
+        assertNull(result)
+        assertEquals(0, locationSource.acquisitionCount)
+        assertEquals(1, captureScheduler.cancellations)
+    }
+
+    @Test
     fun `l'intervalle configure change la cadence de surveillance`() = runTest {
         givenPointRecorded(minutesAgo = 1)
         intentStore.setCaptureInterval(CaptureInterval.TWO)

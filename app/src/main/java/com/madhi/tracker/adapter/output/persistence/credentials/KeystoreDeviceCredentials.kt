@@ -41,14 +41,14 @@ class KeystoreDeviceCredentials @Inject constructor(
         }
     }
 
-    override suspend fun isActivated(): Boolean = read(ENCRYPTED_TOKEN) != null
+    override suspend fun isActivated(): Boolean = authorizationHeaderValue() != null
 
     override suspend fun deviceId(): String? = read(DEVICE_ID)
 
     override suspend fun tripId(): String? = read(TRIP_ID)
 
     override suspend fun authorizationHeaderValue(): String? =
-        read(ENCRYPTED_TOKEN)?.let { "Bearer ${decrypt(it)}" }
+        read(ENCRYPTED_TOKEN)?.let(::decrypt)?.let { "Bearer $it" }
 
     private suspend fun read(key: Preferences.Key<String>): String? =
         dataStore.data.map { it[key] }.first()

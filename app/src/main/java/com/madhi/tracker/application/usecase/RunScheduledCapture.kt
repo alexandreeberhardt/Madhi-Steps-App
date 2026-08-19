@@ -31,6 +31,12 @@ class RunScheduledCapture @Inject constructor(
 ) {
 
     suspend operator fun invoke(): CaptureResult? {
+        val initialIntent = trackingIntentStore.read()
+        if (!initialIntent.enabled) {
+            captureScheduler.cancel()
+            return null
+        }
+
         val result = runCatching { captureIfStreamWentQuiet() }
 
         val intent = trackingIntentStore.read()

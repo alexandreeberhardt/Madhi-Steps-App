@@ -11,7 +11,12 @@ import com.madhi.tracker.adapter.output.location.AndroidLocationSource
 import com.madhi.tracker.application.port.Clock
 import com.madhi.tracker.fakes.RecordingEventLog
 import com.madhi.tracker.domain.error.LocationAcquisitionFailure
+import com.madhi.tracker.domain.model.TrackerEvent
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -25,6 +30,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLocationManager
 import java.time.Instant
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
@@ -44,12 +50,14 @@ class AndroidLocationSourceTest {
         override fun uptime() = 1.seconds
     }
 
-    private val source = AndroidLocationSource(application, RecordingEventLog(), clock)
+    private val eventLog = RecordingEventLog()
+    private val source = AndroidLocationSource(application, eventLog, clock)
 
     @Before
     fun setUp() {
         shadowOf(application).grantPermissions(Manifest.permission.ACCESS_FINE_LOCATION)
         shadowLocationManager.setProviderEnabled(LocationManager.GPS_PROVIDER, true)
+        shadowLocationManager.setProviderEnabled(LocationManager.NETWORK_PROVIDER, true)
     }
 
     /**
@@ -172,5 +180,111 @@ class AndroidLocationSourceTest {
         )
 
         assertNull(acquisition.await().failureOrNull())
+    }
+
+    @Test
+    fun `le flux s'abonne au GPS et au reseau pour eviter un trou en interieur`() = runTest {
+        val fixes = mutableListOf<com.madhi.tracker.domain.model.LocationFix>()
+
+        val collection = launch { source.stream(5.minutes).take(2).toList(fixes) }
+        runCurrent()
+
+        assertEquals(1, shadowLocationManager.getLocationRequests(LocationManager.GPS_PROVIDER).size)
+        assertEquals(1, shadowLocationManager.getLocationRequests(LocationManager.NETWORK_PROVIDER).size)
+        assertTrue(eventLog.details.contains(TrackerEvent.STREAM_STARTED to "gps+network"))
+
+        deliver(gpsLocation())
+        deliver(
+            Location(LocationManager.NETWORK_PROVIDER).apply {
+                latitude = 48.85
+                longitude = 2.29
+                time = now.plusSeconds(300).toEpochMilli()
+            },
+        )
+
+        collection.join()
+        assertEquals(2, fixes.size)
+    }
+
+    @Test
+    fun `le flux reseau seul reste accepte quand le GPS ne donne rien`() = runTest {
+        shadowLocationManager.setProviderEnabled(LocationManager.GPS_PROVIDER, false)
+        shadowLocationManager.setProviderEnabled(LocationManager.NETWORK_PROVIDER, true)
+        val fixes = mutableListOf<com.madhi.tracker.domain.model.LocationFix>()
+
+        val collection = launch { source.stream(5.minutes).take(1).toList(fixes) }
+        runCurrent()
+
+        assertTrue(shadowLocationManager.getLocationRequests(LocationManager.GPS_PROVIDER).isEmpty())
+        assertEquals(1, shadowLocationManager.getLocationRequests(LocationManager.NETWORK_PROVIDER).size)
+        assertTrue(eventLog.details.contains(TrackerEvent.STREAM_STARTED to "network"))
+
+        deliver(
+            Location(LocationManager.NETWORK_PROVIDER).apply {
+                latitude = 48.85
+                longitude = 2.29
+                accuracy = 500f
+                time = now.toEpochMilli()
+            },
+        )
+
+        collection.join()
+        assertEquals(48.85, fixes.single().coordinates.latitude, 0.00001)
+        assertEquals(500f, fixes.single().accuracyMeters)
+    }
+
+    @Test
+    fun `annuler le flux libere les recepteurs de localisation`() = runTest {
+        val collection = launch { source.stream(5.minutes).toList() }
+        runCurrent()
+        assertTrue(shadowLocationManager.requestLocationUpdateListeners.isNotEmpty())
+
+        collection.cancelAndJoin()
+
+        // Sans liberation a l'annulation, le recepteur resterait actif apres
+        // arret du service et viderait la batterie en silence.
+        assertTrue(shadowLocationManager.requestLocationUpdateListeners.isEmpty())
+        assertTrue(eventLog.events.contains(TrackerEvent.STREAM_STOPPED))
+    }
+
+    @Test
+    fun `le flux se ferme sans abonnement quand la permission manque`() = runTest {
+        shadowOf(application).denyPermissions(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+        )
+
+        val fixes = source.stream(5.minutes).toList()
+
+        assertTrue(fixes.isEmpty())
+        assertTrue(shadowLocationManager.requestLocationUpdateListeners.isEmpty())
+        assertTrue(eventLog.details.contains(TrackerEvent.ACQUISITION_FAILED to "stream_permission_missing"))
+    }
+
+    @Test
+    fun `le flux se ferme sans abonnement quand aucun fournisseur n'est disponible`() = runTest {
+        shadowLocationManager.setProviderEnabled(LocationManager.GPS_PROVIDER, false)
+        shadowLocationManager.setProviderEnabled(LocationManager.NETWORK_PROVIDER, false)
+
+        val fixes = source.stream(5.minutes).toList()
+
+        assertTrue(fixes.isEmpty())
+        assertTrue(shadowLocationManager.requestLocationUpdateListeners.isEmpty())
+        assertTrue(eventLog.details.contains(TrackerEvent.ACQUISITION_FAILED to "stream_no_provider"))
+    }
+
+    @Test
+    fun `la revocation de permission pendant l'abonnement ne bloque pas la fermeture`() = runTest {
+        val collection = launch { source.stream(5.minutes).toList() }
+        runCurrent()
+        assertTrue(shadowLocationManager.requestLocationUpdateListeners.isNotEmpty())
+
+        shadowOf(application).denyPermissions(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+        )
+        collection.cancelAndJoin()
+
+        assertTrue(eventLog.events.contains(TrackerEvent.STREAM_STOPPED))
     }
 }

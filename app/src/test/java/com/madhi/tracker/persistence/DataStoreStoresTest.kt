@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.cash.turbine.test
+import com.madhi.tracker.adapter.output.persistence.datastore.DataStoreOnboardingStore
 import com.madhi.tracker.adapter.output.persistence.datastore.DataStoreRebootJournalStore
 import com.madhi.tracker.adapter.output.persistence.datastore.DataStoreSyncJournalStore
 import com.madhi.tracker.adapter.output.persistence.datastore.DataStoreTrackingIntentStore
@@ -49,6 +51,29 @@ class DataStoreStoresTest {
     }
 
     // --- Intention de suivi
+
+    @Test
+    fun `l'installation n'est pas terminee par defaut`() = runTest {
+        assertFalse(DataStoreOnboardingStore(dataStore).isCompleted())
+    }
+
+    @Test
+    fun `l'installation terminee survit a une nouvelle instance du store`() = runTest {
+        DataStoreOnboardingStore(dataStore).markCompleted()
+
+        assertTrue(DataStoreOnboardingStore(dataStore).isCompleted())
+    }
+
+    @Test
+    fun `l'observation de l'installation publie le passage a termine`() = runTest {
+        val store = DataStoreOnboardingStore(dataStore)
+
+        store.observe().test {
+            assertFalse(awaitItem())
+            store.markCompleted()
+            assertTrue(awaitItem())
+        }
+    }
 
     @Test
     fun le_suivi_est_arrete_par_defaut_et_l_intervalle_vaut_cinq_minutes() = runTest {
