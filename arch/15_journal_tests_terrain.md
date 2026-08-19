@@ -325,6 +325,80 @@ Deux chiffres, pas un :
    d'avoir écarté le verrou de réveil. Un suivi parfait qui vide la batterie
    en une nuit ne sert à rien.
 
+## Résultat — le problème s'est inversé
+
+**205 % de couverture, aucun trou.** 81 positions entre 08:42 et 12:00 UTC,
+soit 3,30 heures, là où la cadence de cinq minutes en attendait 39.
+
+    distribution des écarts, en minutes :
+      2 min → 32 fois    0 min → 17 fois    4 min → 15 fois
+      3 min →  8 fois    1 min →  5 fois    5 min →  3 fois
+
+    écarts supérieurs à 15 minutes : aucun
+
+La voie du flux **règle le problème de T1**. Là où la veille on relevait des
+trous de 20, 30, 50 et 89 minutes, il n'en reste aucun au-delà de 15 minutes.
+La cadence n'est plus trop lente : elle est deux fois trop rapide.
+
+### Cause — deux abonnements, deux livraisons
+
+    ProviderRequest[@+5m0s0ms, WorkSource{10416 com.madhi.tracker.debug}]
+    ProviderRequest[@+5m0s0ms, WorkSource{10416 com.madhi.tracker.debug}]
+
+L'application s'abonne aux deux fournisseurs, GPS et réseau, et chacun livre
+indépendamment à la cadence demandée. D'où environ 2,5 minutes effectives.
+
+Un second facteur venait de notre code : `setMinUpdateIntervalMillis` était
+réglé à la moitié de l'intervalle, ce qui **autorise explicitement** une
+livraison deux fois plus rapide. L'intention était l'inverse.
+
+### La consommation observée n'est pas imputable au suivi
+
+La batterie est passée de 77 % à 20 % pendant la mesure, ce qui semblait
+accablant. Les statistiques disent autre chose :
+
+    Screen on discharge:  8246 mAh      → 99 % de la consommation
+    Screen off discharge:   88.0 mAh
+
+Le téléphone a été utilisé écran allumé toute la matinée. La consommation
+écran éteint, la seule qui concerne le suivi, est négligeable.
+
+**La mesure de consommation reste donc entièrement à faire.** C'est le seul
+point de l'architecture encore inconnu, et la raison même d'avoir écarté le
+verrou de réveil permanent.
+
+### Corrections apportées
+
+- `CaptureThrottle` écarte une position arrivant à moins de 80 % de
+  l'intervalle depuis la précédente, ainsi qu'une position antérieure au
+  dernier point — un doublon livré en retard par l'autre fournisseur. Le
+  seuil est volontairement tolérant : écarter un point de trop créerait un
+  trou, alors qu'en écarter un est sans conséquence.
+- `setMinUpdateIntervalMillis` passe à l'intervalle complet.
+
+**Ces corrections ne sont pas vérifiées sur appareil.** Elles sont couvertes
+par des tests unitaires et installées, mais une seule position a été
+enregistrée depuis l'installation : trop peu pour mesurer quoi que ce soit.
+C'est le premier point à contrôler à la prochaine session.
+
+## Travail de test conduit en parallèle
+
+Un agent a ajouté 49 tests et trouvé **trois défauts réels**, tous sur le
+chemin anti-perte :
+
+| Défaut | Ce qu'il cassait |
+|---|---|
+| `WHERE sync_state = 'PENDING'` dans le DAO | une ligne au `sync_state` corrompu devenait invisible pour `oldestPending` et `pendingCount` : jamais envoyée, silencieusement. Le mapping domaine se défendait déjà, la requête SQL non. Remplacé par `!= 'SYNCED'` |
+| `"Bearer null"` | un token indéchiffrable produisait littéralement cette chaîne dans l'en-tête. Le serveur aurait répondu 401 et le diagnostic aurait accusé l'authentification au lieu d'un token corrompu |
+| `TrackLocations` ignorait `enabled` | si le service survivait à une désactivation, le flux aurait continué d'enregistrer — en violation directe de « désactiver le tracking arrête la collecte » |
+
+Il a également protégé l'appel à `recordLocation` dans le `collect` : une
+exception y aurait terminé le flux, donc arrêté le suivi en silence.
+
+Réserve à traiter : ce `runCatching` n'écrit rien dans le journal. Si la
+planification échouait systématiquement, personne ne le saurait — exactement
+le type de panne muette que le projet cherche à éliminer.
+
 ## Points de vigilance
 
 - Le test précédent s'est déroulé à l'intérieur, où aucun fix GPS n'a abouti
