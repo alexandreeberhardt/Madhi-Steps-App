@@ -10,9 +10,11 @@ import com.madhi.tracker.domain.model.SyncState
 import com.madhi.tracker.fakes.FakeClock
 import com.madhi.tracker.fakes.FakeLocationStore
 import com.madhi.tracker.fakes.FakeLocationSyncGateway
+import com.madhi.tracker.fakes.FakeSyncJournalStore
 import com.madhi.tracker.fakes.RecordingEventLog
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -22,8 +24,9 @@ class SyncPendingLocationsTest {
     private val store = FakeLocationStore()
     private val gateway = FakeLocationSyncGateway()
     private val eventLog = RecordingEventLog()
+    private val journal = FakeSyncJournalStore()
 
-    private val sync = SyncPendingLocations(store, gateway, eventLog, clock)
+    private val sync = SyncPendingLocations(store, gateway, eventLog, journal, clock)
 
     private suspend fun givenPendingPoints(count: Int): List<LocationPoint> =
         (0 until count).map { index ->
@@ -183,5 +186,54 @@ class SyncPendingLocationsTest {
             assertEquals("point sorti de la file sur $failure", 10, store.pendingCount())
         }
         assertEquals(10, points.size)
+    }
+
+    @Test
+    fun `un envoi reussi est inscrit au journal de synchronisation`() = runTest {
+        // Le journal est la seule reponse a « est-ce que ca envoie ? » une fois
+        // le telephone parti. Il etait cable a l'affichage mais rien ne
+        // l'ecrivait : le diagnostic annoncait « aucune » indefiniment.
+        givenPendingPoints(3)
+
+        sync()
+
+        assertEquals(clock.now(), journal.read().lastSuccessAt)
+        assertEquals(3, journal.read().lastBatchSize)
+        assertEquals(0, journal.read().consecutiveFailures)
+    }
+
+    @Test
+    fun `un echec inscrit son motif et incremente le compteur`() = runTest {
+        givenPendingPoints(2)
+        gateway.failures += SyncFailure.ServerError(503)
+
+        sync()
+
+        assertEquals(SyncFailure.ServerError(503).code, journal.read().lastFailureCode)
+        assertEquals(1, journal.read().consecutiveFailures)
+        assertNull(journal.read().lastSuccessAt)
+    }
+
+    @Test
+    fun `un envoi reussi efface le motif de l'echec precedent`() = runTest {
+        givenPendingPoints(2)
+        gateway.failures += SyncFailure.ServerError(503)
+        sync()
+
+        sync()
+
+        assertNull(journal.read().lastFailureCode)
+        assertEquals(0, journal.read().consecutiveFailures)
+        assertEquals(clock.now(), journal.read().lastSuccessAt)
+    }
+
+    @Test
+    fun `une file vide ne fait pas croire a un envoi reussi`() = runTest {
+        // Sinon le diagnostic afficherait un succes recent alors que rien
+        // n'est parti, ce qui masquerait une panne d'envoi.
+        sync()
+
+        assertNull(journal.read().lastSuccessAt)
+        assertNull(journal.read().lastAttemptAt)
     }
 }

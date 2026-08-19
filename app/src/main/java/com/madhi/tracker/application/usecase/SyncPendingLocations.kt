@@ -4,6 +4,7 @@ import com.madhi.tracker.application.port.Clock
 import com.madhi.tracker.application.port.EventLog
 import com.madhi.tracker.application.port.LocationStore
 import com.madhi.tracker.application.port.LocationSyncGateway
+import com.madhi.tracker.application.port.SyncJournalStore
 import com.madhi.tracker.domain.Outcome
 import com.madhi.tracker.domain.error.SyncFailure
 import com.madhi.tracker.domain.model.TrackerEvent
@@ -24,6 +25,7 @@ class SyncPendingLocations @Inject constructor(
     private val locationStore: LocationStore,
     private val gateway: LocationSyncGateway,
     private val eventLog: EventLog,
+    private val syncJournalStore: SyncJournalStore,
     private val clock: Clock,
 ) {
 
@@ -48,8 +50,11 @@ class SyncPendingLocations @Inject constructor(
             val batch = locationStore.oldestPending(batchSize)
             if (batch.isEmpty()) {
                 eventLog.record(TrackerEvent.SYNC_SUCCESS)
+                syncJournalStore.recordSuccess(clock.now())
                 return SyncOutcome.Completed(confirmed)
             }
+
+            syncJournalStore.recordAttempt(clock.now(), batch.size)
 
             when (val result = gateway.upload(batch)) {
                 is Outcome.Success -> {
@@ -71,8 +76,10 @@ class SyncPendingLocations @Inject constructor(
                     // Aucun point confirmé alors que le serveur a répondu :
                     // continuer boucierait sur le même lot.
                     if (stored.isEmpty()) {
+                        val noProgress = SyncFailure.Unexpected("no_progress")
                         eventLog.record(TrackerEvent.SYNC_FAILED, "no_progress")
-                        return SyncOutcome.Failed(SyncFailure.Unexpected("no_progress"), confirmed)
+                        syncJournalStore.recordFailure(clock.now(), noProgress)
+                        return SyncOutcome.Failed(noProgress, confirmed)
                     }
                 }
 
@@ -80,6 +87,7 @@ class SyncPendingLocations @Inject constructor(
                     val failure = result.reason
                     locationStore.recordFailedAttempt(batch.map { it.id }, clock.now(), failure.code)
                     eventLog.record(TrackerEvent.SYNC_FAILED, failure.code)
+                    syncJournalStore.recordFailure(clock.now(), failure)
 
                     // Le serveur dit que le lot est trop gros : le réduire et
                     // laisser la prochaine exécution reprendre, plutôt que
@@ -95,6 +103,7 @@ class SyncPendingLocations @Inject constructor(
         }
 
         eventLog.record(TrackerEvent.SYNC_SUCCESS)
+        syncJournalStore.recordSuccess(clock.now())
         return SyncOutcome.Completed(confirmed)
     }
 

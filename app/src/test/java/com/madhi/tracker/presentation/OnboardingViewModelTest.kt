@@ -15,6 +15,7 @@ import com.madhi.tracker.fakes.FakeLocationStore
 import com.madhi.tracker.fakes.FakeLocationSyncGateway
 import com.madhi.tracker.fakes.FakeOnboardingStore
 import com.madhi.tracker.fakes.FakeRebootJournalStore
+import com.madhi.tracker.fakes.FakeSyncJournalStore
 import com.madhi.tracker.fakes.FakeSyncScheduler
 import com.madhi.tracker.fakes.FakeTrackingEnvironment
 import com.madhi.tracker.fakes.FakeTrackingIntentStore
@@ -60,6 +61,7 @@ class OnboardingViewModelTest {
                 locationStore,
                 FakeLocationSyncGateway(),
                 eventLog,
+                FakeSyncJournalStore(),
                 clock,
             ),
             credentials = FakeDeviceCredentials(),

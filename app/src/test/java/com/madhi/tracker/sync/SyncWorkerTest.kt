@@ -22,6 +22,7 @@ import com.madhi.tracker.fakes.FakeClock
 import com.madhi.tracker.fakes.FakeLocationStore
 import com.madhi.tracker.fakes.FakeLocationSyncGateway
 import com.madhi.tracker.fakes.FakeRebootJournalStore
+import com.madhi.tracker.fakes.FakeSyncJournalStore
 import com.madhi.tracker.fakes.FakeSyncScheduler
 import com.madhi.tracker.fakes.FakeTrackingIntentStore
 import com.madhi.tracker.fakes.FakeTrackingRuntime
@@ -108,7 +109,7 @@ class SyncWorkerTest {
             return SyncWorker(
                 appContext,
                 workerParameters,
-                SyncPendingLocations(store, gateway, eventLog, clock),
+                SyncPendingLocations(store, gateway, eventLog, FakeSyncJournalStore(), clock),
                 restoreTracking,
             )
         }

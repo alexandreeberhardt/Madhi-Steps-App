@@ -10,6 +10,7 @@ import com.madhi.tracker.domain.model.DeviceActivation
 import com.madhi.tracker.domain.model.LocationFix
 import com.madhi.tracker.domain.model.TrackingIntent
 import com.madhi.tracker.fakes.FakeClock
+import com.madhi.tracker.fakes.FakeSyncJournalStore
 import com.madhi.tracker.fakes.captureLocationWith
 import com.madhi.tracker.fakes.recordLocationWith
 import com.madhi.tracker.fakes.FakeDeviceCredentials
@@ -46,7 +47,7 @@ class RunSetupCheckTest {
             eventLog = eventLog,
             clock = clock,
         ),
-        syncPendingLocations = SyncPendingLocations(locationStore, gateway, eventLog, clock),
+        syncPendingLocations = SyncPendingLocations(locationStore, gateway, eventLog, FakeSyncJournalStore(), clock),
         credentials = credentials,
     )
 
