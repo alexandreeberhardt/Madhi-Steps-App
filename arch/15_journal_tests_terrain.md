@@ -284,3 +284,53 @@ corriger le second en croyant corriger le premier.
 
 Critère : au-dessus de 90 % la stratégie d'acquisition tient ; en dessous de
 66 % elle doit être revue avant d'aller plus loin.
+
+# Session 3 — T1-bis, avec la cadence par le flux de localisation
+
+## Ce qui a changé depuis T1
+
+La cadence n'est plus portée par `AlarmManager` mais par le fournisseur de
+localisation (ADR-008). L'alarme subsiste comme filet de sécurité à trois fois
+l'intervalle.
+
+Confirmé sur l'appareil avant le départ :
+
+    STREAM_STARTED gps+network
+    CAPTURE_SCHEDULED dans 900s
+    ProviderRequest[@+5m0s0ms, WorkSource{10416 com.madhi.tracker.debug}]
+
+Le tampon de logs a été porté à 8 Mo (`adb logcat -G 8M`) : une nuit entière
+tiendra, ce qui manquait à T1 pour départager les causes.
+
+## Point de départ
+
+| | |
+|---|---|
+| Heure (UTC) | 2026-08-19T08:41:19Z |
+| **Batterie** | **77 %**, sur batterie |
+| Positions en base | 82, dont 33 en attente |
+| Service de premier plan | actif |
+| Requête de localisation | active, intervalle 5 min |
+| Exemption batterie | accordée |
+
+## Ce qu'on cherche à mesurer
+
+Deux chiffres, pas un :
+
+1. **Couverture** — au-dessus de 90 %, la voie du flux est validée sur cet
+   appareil. Entre 66 et 90 %, à confirmer sur plus long. En dessous de 66 %,
+   il faudra reconsidérer, et l'option du verrou de réveil permanent
+   reviendra sur la table malgré son coût.
+2. **Consommation** — c'est le chiffre qui manquait à T1, et la raison même
+   d'avoir écarté le verrou de réveil. Un suivi parfait qui vide la batterie
+   en une nuit ne sert à rien.
+
+## Points de vigilance
+
+- Le test précédent s'est déroulé à l'intérieur, où aucun fix GPS n'a abouti
+  de la nuit. Placer le téléphone près d'une fenêtre rendra la mesure plus
+  représentative d'un usage à vélo.
+- Vérifier au réveil que l'abonnement au flux a survécu : chercher
+  `STREAM_STOPPED` sans `STREAM_STARTED` qui suive.
+- Vérifier si le filet a dû intervenir : la présence de `STREAM_SILENT`
+  signalerait que le flux se tait par moments.
