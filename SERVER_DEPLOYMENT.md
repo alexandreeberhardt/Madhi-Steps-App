@@ -66,12 +66,10 @@ Le code d'activation est configure dans `server/.env` via :
 Le format attendu par le serveur POC est `XXXX-XXXX` avec quatre caracteres,
 un tiret, puis quatre caracteres.
 
-Le code actuellement configure sur le VPS est :
-
-    233B-F3D6
-
 L'activation est a usage unique. Une fois consomme, il faut creer un nouveau
-code ou reseeder la base avec un nouveau `INITIAL_ACTIVATION_CODE`.
+code dans `server/.env`, puis reseeder la base.
+
+Ne pas versionner le code d'activation. Le traiter comme un secret temporaire.
 
 ## Donnees
 
