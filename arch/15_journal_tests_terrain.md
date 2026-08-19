@@ -185,3 +185,33 @@ table paraît vide :
 
     adb shell "run-as com.madhi.tracker.debug cat databases/madhi-tracker.db" > madhi.db
     adb shell "run-as com.madhi.tracker.debug cat databases/madhi-tracker.db-wal" > madhi.db-wal
+
+# Session 2 — T1, nuit du 19 août 2026
+
+## Point de départ
+
+| | |
+|---|---|
+| Départ (UTC) | 2026-08-19T00:49:02Z |
+| Positions déjà en base | 49 |
+| Intervalle configuré | 5 min → 12 positions/heure attendues |
+| Exemption batterie Android | accordée (`deviceidle whitelist`) |
+| Bucket App Standby | 5, exempté |
+| Service de premier plan | actif |
+| Réglages OxygenOS | les trois appliqués à la main par Alexandre |
+
+Les trois réglages propriétaires ne sont exposés par aucune API publique :
+c'est le taux de couverture qui les jugera, pas une vérification directe.
+
+## À relever au réveil
+
+1. **Taux de couverture** sur l'écran Diagnostic — c'est le verdict.
+2. **Nombre de positions** et écarts réels, via la base ou le serveur.
+3. **Retour de l'anomalie de cadence** : chercher `CAPTURE_SCHEDULED` dans les
+   journaux. Un délai demandé aberrant et une alarme trop fréquente sont deux
+   causes différentes, et le journal les distingue désormais.
+4. **Report de l'alarme par le système** : `windowLength` et `policyWhenElapsed`
+   dans `dumpsys alarm` disent si OxygenOS a commencé à différer.
+
+Critère : au-dessus de 90 % la stratégie d'acquisition tient ; en dessous de
+66 % elle doit être revue avant d'aller plus loin.
