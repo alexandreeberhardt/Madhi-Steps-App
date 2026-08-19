@@ -203,6 +203,75 @@ table paraît vide :
 Les trois réglages propriétaires ne sont exposés par aucune API publique :
 c'est le taux de couverture qui les jugera, pas une vérification directe.
 
+## Résultat — T1 ÉCHOUÉ
+
+**36 % de couverture sur la nuit entière.** 31 positions entre 00:58 et 08:10,
+soit 7,2 heures, là où l'intervalle de cinq minutes en attendait 86.
+L'écran Diagnostic affichait 25 % sur la dernière heure.
+
+Le seuil d'échec du protocole est 66 %.
+
+### Forme de la nuit
+
+Écarts observés, en minutes :
+
+    0,3  5,8  6,6  7,5  9,2  6,1  19,6  6,0  5,9  0,3  19,8  8,8  7,7
+    5,6  8,9  8,9  5,7  5,0  5,1  89,5  20,0  7,0  29,8  9,3  10,0
+    9,8  50,0  36,0  7,7  20,4
+
+Deux régimes se superposent :
+
+- une **dérive** de l'intervalle nominal, de 5 vers 6-10 minutes ;
+- des **trous francs** de 20, 30, 36, 50 et jusqu'à 89 minutes.
+
+Les écarts ne sont pas des multiples de cinq minutes. Ce n'est donc pas un
+GPS qui échoue à intervalle régulier : c'est le déclenchement lui-même qui
+dérive.
+
+### Cause établie — l'alarme n'est plus exacte
+
+    windowLength 224998        (elle était à 0 la veille)
+    whenElapsed=+3m17s   maxWhenElapsed=+7m2s
+
+Le système peut déclencher l'alarme n'importe quand dans une fenêtre de 225
+secondes. Cela explique très exactement la dérive de 5 à 10 minutes.
+
+Ce qui rend le cas intéressant, c'est que **l'application n'a aucun moyen de
+le savoir** :
+
+- `USE_EXACT_ALARM` est accordée ;
+- `canScheduleExactAlarms()` renvoie `true`, et l'écran Diagnostic affiche
+  donc « Alarmes exactes : oui » ;
+- le code appelle bien `setExactAndAllowWhileIdle` ;
+- et OxygenOS repose l'alarme avec une fenêtre de 225 secondes.
+
+La valeur 225 000 ms n'est pas arbitraire : c'est celle qu'utilise aussi
+`com.oplus.nhs`, le service de gestion d'énergie du constructeur. Trente-trois
+autres alarmes du système ont bien `windowLength 0` au même moment : nous
+sommes donc regroupés dans un lot de gestion d'énergie, pas victimes d'une
+politique générale.
+
+L'exemption d'optimisation de batterie a survécu à la nuit, le bucket App
+Standby est resté à 5 (exempté), et le service de premier plan tournait
+toujours au réveil. Aucun de ces garde-fous n'a suffi.
+
+### Seconde cause probable — les acquisitions qui ne produisent rien
+
+Le compteur de réveils d'alarme est passé d'environ 50 à 107, soit **environ
+57 déclenchements** pour **31 positions enregistrées**. À peu près la moitié
+des réveils n'aurait donc produit aucun point.
+
+Cette lecture est à confirmer : le compteur de `dumpsys alarm` peut être
+remis à zéro, et le journal de l'application avait été effacé du tampon
+circulaire avant le réveil.
+
+Un élément va dans le même sens : le système déclare une dernière position
+GPS vieille de **sept jours**. Le téléphone a passé la nuit à l'intérieur, où
+un fix GPS échoue très souvent.
+
+**Conséquence** : deux problèmes distincts se superposent, et il ne faut pas
+corriger le second en croyant corriger le premier.
+
 ## À relever au réveil
 
 1. **Taux de couverture** sur l'écran Diagnostic — c'est le verdict.
