@@ -64,8 +64,14 @@ l'erreur.
 Sur une installation anterieure au 20 aout 2026, resserrer les droits des
 copies deja ecrites, que le script laissait en 0644 :
 
+    sudo find /var/backups/madhi -name '*.sql.gz' -exec chmod 600 {} +
     sudo chmod 700 /var/backups/madhi
-    sudo chmod 600 /var/backups/madhi/*.sql.gz
+    sudo ls -l /var/backups/madhi
+
+L'ordre compte, et le motif est confie a `find` plutot qu'au shell : une fois
+le repertoire en 0700, un shell non privilegie ne peut plus le lister, donc
+`sudo chmod 600 /var/backups/madhi/*.sql.gz` echoue en « no matches found »
+sans avoir rien change.
 
 Un echec fait sortir le script en code 1, donc `systemctl status` passe en
 `failed`. C'est le seul signal : le POC n'a pas d'alerte, la supervision est
