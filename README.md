@@ -119,6 +119,8 @@ Les plus utiles pour comprendre le projet :
 - `arch/adr/007-contraintes-miui-redmi-note-11.md` — ce que la surcouche du
   téléphone cible impose
 - `arch/14_protocole_test_terrain.md` — comment on prouve que ça marche
+- `arch/17_plan_implementation_site_poc.md` — plan d'exécution du site, et les
+  pièges du serveur qu'il faut connaître avant de le construire
 
 ## Licence
 
