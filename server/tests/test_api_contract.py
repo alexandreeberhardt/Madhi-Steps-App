@@ -167,3 +167,60 @@ async def test_batch_over_max_returns_413():
 
         assert response.status_code == 413
         assert response.json()["error"] == "batch_too_large"
+
+
+async def set_started_at(trip_id: str, instant: datetime) -> None:
+    conn = await asyncpg.connect(DATABASE_URL)
+    try:
+        await conn.execute("update trips set started_at = $2 where id = $1", trip_id, instant)
+    finally:
+        await conn.close()
+
+
+async def test_latest_location_ignores_points_recorded_before_departure():
+    code = "ABCD-1005"
+    await seed_activation(code)
+    async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=30) as client:
+        activation = await activate(client, code)
+        headers = {"Authorization": f"Bearer {activation['deviceToken']}"}
+        departure = datetime(2026, 8, 25, 6, 0, tzinfo=timezone.utc)
+        # Les tests terrain, pris a la maison une semaine avant le depart.
+        at_home = point(1, activation["deviceId"], departure - timedelta(days=7))
+        on_the_road = point(2, activation["deviceId"], departure + timedelta(hours=3))
+
+        response = await client.post(
+            "/locations/batch", headers=headers, json={"points": [at_home, on_the_road]}
+        )
+        assert response.status_code == 200, response.text
+
+        before_departure = await client.get(f"/trips/{activation['tripId']}/latest-location")
+        assert before_departure.status_code == 200, before_departure.text
+        assert before_departure.json()["id"] == on_the_road["id"]
+
+        await set_started_at(activation["tripId"], departure)
+
+        after_departure = await client.get(f"/trips/{activation['tripId']}/latest-location")
+        assert after_departure.status_code == 200, after_departure.text
+        assert after_departure.json()["id"] == on_the_road["id"]
+
+
+async def test_latest_location_is_null_when_every_point_predates_departure():
+    code = "ABCD-1006"
+    await seed_activation(code)
+    async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=30) as client:
+        activation = await activate(client, code)
+        headers = {"Authorization": f"Bearer {activation['deviceToken']}"}
+        departure = datetime(2026, 8, 25, 6, 0, tzinfo=timezone.utc)
+        at_home = [
+            point(index, activation["deviceId"], departure - timedelta(days=index))
+            for index in range(1, 4)
+        ]
+
+        response = await client.post("/locations/batch", headers=headers, json={"points": at_home})
+        assert response.status_code == 200, response.text
+        await set_started_at(activation["tripId"], departure)
+
+        latest = await client.get(f"/trips/{activation['tripId']}/latest-location")
+
+        assert latest.status_code == 200, latest.text
+        assert latest.json() is None

@@ -158,13 +158,19 @@ async def known_location_ids(pool: asyncpg.Pool, location_ids: list[UUID]) -> se
 
 
 async def latest_location(pool: asyncpg.Pool, trip_id: UUID) -> asyncpg.Record | None:
+    # Le trip contient aussi les points de pre-validation et des tests terrain,
+    # pris a la maison avant le depart. Ils ne sont pas supprimes, ils sont
+    # anterieurs a started_at : sans ce filtre, le site familial afficherait le
+    # domicile comme derniere position connue.
     async with pool.acquire() as conn:
         return await conn.fetchrow(
             """
-            select *
-              from locations
-             where trip_id = $1
-             order by recorded_at desc, received_at desc
+            select l.*
+              from locations l
+              join trips t on t.id = l.trip_id
+             where l.trip_id = $1
+               and (t.started_at is null or l.recorded_at >= t.started_at)
+             order by l.recorded_at desc, l.received_at desc
              limit 1
             """,
             trip_id,
