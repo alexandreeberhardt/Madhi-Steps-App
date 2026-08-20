@@ -33,9 +33,14 @@ export function creerCarte(element) {
   L.Icon.Default.imagePath = "./vendor/images/";
 
   const carte = L.map(element, {
-    zoomControl: true,
+    // Le zoom part en bas a gauche : la bande du haut appartient au bandeau
+    // d'etat, et un « Aucune nouvelle position depuis 6 h » a moitie cache
+    // derriere un bouton + serait pire que pas de bandeau du tout. En bas, il
+    // est aussi plus facile a atteindre au pouce.
+    zoomControl: false,
     attributionControl: true,
   });
+  L.control.zoom({ position: "bottomleft" }).addTo(carte);
   L.tileLayer(URL_TUILES, { maxZoom: ZOOM_MAX, attribution: ATTRIBUTION }).addTo(carte);
 
   return { carte, marqueur: null, trace: null };
