@@ -89,7 +89,11 @@ L'installation du timer systemd et la procedure de restauration sont dans
 Verifier qu'elle tourne :
 
     systemctl list-timers | grep madhi-backup
+    sudo journalctl -u madhi-backup.service --no-pager -n 20
     ls -l /var/backups/madhi
+
+Le `sudo` devant `journalctl` est necessaire : sans appartenance au groupe
+`adm`, le journal repond « No entries » meme quand le service a echoue.
 
 Reserve connue : les copies restent sur le VPS. Perdre la machine, c'est perdre
 la base et ses sauvegardes en meme temps. Tirer une copie chez soi de temps en

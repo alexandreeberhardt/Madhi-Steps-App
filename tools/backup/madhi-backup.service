@@ -5,8 +5,10 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-# Adapter au chemin reel du depot sur le VPS.
-Environment=MADHI_COMPOSE_FILE=/srv/MadhiTracker/server/docker-compose.yml
+# /CHEMIN/DU/DEPOT est a remplacer a l'installation : le nom du repertoire du
+# depot varie d'une machine a l'autre. Voir tools/backup/README.md.
+ExecStart=/CHEMIN/DU/DEPOT/tools/backup/madhi-backup.sh
+# Le script deduit le docker-compose.yml de sa propre position ; seuls le
+# repertoire de destination et la retention se reglent ici.
 Environment=MADHI_BACKUP_DIR=/var/backups/madhi
 Environment=MADHI_BACKUP_KEEP=30
-ExecStart=/srv/MadhiTracker/tools/backup/madhi-backup.sh

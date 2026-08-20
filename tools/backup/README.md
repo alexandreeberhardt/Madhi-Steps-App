@@ -9,20 +9,43 @@ relisible, puis fait tourner les anciennes copies.
 
 ## Installation sur le VPS
 
+Le nom du repertoire du depot varie d'une machine a l'autre, donc l'unite
+livree porte le marqueur `/CHEMIN/DU/DEPOT`. Le remplacer depuis la racine du
+depot, ou `$PWD` donne le bon chemin :
+
     sudo cp tools/backup/madhi-backup.service /etc/systemd/system/
     sudo cp tools/backup/madhi-backup.timer   /etc/systemd/system/
+    sudo sed -i "s|/CHEMIN/DU/DEPOT|$PWD|" /etc/systemd/system/madhi-backup.service
     sudo systemctl daemon-reload
     sudo systemctl enable --now madhi-backup.timer
 
-Ajuster les chemins dans `madhi-backup.service` si le depot n'est pas dans
-`/srv/MadhiTracker`.
+Verifier que le chemin est bon avant d'aller plus loin :
 
-Verifier :
+    systemctl cat madhi-backup.service | grep ExecStart
+    ls -l "$PWD/tools/backup/madhi-backup.sh"
 
-    systemctl list-timers | grep madhi-backup
+Puis lancer une premiere sauvegarde a la main :
+
     sudo systemctl start madhi-backup.service
-    journalctl -u madhi-backup.service --no-pager -n 30
+    sudo journalctl -u madhi-backup.service --no-pager -n 30
     ls -l /var/backups/madhi
+    systemctl list-timers | grep madhi-backup
+
+Le `sudo` devant `journalctl` n'est pas decoratif : sans appartenance au groupe
+`adm` ou `systemd-journal`, le journal repond « No entries » au lieu d'afficher
+l'erreur.
+
+## Quand le service echoue
+
+    sudo systemctl status madhi-backup.service --no-pager
+    sudo journalctl -xeu madhi-backup.service
+
+| Ce qui s'affiche | Cause |
+|---|---|
+| `status=203/EXEC` | `ExecStart` pointe dans le vide — le marqueur `/CHEMIN/DU/DEPOT` n'a pas ete remplace, ou le depot a ete deplace |
+| `docker-compose.yml introuvable` | le script n'est pas a sa place dans le depot, ou le depot est incomplet |
+| `pg_dump n'a pas abouti` | le conteneur `postgres` ne tourne pas, ou les identifiants du `.env` ne passent plus |
+| `la table locations est absente du dump` | le dump a abouti sur une base vide ou non migree — les anciennes copies sont conservees |
 
 ## Ce que le script garantit
 
