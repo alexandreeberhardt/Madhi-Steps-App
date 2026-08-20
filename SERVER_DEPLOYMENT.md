@@ -107,7 +107,7 @@ soit une semaine et demie de points pris a la maison.
 
 Elles ne sont pas supprimees. Le depart se marque par une date, pas par une
 purge : `trips.started_at` existe depuis la premiere migration et n'est ecrit
-par rien pour l'instant. Le site filtrera l'historique avec `from=startedAt`.
+par rien pour l'instant. Le site filtre l'historique avec `from=startedAt`.
 
 Garder les points de test a un interet direct : ce sont eux qui documentent les
 anomalies de cadence, et les jeter reviendrait a jeter les donnees qui servent a
@@ -126,10 +126,30 @@ Verifier :
 
 `startedAt` ne doit plus etre `null`.
 
-Reserve connue : `latest_location` ne filtre pas sur `started_at` et renvoie le
-point le plus recent quel qu'il soit. Avant le depart, le site afficherait donc
-une position prise a la maison. Sans objet une fois sur la route, mais a
-corriger en meme temps que le site (`arch/05`).
+Depuis le correctif livre avec le site, `latest_location` filtre sur
+`started_at` quand il est renseigne : la « derniere position » ne peut plus etre
+une position prise a la maison. Tant que `started_at` est nul, le filtre ne
+s'applique pas et le site n'affiche volontairement aucune position precise.
+
+## Site familial
+
+Le site que regarde la famille est un second vhost nginx sur la meme machine :
+
+    https://madhi.alexeber.fr
+
+Les fichiers statiques vivent dans `/var/www/madhi/`, servis derriere un segment
+d'URL secret et un mot de passe `auth_basic`. Le meme vhost relaie
+`/f/<segment>/api/` vers `http://127.0.0.1:8111/api/v1/` en posant lui-meme
+l'en-tete `Authorization`.
+
+Consequence a retenir : **le `PUBLIC_READ_TOKEN` existe desormais a deux
+endroits**, `server/.env` et la configuration nginx du site. Le changer d'un
+cote sans l'autre coupe le site sans toucher a la synchronisation du telephone,
+et la panne se lit comme « Cet acces n'est plus valide ».
+
+Le certificat de ce domaine est distinct de celui de l'API, avec sa propre date
+d'expiration. La procedure complete et les verifications sont dans
+`site/README.md`.
 
 ## Nginx et HTTPS
 

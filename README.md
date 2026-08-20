@@ -18,7 +18,7 @@ Le critère de réussite du projet n'est pas technique :
 |---|---|
 | Application Android | V1 fonctionnellement complète, en attente de validation terrain |
 | Serveur | POC déployé sur `madhi-server.alexeber.fr`, en HTTPS, avec sauvegarde quotidienne |
-| Site familial | non commencé |
+| Site familial | POC construit, éprouvé hors ligne, pas encore déployé |
 
 L'application n'a **pas encore** été validée en conditions réelles. Tant que
 le protocole de `arch/14_protocole_test_terrain.md` n'est pas passé sur
@@ -94,6 +94,19 @@ Aucune valeur réelle n'est versionnée. Copier les exemples :
 Les variables d'environnement `MADHI_API_BASE_URL_*` et `ANDROID_SIGNING_*`
 ont la priorité sur ces fichiers, ce qui évite d'avoir à les créer en CI.
 
+## Site familial
+
+Le site que regarde la famille est dans `site/` : des fichiers statiques, sans
+étape de build, servis par nginx derrière un segment d'URL secret et un mot de
+passe. Il n'embarque aucun secret — le token de lecture exigé par l'API est
+posé par nginx.
+
+    python3 tools/site-dev/serve.py            # le site, avec des donnees fabriquees
+    node tools/site-dev/verifier.mjs           # les verifications sans navigateur
+
+Le déploiement sur `madhi.alexeber.fr` et les vérifications à faire ensuite
+sont dans `site/README.md`.
+
 ## Serveur de simulation
 
 Le serveur réel est déployé (voir `SERVER_DEPLOYMENT.md`) et les builds le
@@ -121,6 +134,7 @@ Les plus utiles pour comprendre le projet :
 - `arch/14_protocole_test_terrain.md` — comment on prouve que ça marche
 - `arch/17_plan_implementation_site_poc.md` — plan d'exécution du site, et les
   pièges du serveur qu'il faut connaître avant de le construire
+- `site/README.md` — comment développer, déployer et vérifier le site familial
 
 ## Licence
 

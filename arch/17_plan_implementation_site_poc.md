@@ -13,9 +13,17 @@ des contraintes précises, et deux de ses comportements sont des pièges.
 
 En cas de divergence, `arch/05` et `arch/00` font foi.
 
-Le site n'existe pas encore. Ce document est un plan d'exécution complet : il
-doit permettre à quelqu'un qui n'a pas suivi les sessions précédentes de livrer
-le POC sans arbitrage supplémentaire.
+Ce document est un plan d'exécution complet : il doit permettre à quelqu'un qui
+n'a pas suivi les sessions précédentes de livrer le POC sans arbitrage
+supplémentaire.
+
+**Le site a été construit selon ce plan** et vit dans `site/`, avec sa
+procédure de déploiement dans `site/README.md`. Le plan reste la référence des
+raisons ; il n'a pas été réécrit après coup. Deux écarts assumés :
+`site/config.js` s'ajoute à l'arborescence du §5 pour porter l'identifiant du
+voyage, qui n'est pas un secret ; et le bloc « dernière position » se tait
+lorsqu'il n'y a rien à montrer, le message qui occupe la place de la carte le
+disant déjà.
 
 # 2. Décisions techniques et leurs raisons
 
@@ -173,6 +181,10 @@ figée du projet. La « dernière position » afficherait donc le domicile.
 `latest_location` sur `started_at` quand il est non nul. Tant que ce n'est pas
 fait, le site ne doit rien afficher de précis si `startedAt` est `null`, voir
 §6.
+
+*Fait.* Le filtre est en place et couvert par deux tests d'intégration. La
+règle §6 reste appliquée : `startedAt` nul n'affiche toujours aucune position
+précise, parce que le filtre ne peut alors s'appuyer sur rien.
 
 ## 4.3 Le référent fuiterait le lien secret vers le serveur de tuiles
 
@@ -413,6 +425,9 @@ Deux changements, à livrer avec le site :
 
 1. **`latest_location` filtre sur `started_at`** quand il est non nul (§4.2).
    Un test doit couvrir le cas « des points existent avant `started_at` ».
+   *Fait*, avec deux tests : des points de part et d'autre du départ, et le cas
+   où tous les points précèdent le départ — `latest-location` renvoie alors
+   `null`, ce que le site traite comme « aucune position reçue ».
 2. **`/health` reste hors du chemin protégé.** Il ne doit pas passer derrière
    l'authentification, sinon le healthcheck Docker échoue.
 
