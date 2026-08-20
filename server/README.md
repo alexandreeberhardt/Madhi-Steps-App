@@ -15,6 +15,10 @@ est `XXXX-XXXX` en developpement uniquement.
 Le volume Docker `madhi_postgres_data` contient les donnees PostgreSQL. C'est le
 volume a sauvegarder en production.
 
+Le journal d'acces ecarte les appels a `/health` : Docker sonde cet endpoint
+toutes les dix secondes, soit environ trois millions de lignes sur l'annee du
+voyage, dans lesquelles les evenements reels seraient introuvables.
+
 ## Migrations
 
 Les migrations sont separees du demarrage API :

@@ -6,6 +6,9 @@ import sys
 from datetime import datetime, timezone
 
 
+HEALTH_PATH = "/health"
+
+
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload = {
@@ -21,6 +24,31 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, separators=(",", ":"))
 
 
+class DropHealthcheckAccessLogs(logging.Filter):
+    """Ecarte du journal les acces au healthcheck.
+
+    Docker sonde `/health` toutes les dix secondes, soit environ trois millions
+    de lignes sur l'annee du voyage. Les evenements reels s'y perdraient.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3:
+            return args[2] != HEALTH_PATH
+        return True
+
+
+def silence_healthcheck_access_logs() -> None:
+    """Uvicorn configure `uvicorn.access` avant d'importer l'application, avec
+    son propre gestionnaire et `propagate` a faux. Le filtre se pose donc sur
+    ce journal la, et pas sur la racine.
+    """
+    access = logging.getLogger("uvicorn.access")
+    already_filtered = any(isinstance(existing, DropHealthcheckAccessLogs) for existing in access.filters)
+    if not already_filtered:
+        access.addFilter(DropHealthcheckAccessLogs())
+
+
 def configure_logging(level: str) -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
@@ -28,3 +56,4 @@ def configure_logging(level: str) -> None:
     root.handlers.clear()
     root.addHandler(handler)
     root.setLevel(level.upper())
+    silence_healthcheck_access_logs()
