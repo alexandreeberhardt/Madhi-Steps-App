@@ -13,6 +13,11 @@
 
 set -euo pipefail
 
+# Un dump, c'est la trace complete des deplacements d'une personne pendant un
+# an. Les fichiers naissent en 0600 et le repertoire en 0700, sans dependre de
+# l'umask du shell qui a lance le script ni de celui de systemd.
+umask 077
+
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(dirname -- "$(dirname -- "$script_dir")")"
 
@@ -43,6 +48,7 @@ if [ -f "$env_file" ]; then
 fi
 
 mkdir -p "$backup_dir"
+chmod 700 "$backup_dir"
 
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 target="$backup_dir/madhi-$stamp.sql.gz"

@@ -57,6 +57,15 @@ l'erreur.
 - **La rotation trie par nom, pas par date de modification.** L'horodatage UTC
   du nom est deja chronologique, alors qu'une copie de repertoire rebat les
   `mtime`.
+- **Les dumps ne sont lisibles que par leur proprietaire.** Repertoire en 0700,
+  fichiers en 0600, poses par le script et non herites de l'umask appelant : un
+  dump est la trace complete des deplacements d'une personne pendant un an.
+
+Sur une installation anterieure au 20 aout 2026, resserrer les droits des
+copies deja ecrites, que le script laissait en 0644 :
+
+    sudo chmod 700 /var/backups/madhi
+    sudo chmod 600 /var/backups/madhi/*.sql.gz
 
 Un echec fait sortir le script en code 1, donc `systemctl status` passe en
 `failed`. C'est le seul signal : le POC n'a pas d'alerte, la supervision est
