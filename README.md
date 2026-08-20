@@ -17,12 +17,13 @@ Le critère de réussite du projet n'est pas technique :
 | Brique | État |
 |---|---|
 | Application Android | V1 fonctionnellement complète, en attente de validation terrain |
-| Serveur | non commencé — un serveur de simulation tient lieu de spécification exécutable |
+| Serveur | POC déployé sur `madhi-server.alexeber.fr`, en HTTPS, avec sauvegarde quotidienne |
 | Site familial | non commencé |
 
 L'application n'a **pas encore** été validée en conditions réelles. Tant que
 le protocole de `arch/14_protocole_test_terrain.md` n'est pas passé sur
-l'appareil cible, elle repose sur une hypothèse.
+l'appareil cible — le Redmi Note 11, pas le OnePlus de pré-validation — elle
+repose sur une hypothèse. C'est le seul point bloquant du projet.
 
 ## Principes
 
