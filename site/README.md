@@ -122,6 +122,26 @@ Attendu : `200` avec mot de passe, `401` sans, et un `grep` qui ne trouve rien
 Dans le navigateur, onglet réseau : seules des requêtes vers
 `madhi.alexeber.fr` et `tile.openstreetmap.org` doivent apparaître.
 
+## Ce que le navigateur applique lui-même
+
+La configuration nginx envoie une `Content-Security-Policy` qui n'autorise que
+le domaine du projet et `tile.openstreetmap.org`. La règle « aucun GAFAM sur le
+chemin des positions » cesse d'être une discipline d'écriture : un appel
+extérieur, ou un pixel de mesure d'audience portant des coordonnées, est refusé
+par le navigateur même si une ligne de code s'y essayait un jour.
+
+Vérifiable dans la console : `connect-src` et `img-src` refusent tout hôte
+extérieur, tuiles exceptées.
+
+Deux choix explicites, à relire avant de les changer :
+
+- **Pas de HSTS.** Il transformerait un certificat expiré en blocage total pour
+  la famille, alors que l'avertissement du navigateur reste contournable. Or
+  l'expiration en plein voyage est un risque identifié.
+- **Pas de `limit_req` par défaut.** Le segment secret de 128 bits garde déjà la
+  demande de mot de passe. Les deux lignes à ajouter si besoin sont en tête de
+  `tools/nginx/madhi.alexeber.fr`.
+
 ## Révoquer l'accès
 
 Changer `<SEGMENT_SECRET>` dans la configuration nginx et recharger : l'ancien

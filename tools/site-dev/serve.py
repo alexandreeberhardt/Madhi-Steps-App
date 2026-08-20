@@ -40,6 +40,14 @@ SEGMENT = "dev"
 PREFIXE = f"/f/{SEGMENT}/"
 PREFIXE_API = f"{PREFIXE}api/"
 
+# Recopiee de tools/nginx/madhi.alexeber.fr : si les deux divergent, une
+# violation n'apparaitrait qu'en production.
+CSP = (
+    "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self'; "
+    "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+)
+
 TRIP_ID = "8f14e45f-ceea-467a-9f4e-2b1c9a1a1a1a"
 NOM_VOYAGE = "Madhi 2026"
 
@@ -269,7 +277,7 @@ class Handler(BaseHTTPRequestHandler):
     def servir_fichier(self, relatif: str) -> None:
         relatif = relatif or "index.html"
         cible = (RACINE_SITE / relatif).resolve()
-        if not str(cible).startswith(str(RACINE_SITE)) or not cible.is_file():
+        if not cible.is_relative_to(RACINE_SITE) or not cible.is_file():
             self.envoyer_json(404, {"error": "not_found"})
             return
         type_mime, _ = mimetypes.guess_type(str(cible))
@@ -290,6 +298,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("X-Robots-Tag", "noindex, nofollow")
         self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Security-Policy", CSP)
         self.end_headers()
         self.wfile.write(corps)
 

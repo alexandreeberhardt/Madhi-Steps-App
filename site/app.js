@@ -78,9 +78,12 @@ const elements = {
 
 /** @type {import("./components/map.js").Carte | null} */
 let carte = null;
-// Ajuster la vue a chaque redessin annulerait le deplacement fait a la main par
-// la personne qui regarde. On ne le fait que lorsque ce qui est trace change.
-let cleVueAjustee = null;
+// Ce qui est actuellement trace sur la carte. Deux usages : ne pas reconstruire
+// la polyline quand rien n'a change — le redessin passe toutes les 30 s pour
+// vieillir les horodatages, pas pour retracer 288 points — et ne pas rappeler
+// ajusterVue, qui annulerait le deplacement fait a la main par la personne qui
+// regarde.
+let cleTracee = null;
 // Numero de la demande en cours : une reponse plus lente qu'une demande plus
 // recente doit etre ignoree, sinon la periode affichee ne correspond plus au
 // bouton actif.
@@ -224,20 +227,33 @@ function majCarte() {
     // hauteur nulle et n'afficherait que du gris.
     rafraichirTaille(carte);
 
+    const cle = cleDeTrace();
+    if (cle === cleTracee) return;
+
     afficherDernierePosition(carte, donnees.dernierePosition);
     afficherTrajet(carte, donnees.points);
-
-    const cle = `${donnees.periode}|${donnees.dernierePosition.id}|${donnees.points.length}`;
-    if (cle !== cleVueAjustee) {
-      ajusterVue(carte);
-      cleVueAjustee = cle;
-    }
+    ajusterVue(carte);
+    cleTracee = cle;
   } catch (cause) {
     // Une carte cassee ne doit pas emporter le reste : la derniere position en
     // texte vaut mieux qu'une page blanche.
     console.error("carte indisponible", cause);
     elements.carte.hidden = true;
   }
+}
+
+/**
+ * Identifie ce qui est trace. Les identifiants des points extremes distinguent
+ * deux fenetres de meme taille : sur sept jours, un point qui sort par le debut
+ * pendant qu'un autre entre par la fin laisse le compte inchange.
+ *
+ * @returns {string}
+ */
+function cleDeTrace() {
+  const points = donnees.points;
+  const premier = points.length > 0 ? points[0].id : "-";
+  const dernier = points.length > 0 ? points[points.length - 1].id : "-";
+  return `${donnees.periode}|${donnees.dernierePosition.id}|${points.length}|${premier}|${dernier}`;
 }
 
 function construireSelecteur() {
