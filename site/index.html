@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <!-- Le lien familial porte un segment secret dans son URL. Sans cela, chaque
+         requete de tuile l'emporterait dans l'en-tete Referer, jusque dans les
+         journaux du fournisseur de tuiles. Nginx pose le meme en-tete ; celui-ci
+         protege le site meme servi autrement. -->
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+
+    <title>Suivi du voyage</title>
+
+    <!-- Aucune ressource externe : ni CDN, ni police distante, ni analytics.
+         Seules les tuiles cartographiques sortent du domaine du projet. -->
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./vendor/leaflet.css" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+
+  <body>
+    <header class="entete">
+      <h1 id="titre-voyage">Voyage</h1>
+    </header>
+
+    <main class="scene">
+      <div id="carte" class="carte" role="application" aria-label="Carte du trajet" hidden></div>
+      <div id="message-central" class="message-central" role="status" hidden></div>
+      <div id="bandeau-etat" class="bandeau-etat" role="status" hidden></div>
+    </main>
+
+    <section id="panneau" class="panneau" aria-label="Dernière position et période affichée">
+      <div id="derniere-position" class="derniere-position"></div>
+
+      <div class="commandes">
+        <div id="periodes" class="periodes" role="group" aria-label="Période affichée"></div>
+        <button id="recentrer" type="button" class="bouton-recentrer">Recentrer</button>
+      </div>
+
+      <p id="couverture" class="couverture" hidden></p>
+    </section>
+
+    <noscript>
+      <p class="sans-javascript">
+        Ce site a besoin de JavaScript pour afficher la carte et la dernière position.
+      </p>
+    </noscript>
+
+    <script src="./vendor/leaflet.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
