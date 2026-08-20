@@ -368,6 +368,7 @@ les en-têtes de confidentialité.
 
     location /f/<SEGMENT_SECRET>/ {
         alias /var/www/madhi/;
+        index index.html;
         auth_basic            "Madhi";
         auth_basic_user_file  /etc/nginx/madhi.htpasswd;
 
@@ -389,6 +390,10 @@ les en-têtes de confidentialité.
 
 Points de vigilance :
 
+- **`index index.html;` est nécessaire.** Avec `alias`, une requête sur l'URL
+  racine `/f/<segment>/` désigne un répertoire ; sans directive `index` héritée
+  du contexte englobant, nginx répond `403 Forbidden` et le lien familial paraît
+  cassé alors que tout est en place.
 - **`X-Real-IP` doit être posé.** C'est le seul en-tête sur lequel le rate
   limiter du serveur compte, depuis le correctif de la session 4. Sans lui, tous
   les visiteurs tombent dans le même compartiment.
@@ -438,9 +443,24 @@ Repris de `arch/05` §9, rendus vérifiables :
 - [ ] Le libellé de la période la plus longue annonce 30 jours, pas le voyage
       entier.
 
-Vérification du référent, qui ne se voit pas à l'œil nu :
+Vérifications qui ne se voient pas à l'œil nu :
 
-    curl -sI https://<domaine>/f/<segment>/ | grep -i referrer-policy
+    # en-tetes de confidentialite, avec le mot de passe
+    curl -sI -u '<user>:<motdepasse>' https://<domaine>/f/<segment>/ \
+      | grep -iE 'referrer-policy|x-robots-tag'
+
+    # l'URL racine sert bien la page, et non un 403 de repertoire
+    curl -s -o /dev/null -w '%{http_code}\n' \
+      -u '<user>:<motdepasse>' https://<domaine>/f/<segment>/
+
+    # sans mot de passe, tout est ferme
+    curl -s -o /dev/null -w '%{http_code}\n' https://<domaine>/f/<segment>/
+
+    # le token n'a pas fuite dans les fichiers servis
+    grep -rn "$PUBLIC_READ_TOKEN" /var/www/madhi/ ; echo "code $?"
+
+Attendu : `200` avec mot de passe, `401` sans, et un `grep` qui ne trouve rien
+(code 1).
 
 # 12. Hors périmètre du POC
 
