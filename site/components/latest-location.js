@@ -1,7 +1,7 @@
-// Le bloc « derniere position ». Il n'interprete rien : l'etat lui arrive
-// calcule, il ecrit ce qu'on lui donne.
+// Le bloc « derniere position ». Il n'interprete rien : il ecrit le point qu'on
+// lui donne, ou se tait s'il n'y en a pas.
 
-import { formaterAbsolu, formaterDuree, formaterRelatif } from "../utils/time.js";
+import { ancienneteMs, formaterAbsolu, formaterDuree, formaterRelatif } from "../utils/time.js";
 
 /** @typedef {import("../types.js").LocationPointV1} LocationPointV1 */
 
@@ -54,10 +54,9 @@ export function rendreDernierePosition(element, vue) {
     element.append(
       ligne(
         "position-detail",
-        `Information non rafraîchie depuis ${formaterRelatif(
-          vue.derniereMajReussie,
-          vue.maintenant,
-        ).replace("il y a ", "")}.`,
+        `Information non rafraîchie depuis ${formaterDuree(
+          ancienneteMs(vue.derniereMajReussie, vue.maintenant) ?? 0,
+        )}.`,
       ),
     );
   }

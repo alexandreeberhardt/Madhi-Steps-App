@@ -32,6 +32,15 @@ base ni à arrêter un serveur :
 | `voyage-inconnu` | 404 |
 | `muet` | ne répond pas : éprouve le délai maximum du client |
 
+### Tomber en panne en cours de route
+
+    python3 tools/site-dev/serve.py --panne-apres 3
+
+Les trois premiers appels sont servis, les suivants répondent 502. C'est le cas
+que les scénarios fixes n'atteignent pas : le site a déjà des données à l'écran
+quand le serveur s'arrête. Elles doivent y rester, datées, sous un message
+d'erreur — changer de période suffit à déclencher la panne.
+
 ### Contre le vrai serveur
 
     PUBLIC_READ_TOKEN=... python3 tools/site-dev/serve.py \

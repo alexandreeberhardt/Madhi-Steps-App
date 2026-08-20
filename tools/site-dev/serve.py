@@ -165,6 +165,10 @@ class Handler(BaseHTTPRequestHandler):
     scenario_nom = "nominal"
     proxy_base: str | None = None
     proxy_token: str | None = None
+    # Nombre d'appels servis avant de tomber en panne, pour eprouver le cas ou
+    # le serveur s'arrete pendant que la famille regarde la page.
+    panne_apres: int | None = None
+    appels = 0
 
     def do_GET(self) -> None:  # noqa: N802 - impose par BaseHTTPRequestHandler
         chemin, _, requete = self.path.partition("?")
@@ -190,6 +194,11 @@ class Handler(BaseHTTPRequestHandler):
     def repondre_api(self, reste: str, requete: str) -> None:
         if self.proxy_base is not None:
             self.relayer(reste, requete)
+            return
+
+        Handler.appels += 1
+        if self.panne_apres is not None and Handler.appels > self.panne_apres:
+            self.envoyer_json(502, {"error": "bad_gateway"})
             return
 
         scenario = Scenario(self.scenario_nom)
@@ -293,6 +302,11 @@ def main() -> None:
     analyseur.add_argument("--port", type=int, default=8090)
     analyseur.add_argument("--scenario", choices=SCENARIOS, default="nominal")
     analyseur.add_argument(
+        "--panne-apres",
+        type=int,
+        help="tomber en panne apres N appels API servis",
+    )
+    analyseur.add_argument(
         "--proxy",
         help="relayer vers un vrai serveur, par exemple https://madhi-server.alexeber.fr",
     )
@@ -304,6 +318,7 @@ def main() -> None:
     options = analyseur.parse_args()
 
     Handler.scenario_nom = options.scenario
+    Handler.panne_apres = options.panne_apres
     Handler.proxy_base = options.proxy.rstrip("/") if options.proxy else None
     Handler.proxy_token = options.token
 
