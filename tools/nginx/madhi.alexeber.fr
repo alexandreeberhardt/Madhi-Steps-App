@@ -1,0 +1,83 @@
+# Site familial — configuration d'amorcage, en HTTP seul.
+#
+# Comme pour madhi-server.alexeber.fr, ce fichier ne sert qu'a obtenir le
+# premier certificat : `certbot --nginx` le reecrit ensuite sur le VPS pour
+# ajouter l'ecoute en 443 et la redirection 80 -> 443. Ne jamais le recopier
+# par-dessus le fichier deploye, cela supprimerait HTTPS.
+#
+# Deux marqueurs sont a remplacer sur le VPS, et ne sont jamais versionnes :
+#
+#   <SEGMENT_SECRET>     segment aleatoire de l'URL familiale, revocable
+#                        en le changeant ici et en rechargeant nginx
+#   <PUBLIC_READ_TOKEN>  la valeur de PUBLIC_READ_TOKEN du fichier server/.env
+#
+# Fabriquer le segment et le mot de passe :
+#
+#   openssl rand -hex 16
+#   sudo htpasswd -c /etc/nginx/madhi.htpasswd famille
+#
+# Voir site/README.md pour la procedure complete et les verifications.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name madhi.alexeber.fr;
+
+    # Rien n'existe en dehors du chemin secret : ni page d'accueil, ni
+    # redirection, ni indice sur ce que sert ce domaine.
+    location / {
+        return 404;
+    }
+
+    # --- les fichiers du site -------------------------------------------------
+    location /f/<SEGMENT_SECRET>/ {
+        alias /var/www/madhi/;
+
+        # Indispensable : avec alias, l'URL racine du lien familial designe un
+        # repertoire. Sans directive index dans ce bloc, nginx repond 403 et le
+        # lien parait casse alors que tout est en place.
+        index index.html;
+
+        auth_basic            "Madhi";
+        auth_basic_user_file  /etc/nginx/madhi.htpasswd;
+
+        # Le lien familial porte le segment secret dans son URL : sans cet
+        # en-tete, chaque requete de tuile l'emporterait dans Referer, jusque
+        # dans les journaux du fournisseur de tuiles. Ne pas l'affaiblir en
+        # strict-origin-when-cross-origin, qui enverrait encore l'origine.
+        add_header Referrer-Policy        "no-referrer"       always;
+        add_header X-Robots-Tag           "noindex, nofollow" always;
+        add_header X-Content-Type-Options "nosniff"           always;
+
+        # Le site doit rester reparable en editant un fichier : sans
+        # revalidation, une correction faite depuis la route resterait invisible
+        # dans les navigateurs de la famille.
+        add_header Cache-Control          "no-cache"          always;
+    }
+
+    # --- l'API, avec le token pose ici ---------------------------------------
+    # Prefixe plus long que le bloc precedent : nginx le choisit en premier.
+    location /f/<SEGMENT_SECRET>/api/ {
+        auth_basic            "Madhi";
+        auth_basic_user_file  /etc/nginx/madhi.htpasswd;
+
+        proxy_pass http://127.0.0.1:8111/api/v1/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+
+        # Le token de lecture vit ici, jamais dans les fichiers servis au
+        # navigateur : c'est tout l'interet de passer par nginx.
+        proxy_set_header Authorization "Bearer <PUBLIC_READ_TOKEN>";
+
+        # Seul en-tete sur lequel compte le rate limiter du serveur. Sans lui,
+        # tous les visiteurs tombent dans le meme compartiment.
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # add_header ne s'herite pas des que le bloc enfant en declare un : les
+        # repeter est necessaire, y compris sur les reponses d'erreur.
+        add_header Referrer-Policy "no-referrer"       always;
+        add_header X-Robots-Tag    "noindex, nofollow" always;
+    }
+}
