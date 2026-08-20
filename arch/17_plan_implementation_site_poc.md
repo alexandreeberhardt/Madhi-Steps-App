@@ -36,8 +36,8 @@ les noms de fichiers. Les mises à jour du DOM s'écrivent à la main.
 
 *Pourquoi c'est tenable.* L'état du site tient en cinq valeurs (période,
 trip, points, statut de chargement, erreur). Un rendu redéclenché à chaque
-changement d'état suffit ; les six états de `arch/06` §4 se traitent mieux en
-`switch` explicite qu'en conditions de rendu dispersées.
+changement d'état suffit ; les huit états du §6 se traitent mieux en `switch`
+explicite qu'en conditions de rendu dispersées.
 
 *Pourquoi pas un fichier unique.* `arch/05` §10 et `arch/06` §6 demandent un
 `MapProvider` abstrait, un sélecteur de période indépendant de la carte, et des
@@ -129,7 +129,7 @@ la seule façon de distinguer « le téléphone n'a rien enregistré » de « le
 téléphone enregistre mais ne parvient pas à envoyer », deux pannes que la
 famille ne doit pas confondre.
 
-# 4. Trois pièges du serveur, à traiter explicitement
+# 4. Trois pièges à traiter explicitement
 
 Ce sont les points sur lesquels une implémentation naïve échoue en silence.
 
@@ -217,18 +217,36 @@ fournisseur de tuiles apparaissent.
 
 # 6. États de l'interface
 
-`arch/06` §4 en liste six. Ils sont dérivés d'un seul endroit,
+`arch/06` §4 en liste six, auxquels s'ajoutent les deux que `arch/05` §9 impose
+au POC : « aucune position reçue », et l'avant-départ qui découle du piège
+§4.2. Huit au total. Ils sont dérivés d'un seul endroit,
 `features/trip-state.js`, et jamais recalculés dans les composants.
 
-| État | Condition | Ce que voit la famille |
-|---|---|---|
-| `AUCUNE_POSITION` | `latest-location` renvoie `null` | « Aucune position reçue pour l'instant. » Pas de carte centrée au hasard. |
-| `AVANT_DEPART` | `startedAt` est `null` | « Le voyage n'a pas encore commencé. » Ni carte ni position : voir §4.2. |
-| `RECENT` | dernier `recordedAt` < 1 h | Position, carte, horodatage. État nominal. |
-| `ANCIEN` | dernier `recordedAt` entre 1 h et 12 h | Position affichée, avec l'ancienneté mise en avant. |
-| `HORS_LIGNE` | dernier `recordedAt` > 12 h | Position affichée comme dernière connue, ancienneté dominante. |
-| `VOYAGE_TERMINE` | `endedAt` non nul | Trajet complet, sans notion d'actualité. |
-| `SERVEUR_INDISPONIBLE` | échec réseau ou 5xx | Message d'erreur, et **la dernière donnée obtenue reste affichée** si elle existe, datée. |
+L'ordre du tableau est celui de l'évaluation : le premier état dont la
+condition est vraie l'emporte. `SERVEUR_INDISPONIBLE` passe donc avant tout le
+reste, et `AVANT_DEPART` avant les états d'ancienneté.
+
+| État | Origine | Condition | Ce que voit la famille |
+|---|---|---|---|
+| `SERVEUR_INDISPONIBLE` | `arch/06` §4 | échec réseau, timeout ou 5xx | Message d'erreur, et **la dernière donnée obtenue reste affichée** si elle existe, datée. |
+| `AVANT_DEPART` | `arch/05` §5 | `startedAt` est `null` | « Le voyage n'a pas encore commencé. » Ni carte ni position : voir §4.2. |
+| `AUCUNE_POSITION` | `arch/05` §9 | `latest-location` renvoie `null` | « Aucune position reçue pour l'instant. » Pas de carte centrée au hasard. |
+| `VOYAGE_TERMINE` | `arch/06` §4 | `endedAt` non nul | Trajet complet, sans notion d'actualité. |
+| `RECENT` | `arch/06` §4 | dernier `recordedAt` < 1 h | Position, carte, horodatage. État nominal. |
+| `ANCIEN` | `arch/06` §4 | dernier `recordedAt` entre 1 h et 12 h | Position affichée, avec l'ancienneté mise en avant. |
+| `HORS_LIGNE` | `arch/06` §4 | dernier `recordedAt` > 12 h | Position affichée comme dernière connue, ancienneté dominante. |
+
+Un huitième état est **indépendant** des sept précédents, parce qu'il porte sur
+la période sélectionnée et non sur le voyage :
+
+| État | Origine | Condition | Ce que voit la famille |
+|---|---|---|---|
+| `HISTORIQUE_VIDE` | `arch/06` §4 | `getLocations` renvoie une liste vide | « Aucun déplacement enregistré sur cette période. » La dernière position reste affichée : elle vient d'ailleurs. |
+
+Il se combine avec n'importe lequel des autres — une dernière position récente
+et une semaine sans trajet est un cas normal si le téléphone vient d'être
+réactivé. Le confondre avec `AUCUNE_POSITION` ferait dire au site que rien n'a
+jamais été reçu.
 
 Deux exigences de `arch/05` §9 pèsent sur ce tableau :
 
@@ -271,8 +289,18 @@ Les périodes de `arch/05` §3, chacune produisant `{ from: Date, to: Date }` :
     SEPT_JOURS      maintenant - 7 j -> maintenant
     TRENTE_JOURS    maintenant - 30 j -> maintenant
 
+`TRENTE_JOURS` est la version bornée du « tout le voyage » de `arch/05` §3, que
+le plafond de 10 000 points interdit de servir en un appel (§4.1). Son libellé
+doit dire ce qu'il montre — « 30 derniers jours », pas « tout le voyage » — et
+l'interface affiche la période réellement couverte.
+
 `from` est toujours borné par `startedAt` quand il existe : demander
 l'historique avant le départ ramènerait les points de test.
+
+Les trois périodes tiennent sous le plafond : 288 points par jour, donc environ
+2 000 sur sept jours et 8 640 sur trente. La marge sur `TRENTE_JOURS` est
+mince — si l'intervalle de capture descendait un jour sous cinq minutes, elle
+disparaîtrait. C'est la raison du contrôle de troncature du §4.1.
 
 Le sélecteur est **indépendant de la carte** (`arch/05` §10) : il produit des
 bornes, il ne touche jamais à Leaflet.
@@ -404,6 +432,11 @@ Repris de `arch/05` §9, rendus vérifiables :
 - [ ] Requête directe sur l'API sans en-tête depuis le navigateur : `403`.
 - [ ] Réponse d'historique de taille exactement `limit` : l'interface signale
       une troncature possible.
+- [ ] Période sans aucun point, alors qu'une position récente existe :
+      l'historique est annoncé vide **sans** effacer la dernière position, et
+      sans dire que rien n'a jamais été reçu.
+- [ ] Le libellé de la période la plus longue annonce 30 jours, pas le voyage
+      entier.
 
 Vérification du référent, qui ne se voit pas à l'œil nu :
 
