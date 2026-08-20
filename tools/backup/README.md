@@ -77,6 +77,28 @@ Un echec fait sortir le script en code 1, donc `systemctl status` passe en
 `failed`. C'est le seul signal : le POC n'a pas d'alerte, la supervision est
 un sujet V2 (`arch/08`).
 
+## Verifier qu'une sauvegarde contient bien tout
+
+Le script controle que la table `locations` est presente, pas qu'elle est
+complete. Confronter le dump a la base de temps en temps :
+
+    sudo sh -c 'gunzip -c /var/backups/madhi/*.sql.gz' \
+      | awk '/^COPY public\.locations/{f=1;next} f&&/^\\\.$/{f=0} f{n++} END{print n+0" positions dans le dump"}'
+
+    docker compose -f server/docker-compose.yml exec postgres \
+      psql -U madhi -d madhi_tracker -tAc "select count(*) from locations;"
+
+Le dump est un instantane : tant que le telephone synchronise, la base a pris
+quelques points d'avance depuis. Un ecart de quelques unites est normal, un
+ecart large ne l'est pas.
+
+Le motif passe par `sh -c` sous sudo, et non directement a `sudo` : le shell
+appelant developpe les motifs **avant** d'invoquer sudo, donc il le fait sans
+les droits de root et bute sur le repertoire en 0700. Il repond alors « no
+matches found », `awk` tourne sans entree, et le compte s'affiche a zero sans
+que rien n'ait ete lu — un dump vide et un dump jamais ouvert se ressemblent
+beaucoup a l'ecran.
+
 ## Restaurer
 
 Sur une base vide, le dump se rejoue tel quel — il porte `DROP TABLE IF EXISTS`
