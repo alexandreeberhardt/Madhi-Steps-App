@@ -63,61 +63,100 @@ Les vérifications de logique, sans navigateur :
 
     node tools/site-dev/verifier.mjs
 
+Et, au plus près de la production — vrai nginx, vraie configuration, vraie
+API — la stack elle-même :
+
+    docker compose -f server/docker-compose.yml up -d
+    # puis http://127.0.0.1:8112/f/<SITE_SECRET_SEGMENT>/
+
 ## Déployer
+
+Le site tourne dans la stack, comme le reste : un service `site` de
+`server/docker-compose.yml`, une image nginx qui **monte `site/` du dépôt en
+lecture seule**. Il n'y a pas de copie dans `/var/www` : le fichier du dépôt est
+littéralement le fichier servi, et `git pull` suffit à mettre à jour.
+
+Le nginx de l'hôte garde le port 443 — un seul processus peut le tenir, et le
+certificat de l'API y est déjà — et ne fait plus que relayer vers le conteneur.
 
 Le domaine `madhi.alexeber.fr` doit pointer vers le VPS avant de commencer.
 
-1. Copier les fichiers :
+1. Les deux valeurs, dans `server/.env` :
 
-        rsync -av --delete site/ <utilisateur>@<vps>:/tmp/madhi-site/
-        sudo rsync -av --delete /tmp/madhi-site/ /var/www/madhi/
-        sudo chown -R www-data:www-data /var/www/madhi
+        SITE_SECRET_SEGMENT=<openssl rand -hex 16>
+        PUBLIC_READ_TOKEN=<la valeur qui y est deja>
 
-2. Fabriquer le segment secret et le mot de passe familial :
+   `SITE_SECRET_SEGMENT` est **obligatoire** : sans elle, `docker compose`
+   refuse de démarrer plutôt que de publier un site à une adresse devinable.
 
-        openssl rand -hex 16
-        sudo htpasswd -c /etc/nginx/madhi.htpasswd famille
+2. Le mot de passe familial, sans rien installer sur l'hôte :
 
-3. Installer la configuration nginx en remplaçant les deux marqueurs
-   `<SEGMENT_SECRET>` et `<PUBLIC_READ_TOKEN>` :
+        docker run --rm -it httpd:2.4-alpine htpasswd -nB famille > server/madhi.htpasswd
+        chmod 644 server/madhi.htpasswd
+
+   Le fichier est ignoré par git. `chmod 644` n'est pas une négligence : c'est
+   le worker nginx, non privilégié, qui le lit à chaque requête, et un fichier
+   illisible pour lui donne une erreur 500 difficile à diagnostiquer. Il ne
+   contient qu'une empreinte bcrypt.
+
+   **À créer avant le premier démarrage.** Docker remplacerait un fichier
+   manquant par un répertoire vide, et nginx refuserait de démarrer.
+
+3. Vérifier la configuration avant de toucher à quoi que ce soit :
+
+        docker compose -f server/docker-compose.yml run --rm --no-deps site nginx -t
+
+   Cette commande applique la substitution des variables puis valide le
+   résultat, sans publier de port ni démarrer les autres services.
+
+4. Démarrer :
+
+        docker compose -f server/docker-compose.yml up -d
+        docker compose -f server/docker-compose.yml ps
+        curl -s -o /dev/null -w '%{http_code}\n' -u famille:MDP \
+          http://127.0.0.1:8112/f/<segment>/          # 200 attendu
+
+5. Le vhost de l'hôte, qui ne fait que relayer :
 
         sudo cp tools/nginx/madhi.alexeber.fr /etc/nginx/sites-available/
-        sudo nano /etc/nginx/sites-available/madhi.alexeber.fr
         sudo ln -s /etc/nginx/sites-available/madhi.alexeber.fr /etc/nginx/sites-enabled/
         sudo nginx -t && sudo systemctl reload nginx
-
-4. Obtenir le certificat :
-
         sudo certbot --nginx -d madhi.alexeber.fr
 
-   Certbot réécrit alors le fichier sur le VPS. **Toute modification
-   ultérieure part du fichier déployé, jamais du fichier versionné** — le
-   recopier supprimerait HTTPS.
+   Certbot réécrit ce fichier. À partir de là, toute modification part du
+   fichier déployé, jamais du fichier versionné.
 
-5. Vérifier que `TRIP_ID` de `config.js` correspond à `INITIAL_TRIP_ID` de
-   `server/.env`. S'ils divergent, le site affiche « Ce voyage est
+6. Vérifier que `TRIP_ID` dans `site/config.js` correspond à `INITIAL_TRIP_ID`
+   de `server/.env`. S'ils divergent, le site affiche « Ce voyage est
    introuvable ».
 
-Pour une mise à jour ultérieure, seule l'étape 1 est à refaire.
+Mise à jour ultérieure du site : `git pull`, et rien d'autre — les fichiers sont
+montés, pas copiés. Une modification du gabarit nginx demande en plus
+`docker compose -f server/docker-compose.yml up -d site`.
 
 ## Vérifier après déploiement
 
-    # en-tetes de confidentialite, avec le mot de passe
-    curl -sI -u '<user>:<motdepasse>' https://madhi.alexeber.fr/f/<segment>/ \
-      | grep -iE 'referrer-policy|x-robots-tag'
-
-    # l'URL racine sert la page, et non un 403 de repertoire
-    curl -s -o /dev/null -w '%{http_code}\n' \
-      -u '<user>:<motdepasse>' https://madhi.alexeber.fr/f/<segment>/
-
     # sans mot de passe, tout est ferme
-    curl -s -o /dev/null -w '%{http_code}\n' https://madhi.alexeber.fr/f/<segment>/
+    curl -s -o /dev/null -w '%{http_code}\n' https://madhi.alexeber.fr/f/<segment>/        # 401
+
+    # avec, l'URL racine sert la page et non un 403 de repertoire
+    curl -s -o /dev/null -w '%{http_code}\n' -u '<user>:<motdepasse>' \
+      https://madhi.alexeber.fr/f/<segment>/                                              # 200
+
+    # hors du chemin secret, le domaine ne dit rien
+    curl -s -o /dev/null -w '%{http_code}\n' https://madhi.alexeber.fr/                   # 404
+    curl -s -o /dev/null -w '%{http_code}\n' https://madhi.alexeber.fr/_up                # 403
+
+    # en-tetes de confidentialite
+    curl -sI -u '<user>:<motdepasse>' https://madhi.alexeber.fr/f/<segment>/ \
+      | grep -iE 'referrer-policy|x-robots-tag|content-security-policy'
 
     # le token n'a pas fuite dans les fichiers servis
-    grep -rn "$PUBLIC_READ_TOKEN" /var/www/madhi/ ; echo "code $?"
+    docker compose -f server/docker-compose.yml exec site \
+      grep -rn "$PUBLIC_READ_TOKEN" /usr/share/nginx/site/ ; echo "code $?"
 
-Attendu : `200` avec mot de passe, `401` sans, et un `grep` qui ne trouve rien
-(code 1).
+Attendu : `401` sans mot de passe, `200` avec, `404` et `403` hors du chemin, et
+un `grep` qui ne trouve rien (code 1).
 
 Dans le navigateur, onglet réseau : seules des requêtes vers
 `madhi.alexeber.fr` et `tile.openstreetmap.org` doivent apparaître.
@@ -144,17 +183,24 @@ Deux choix explicites, à relire avant de les changer :
 
 ## Révoquer l'accès
 
-Changer `<SEGMENT_SECRET>` dans la configuration nginx et recharger : l'ancien
-lien répond 404. Le mot de passe familial n'a pas besoin de changer, et
-inversement — c'est la raison d'avoir les deux.
+Changer `SITE_SECRET_SEGMENT` dans `server/.env`, puis :
+
+    docker compose -f server/docker-compose.yml up -d site
+
+L'ancien lien répond 404 en quelques secondes. Le mot de passe familial n'a pas
+besoin de changer, et inversement — c'est la raison d'avoir les deux.
 
 ## Réparations courantes
 
 | Symptôme | Cause probable |
 |---|---|
 | « Ce voyage est introuvable » | `TRIP_ID` de `config.js` ≠ `INITIAL_TRIP_ID` du serveur |
-| « Cet accès n'est plus valide » | token absent ou faux dans `proxy_set_header Authorization` |
-| 403 sur l'URL du lien | directive `index index.html;` absente du bloc `location` |
+| « Cet accès n'est plus valide » | `PUBLIC_READ_TOKEN` absent ou faux dans `server/.env` |
+| « Le serveur ne répond pas » | conteneur `api` arrêté ; `docker compose ps` |
+| 404 sur le lien familial | `SITE_SECRET_SEGMENT` ne correspond plus au lien distribué |
+| Le conteneur `site` ne démarre pas | `server/madhi.htpasswd` manquant : Docker l'a créé en répertoire |
+| 500 à la demande de mot de passe | `madhi.htpasswd` illisible par le worker nginx ; `chmod 644` |
+| Page d'accueil nginx au lieu du site | le gabarit n'a pas remplacé `conf.d/default.conf` |
 | Carte grise, reste affiché | tuiles injoignables ; la dernière position reste juste |
 | « Le voyage n'a pas encore commencé » | `trips.started_at` est nul, voir `SERVER_DEPLOYMENT.md` |
 

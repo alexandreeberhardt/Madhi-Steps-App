@@ -19,11 +19,21 @@ supplémentaire.
 
 **Le site a été construit selon ce plan** et vit dans `site/`, avec sa
 procédure de déploiement dans `site/README.md`. Le plan reste la référence des
-raisons ; il n'a pas été réécrit après coup. Deux écarts assumés :
-`site/config.js` s'ajoute à l'arborescence du §5 pour porter l'identifiant du
-voyage, qui n'est pas un secret ; et le bloc « dernière position » se tait
-lorsqu'il n'y a rien à montrer, le message qui occupe la place de la carte le
-disant déjà.
+raisons ; il n'a pas été réécrit après coup. Trois écarts assumés :
+
+- `site/config.js` s'ajoute à l'arborescence du §5 pour porter l'identifiant du
+  voyage, qui n'est pas un secret.
+- Le bloc « dernière position » se tait lorsqu'il n'y a rien à montrer, le
+  message qui occupe la place de la carte le disant déjà.
+- **Le §9 place la configuration nginx sur l'hôte, avec les fichiers dans
+  `/var/www/madhi`. L'implémentation la met dans la stack** : un service `site`
+  de `server/docker-compose.yml` monte `site/` en lecture seule et pose le
+  token. Les responsabilités et les pièges décrits au §9 sont inchangés — la
+  directive `index`, `X-Real-IP`, la non-héritance de `add_header` — mais ils
+  s'appliquent désormais dans `tools/nginx/site.conf.template`. L'hôte ne garde
+  qu'un relais, parce qu'un seul processus peut écouter le port 443 et que le
+  certificat de l'API y est déjà. Conséquence heureuse : le token de lecture ne
+  vit plus qu'à un seul endroit, `server/.env`.
 
 # 2. Décisions techniques et leurs raisons
 

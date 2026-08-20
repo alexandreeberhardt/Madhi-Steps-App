@@ -1,22 +1,19 @@
-# Site familial — configuration d'amorcage, en HTTP seul.
+# Site familial — configuration d'amorcage du nginx de l'hote, en HTTP seul.
+#
+# Ce fichier ne fait plus que relayer : tout ce qui concerne le site — chemin
+# secret, mot de passe, token de lecture, en-tetes de confidentialite — vit
+# desormais dans le conteneur `site` de server/docker-compose.yml, via
+# tools/nginx/site.conf.template. Ne rien ajouter ici qui appartienne au site :
+# ce serait de l'etat hors de la stack, invisible depuis le depot.
+#
+# Pourquoi ce vhost existe malgre tout : un seul processus peut ecouter le port
+# 443, et c'est le nginx de l'hote qui le tient deja pour l'API. Il termine donc
+# TLS pour les deux domaines et relaie ici en clair, sur la boucle locale.
 #
 # Comme pour madhi-server.alexeber.fr, ce fichier ne sert qu'a obtenir le
 # premier certificat : `certbot --nginx` le reecrit ensuite sur le VPS pour
 # ajouter l'ecoute en 443 et la redirection 80 -> 443. Ne jamais le recopier
 # par-dessus le fichier deploye, cela supprimerait HTTPS.
-#
-# Deux marqueurs sont a remplacer sur le VPS, et ne sont jamais versionnes :
-#
-#   <SEGMENT_SECRET>     segment aleatoire de l'URL familiale, revocable
-#                        en le changeant ici et en rechargeant nginx
-#   <PUBLIC_READ_TOKEN>  la valeur de PUBLIC_READ_TOKEN du fichier server/.env
-#
-# Fabriquer le segment et le mot de passe :
-#
-#   openssl rand -hex 16
-#   sudo htpasswd -c /etc/nginx/madhi.htpasswd famille
-#
-# Voir site/README.md pour la procedure complete et les verifications.
 
 server {
     listen 80;
@@ -32,81 +29,23 @@ server {
     # risque identifie du projet (SERVER_DEPLOYMENT.md). A ajouter le jour ou le
     # renouvellement automatique aura fait ses preuves sur une annee.
 
-    # Le lien familial est protege par un segment de 128 bits : atteindre la
-    # demande de mot de passe suppose deja de l'avoir. Pour limiter en plus les
-    # tentatives, declarer dans le bloc http de /etc/nginx/nginx.conf :
-    #     limit_req_zone $binary_remote_addr zone=madhi_site:1m rate=30r/m;
-    # puis ajouter `limit_req zone=madhi_site burst=20 nodelay;` ci-dessous.
-    # Ne pas ajouter la seconde ligne sans la premiere : nginx -t echouerait.
-
-    # Rien n'existe en dehors du chemin secret : ni page d'accueil, ni
-    # redirection, ni indice sur ce que sert ce domaine.
     location / {
-        return 404;
-    }
-
-    # --- les fichiers du site -------------------------------------------------
-    location /f/<SEGMENT_SECRET>/ {
-        alias /var/www/madhi/;
-
-        # Indispensable : avec alias, l'URL racine du lien familial designe un
-        # repertoire. Sans directive index dans ce bloc, nginx repond 403 et le
-        # lien parait casse alors que tout est en place.
-        index index.html;
-
-        auth_basic            "Madhi";
-        auth_basic_user_file  /etc/nginx/madhi.htpasswd;
-
-        # Le lien familial porte le segment secret dans son URL : sans cet
-        # en-tete, chaque requete de tuile l'emporterait dans Referer, jusque
-        # dans les journaux du fournisseur de tuiles. Ne pas l'affaiblir en
-        # strict-origin-when-cross-origin, qui enverrait encore l'origine.
-        add_header Referrer-Policy        "no-referrer"       always;
-        add_header X-Robots-Tag           "noindex, nofollow" always;
-        add_header X-Content-Type-Options "nosniff"           always;
-
-        # La regle « aucun GAFAM sur le chemin des positions » cesse d'etre une
-        # discipline pour devenir une contrainte que le navigateur applique :
-        # seules les tuiles sortent du domaine, et rien ne peut appeler ailleurs
-        # meme si un jour une ligne de code s'y essayait.
-        # 'unsafe-inline' ne concerne que les styles : Leaflet positionne ses
-        # tuiles en ecrivant element.style, ce que la CSP compte comme du style
-        # en ligne. Aucun script en ligne n'est autorise.
-        add_header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
-
-        # Le site doit rester reparable en editant un fichier : sans
-        # revalidation, une correction faite depuis la route resterait invisible
-        # dans les navigateurs de la famille.
-        add_header Cache-Control          "no-cache"          always;
-    }
-
-    # --- l'API, avec le token pose ici ---------------------------------------
-    # Prefixe plus long que le bloc precedent : nginx le choisit en premier.
-    location /f/<SEGMENT_SECRET>/api/ {
-        auth_basic            "Madhi";
-        auth_basic_user_file  /etc/nginx/madhi.htpasswd;
-
-        proxy_pass http://127.0.0.1:8111/api/v1/;
+        # Sans URI apres le port : l'adresse demandee, segment secret compris,
+        # arrive au conteneur telle quelle.
+        proxy_pass http://127.0.0.1:8112;
         proxy_http_version 1.1;
+
         proxy_set_header Host $host;
 
-        # Le token de lecture vit ici, jamais dans les fichiers servis au
-        # navigateur : c'est tout l'interet de passer par nginx.
-        proxy_set_header Authorization "Bearer <PUBLIC_READ_TOKEN>";
-
-        # Seul en-tete sur lequel compte le rate limiter du serveur. Sans lui,
-        # tous les visiteurs tombent dans le meme compartiment.
+        # Le conteneur transmet cette valeur a l'API, seul en-tete sur lequel
+        # compte son rate limiting. La perdre ici mettrait toute la famille
+        # dans le meme compartiment.
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # add_header ne s'herite pas des que le bloc enfant en declare un : les
-        # repeter est necessaire, y compris sur les reponses d'erreur.
-        add_header Referrer-Policy        "no-referrer"       always;
-        add_header X-Robots-Tag           "noindex, nofollow" always;
-        add_header X-Content-Type-Options "nosniff"           always;
-
-        # Des positions precises n'ont a etre gardees par aucun intermediaire.
-        add_header Cache-Control          "no-store"          always;
+        # Le mot de passe familial est demande par le conteneur : l'en-tete
+        # Authorization du navigateur doit lui parvenir, et son 401 revenir.
+        proxy_pass_request_headers on;
     }
 }

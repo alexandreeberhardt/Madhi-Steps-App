@@ -11,6 +11,12 @@ relatifs, exactement là où nginx répondra en production.
 
 **Ne jamais l'exposer sur Internet** : ni chiffrement, ni mot de passe.
 
+Cet outil sert à travailler hors ligne et à fabriquer des états que la base
+réelle ne produit pas. Pour éprouver la vraie configuration — vrai nginx, vrai
+chemin secret, vrai mot de passe — c'est la stack qu'il faut lancer :
+`docker compose -f server/docker-compose.yml up -d`, puis
+`http://127.0.0.1:8112/f/<SITE_SECRET_SEGMENT>/`.
+
 ### Scénarios
 
 Sans `--proxy`, les réponses sont fabriquées. Chaque scénario produit un des

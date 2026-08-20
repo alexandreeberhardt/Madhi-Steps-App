@@ -66,6 +66,42 @@ services:
       timeout: 3s
       retries: 12
 
+  site:
+    # Le site familial, servi depuis la stack et non depuis l'hote : le
+    # repertoire site/ du depot est monte tel quel, donc le fichier du depot est
+    # litteralement le fichier servi, sans copie qui puisse deriver.
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    environment:
+      # Sans segment, le lien familial n'existe pas : mieux vaut un refus franc
+      # au demarrage qu'un site en ligne a une adresse devinable.
+      SITE_SECRET_SEGMENT: ${SITE_SECRET_SEGMENT:?definir SITE_SECRET_SEGMENT dans server/.env (openssl rand -hex 16)}
+      # Le meme token que l'API : une seule valeur, un seul endroit.
+      PUBLIC_READ_TOKEN: ${PUBLIC_READ_TOKEN:-}
+      # Limite la substitution a ces deux noms, pour que $$remote_addr et ses
+      # semblables survivent au passage d'envsubst.
+      NGINX_ENVSUBST_FILTER: "^(SITE_SECRET_SEGMENT|PUBLIC_READ_TOKEN)$$"
+    volumes:
+      - ../site:/usr/share/nginx/site:ro
+      - ../tools/nginx/site.conf.template:/etc/nginx/templates/default.conf.template:ro
+      # A creer avant le premier demarrage : un fichier manquant deviendrait un
+      # repertoire vide, et nginx refuserait de demarrer.
+      - ./madhi.htpasswd:/etc/nginx/madhi.htpasswd:ro
+    ports:
+      - "${SITE_BIND:-127.0.0.1:8112}:80"
+    depends_on:
+      # service_started, et non service_healthy : le site doit pouvoir
+      # s'afficher pour annoncer que le serveur ne repond pas. Le faire
+      # dependre de la sante de l'API le rendrait muet au moment ou il est le
+      # plus utile.
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/_up"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
   test:
     profiles: ["test"]
     build:

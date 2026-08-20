@@ -9,6 +9,9 @@
 keystore.properties
 local.properties
 
+# Mots de passe du site familial (auth_basic)
+*.htpasswd
+
 # Secrets and certificates
 *.key
 *.pem

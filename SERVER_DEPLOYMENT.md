@@ -133,23 +133,34 @@ s'applique pas et le site n'affiche volontairement aucune position precise.
 
 ## Site familial
 
-Le site que regarde la famille est un second vhost nginx sur la meme machine :
+Le site que regarde la famille tourne dans la meme stack que l'API, service
+`site` de `server/docker-compose.yml` :
 
     https://madhi.alexeber.fr
 
-Les fichiers statiques vivent dans `/var/www/madhi/`, servis derriere un segment
-d'URL secret et un mot de passe `auth_basic`. Le meme vhost relaie
-`/f/<segment>/api/` vers `http://127.0.0.1:8111/api/v1/` en posant lui-meme
-l'en-tete `Authorization`.
+C'est une image nginx qui monte `site/` du depot en lecture seule — aucune copie
+dans `/var/www`, donc rien qui puisse deriver — et qui relaie `/f/<segment>/api/`
+vers le service `api` par le reseau interne, en posant lui-meme l'en-tete
+`Authorization`. Le conteneur publie sur `127.0.0.1:8112`.
 
-Consequence a retenir : **le `PUBLIC_READ_TOKEN` existe desormais a deux
-endroits**, `server/.env` et la configuration nginx du site. Le changer d'un
-cote sans l'autre coupe le site sans toucher a la synchronisation du telephone,
-et la panne se lit comme « Cet acces n'est plus valide ».
+Deux valeurs de `server/.env` le commandent : `SITE_SECRET_SEGMENT`, qui est le
+segment secret de l'URL familiale, et `PUBLIC_READ_TOKEN`, **le meme que celui
+de l'API** : une seule valeur, un seul endroit. Le mot de passe familial vit
+dans `server/madhi.htpasswd`, non versionne.
 
-Le certificat de ce domaine est distinct de celui de l'API, avec sa propre date
-d'expiration. La procedure complete et les verifications sont dans
-`site/README.md`.
+A savoir : `SITE_SECRET_SEGMENT` est declaree obligatoire. Si elle disparait de
+`server/.env`, `docker compose` refuse de resoudre le fichier et **aucun service
+ne demarre**, API comprise. C'est voulu — publier le site a une adresse vide
+serait pire — mais c'est a savoir avant de bricoler le `.env` a distance. Les
+conteneurs deja demarres ne sont pas arretes pour autant : la commande echoue
+avant d'agir.
+
+Le nginx de l'hote ne fait plus que terminer TLS et relayer vers 8112, parce
+qu'un seul processus peut ecouter le port 443 et que le certificat de l'API y
+est deja. Le certificat de ce domaine est distinct de celui de l'API, avec sa
+propre date d'expiration.
+
+La procedure complete et les verifications sont dans `site/README.md`.
 
 ## Nginx et HTTPS
 

@@ -1,0 +1,122 @@
+# Configuration du conteneur `site`, dans server/docker-compose.yml.
+#
+# Ce fichier est un gabarit : l'image nginx officielle remplace
+# ${SITE_SECRET_SEGMENT} et ${PUBLIC_READ_TOKEN} par les variables du conteneur
+# au demarrage, puis ecrit le resultat dans /etc/nginx/conf.d/. Les deux valeurs
+# viennent de server/.env et ne sont donc jamais versionnees.
+#
+# NGINX_ENVSUBST_FILTER limite la substitution a ces deux noms : sans lui,
+# $remote_addr et ses semblables risqueraient d'etre remplaces par du vide.
+#
+# Le conteneur n'ecoute qu'en HTTP, sur 127.0.0.1 cote hote. C'est le nginx de
+# l'hote qui termine TLS et relaie ici, parce qu'un seul processus peut tenir
+# le port 443 et que le certificat de l'API y est deja.
+
+# L'IP du visiteur telle que l'hote nous l'a transmise. Le serveur ne compte que
+# sur X-Real-IP pour son rate limiting : le perdre ici mettrait tous les
+# visiteurs dans le meme compartiment. Repli sur $remote_addr pour qu'un appel
+# direct au conteneur reste attribue a quelqu'un.
+map $http_x_real_ip $madhi_client_ip {
+    ""      $remote_addr;
+    default $http_x_real_ip;
+}
+
+server {
+    # Seul serveur du conteneur : le gabarit remplace le default.conf livre
+    # avec l'image, sans quoi c'est la page d'accueil de nginx qui repondrait.
+    listen 80 default_server;
+    server_name _;
+
+    server_tokens off;
+
+    # Rien n'existe en dehors du chemin secret : ni page d'accueil, ni
+    # redirection, ni indice sur ce que sert ce domaine.
+    location / {
+        return 404;
+    }
+
+    # Sonde de vie du conteneur, fermee a tout ce qui ne vient pas de sa propre
+    # boucle locale : depuis l'exterieur, ce domaine ne confirme rien du tout.
+    location = /_up {
+        access_log off;
+        allow 127.0.0.1;
+        deny all;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # --- l'API, avec le token pose ici ---------------------------------------
+    #
+    # Location en expression reguliere, et non en prefixe, pour une raison
+    # precise : proxy_pass avec un nom d'hote fixe resout `api` une seule fois,
+    # au demarrage, et garde l'adresse pour toujours. Un `docker compose up -d
+    # --build` recree le conteneur api avec une autre adresse et le site
+    # repondrait 502 jusqu'a son propre redemarrage — une panne qui ressemble a
+    # « serveur indisponible » alors que le telephone, lui, synchronise tres
+    # bien. Passer par une variable force nginx a redemander au resolveur.
+    location ~ ^/f/${SITE_SECRET_SEGMENT}/api/(?<chemin_api>.*)$ {
+        auth_basic            "Madhi";
+        auth_basic_user_file  /etc/nginx/madhi.htpasswd;
+
+        resolver 127.0.0.11 valid=30s ipv6=off;   # DNS interne de Docker
+        set $madhi_api http://api:8080;
+        proxy_pass $madhi_api/api/v1/$chemin_api$is_args$args;
+
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+
+        # Le token de lecture vit ici, jamais dans les fichiers servis au
+        # navigateur. Il ecrase au passage l'en-tete Authorization du mot de
+        # passe familial, qui n'a donc aucune raison d'atteindre l'API.
+        proxy_set_header Authorization "Bearer ${PUBLIC_READ_TOKEN}";
+
+        proxy_set_header X-Real-IP $madhi_client_ip;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 15s;
+
+        # add_header ne s'herite pas des que le bloc enfant en declare un.
+        add_header Referrer-Policy        "no-referrer"       always;
+        add_header X-Robots-Tag           "noindex, nofollow" always;
+        add_header X-Content-Type-Options "nosniff"           always;
+
+        # Des positions precises n'ont a etre gardees par aucun intermediaire.
+        add_header Cache-Control          "no-store"          always;
+    }
+
+    # --- les fichiers du site -------------------------------------------------
+    location /f/${SITE_SECRET_SEGMENT}/ {
+        alias /usr/share/nginx/site/;
+
+        # Indispensable : avec alias, l'URL racine du lien familial designe un
+        # repertoire. Sans directive index dans ce bloc, nginx repond 403 et le
+        # lien parait casse alors que tout est en place.
+        index index.html;
+
+        auth_basic            "Madhi";
+        auth_basic_user_file  /etc/nginx/madhi.htpasswd;
+
+        # Le lien familial porte le segment secret dans son URL : sans cet
+        # en-tete, chaque requete de tuile l'emporterait dans Referer, jusque
+        # dans les journaux du fournisseur de tuiles. Ne pas l'affaiblir en
+        # strict-origin-when-cross-origin, qui enverrait encore l'origine.
+        add_header Referrer-Policy        "no-referrer"       always;
+        add_header X-Robots-Tag           "noindex, nofollow" always;
+        add_header X-Content-Type-Options "nosniff"           always;
+
+        # La regle « aucun GAFAM sur le chemin des positions » cesse d'etre une
+        # discipline pour devenir une contrainte que le navigateur applique :
+        # seules les tuiles sortent du domaine, et rien ne peut appeler ailleurs
+        # meme si un jour une ligne de code s'y essayait.
+        # 'unsafe-inline' ne concerne que les styles : Leaflet positionne ses
+        # tuiles en ecrivant element.style, ce que la CSP compte comme du style
+        # en ligne. Aucun script en ligne n'est autorise.
+        add_header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
+
+        # Le site doit rester reparable en editant un fichier : le repertoire
+        # site/ du depot est monte tel quel, et sans revalidation une correction
+        # faite depuis la route resterait invisible dans les navigateurs.
+        add_header Cache-Control          "no-cache"          always;
+    }
+}

@@ -97,11 +97,13 @@ ont la priorité sur ces fichiers, ce qui évite d'avoir à les créer en CI.
 ## Site familial
 
 Le site que regarde la famille est dans `site/` : des fichiers statiques, sans
-étape de build, servis par nginx derrière un segment d'URL secret et un mot de
-passe. Il n'embarque aucun secret — le token de lecture exigé par l'API est
-posé par nginx.
+étape de build, servis par un conteneur nginx de la même stack que le serveur,
+derrière un segment d'URL secret et un mot de passe. Il n'embarque aucun
+secret — le token de lecture exigé par l'API est posé par le conteneur, et le
+répertoire `site/` du dépôt est monté tel quel, sans copie intermédiaire.
 
-    python3 tools/site-dev/serve.py            # le site, avec des donnees fabriquees
+    docker compose -f server/docker-compose.yml up -d   # la stack complete
+    python3 tools/site-dev/serve.py            # le site seul, donnees fabriquees
     node tools/site-dev/verifier.mjs           # les verifications sans navigateur
 
 Le déploiement sur `madhi.alexeber.fr` et les vérifications à faire ensuite
