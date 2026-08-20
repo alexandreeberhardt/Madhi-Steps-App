@@ -1,0 +1,11 @@
+[Unit]
+Description=Sauvegarde quotidienne de la base Madhi Tracker
+
+[Timer]
+OnCalendar=*-*-* 03:20:00
+# Rattrape la sauvegarde si le VPS etait eteint a l'heure dite.
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

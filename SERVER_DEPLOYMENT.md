@@ -79,6 +79,22 @@ PostgreSQL est lance par Docker Compose et stocke les donnees dans le volume :
 
 Ce volume contient les positions serveur et doit etre sauvegarde.
 
+## Sauvegarde
+
+Une sauvegarde quotidienne est fournie par `tools/backup/` : un `pg_dump`
+compresse, verifie relisible, conserve trente jours dans `/var/backups/madhi`.
+L'installation du timer systemd et la procedure de restauration sont dans
+`tools/backup/README.md`.
+
+Verifier qu'elle tourne :
+
+    systemctl list-timers | grep madhi-backup
+    ls -l /var/backups/madhi
+
+Reserve connue : les copies restent sur le VPS. Perdre la machine, c'est perdre
+la base et ses sauvegardes en meme temps. Tirer une copie chez soi de temps en
+temps, voir `tools/backup/README.md`.
+
 ## Le jour du depart
 
 Toutes les positions vivent dans un seul trip, y compris celles qui ne sont pas

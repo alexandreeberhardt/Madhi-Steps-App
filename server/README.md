@@ -13,7 +13,7 @@ L'API ecoute `http://localhost:8080/api/v1`. Le code d'activation par defaut
 est `XXXX-XXXX` en developpement uniquement.
 
 Le volume Docker `madhi_postgres_data` contient les donnees PostgreSQL. C'est le
-volume a sauvegarder en production.
+volume a sauvegarder en production, et `tools/backup/` s'en charge.
 
 Le journal d'acces ecarte les appels a `/health` : Docker sonde cet endpoint
 toutes les dix secondes, soit environ trois millions de lignes sur l'annee du

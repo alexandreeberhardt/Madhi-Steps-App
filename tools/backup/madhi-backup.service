@@ -1,0 +1,12 @@
+[Unit]
+Description=Sauvegarde de la base de positions Madhi Tracker
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Adapter au chemin reel du depot sur le VPS.
+Environment=MADHI_COMPOSE_FILE=/srv/MadhiTracker/server/docker-compose.yml
+Environment=MADHI_BACKUP_DIR=/var/backups/madhi
+Environment=MADHI_BACKUP_KEEP=30
+ExecStart=/srv/MadhiTracker/tools/backup/madhi-backup.sh

@@ -1,0 +1,66 @@
+# Sauvegarde de la base serveur
+
+Le volume `madhi_postgres_data` est la seule copie serveur des positions. Le
+telephone garde les siennes, mais rien ne les renvoie une fois marquees
+`SYNCED` : une base perdue est une base perdue.
+
+`madhi-backup.sh` produit un `pg_dump` compresse et date, verifie qu'il est
+relisible, puis fait tourner les anciennes copies.
+
+## Installation sur le VPS
+
+    sudo cp tools/backup/madhi-backup.service /etc/systemd/system/
+    sudo cp tools/backup/madhi-backup.timer   /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now madhi-backup.timer
+
+Ajuster les chemins dans `madhi-backup.service` si le depot n'est pas dans
+`/srv/MadhiTracker`.
+
+Verifier :
+
+    systemctl list-timers | grep madhi-backup
+    sudo systemctl start madhi-backup.service
+    journalctl -u madhi-backup.service --no-pager -n 30
+    ls -l /var/backups/madhi
+
+## Ce que le script garantit
+
+- **Rien n'est supprime avant qu'une sauvegarde valide soit ecrite.** La
+  rotation ne s'execute qu'apres coup, et n'efface jamais la copie du jour.
+- **Une archive tronquee ne compte pas comme une sauvegarde.** Le script relit
+  le gzip et exige d'y trouver la table `locations` ; sinon il echoue en
+  laissant les anciennes copies en place.
+- **La rotation trie par nom, pas par date de modification.** L'horodatage UTC
+  du nom est deja chronologique, alors qu'une copie de repertoire rebat les
+  `mtime`.
+
+Un echec fait sortir le script en code 1, donc `systemctl status` passe en
+`failed`. C'est le seul signal : le POC n'a pas d'alerte, la supervision est
+un sujet V2 (`arch/08`).
+
+## Restaurer
+
+Sur une base vide, le dump se rejoue tel quel — il porte `DROP TABLE IF EXISTS`
+et recree tout :
+
+    gunzip -c /var/backups/madhi/madhi-<horodatage>.sql.gz \
+      | docker compose -f server/docker-compose.yml exec -T postgres \
+          psql --username=madhi --dbname=madhi_tracker
+
+Puis verifier le decompte :
+
+    docker compose -f server/docker-compose.yml exec postgres \
+      psql -U madhi -d madhi_tracker -c \
+      "select count(*), min(recorded_at), max(recorded_at) from locations;"
+
+Les positions restaurees gardent leur identifiant d'origine. Un telephone qui
+rejouerait ensuite un lot deja recu ne cree donc pas de doublon : c'est
+l'idempotence par UUID du contrat `arch/13`.
+
+## Emporter une copie hors du VPS
+
+Le script ne fait que des copies locales. Un VPS perdu emporte ses sauvegardes
+avec lui. Tant que ce n'est pas automatise, tirer une copie de temps en temps :
+
+    rsync -avz vps:/var/backups/madhi/ ~/madhi-backups/serveur/
