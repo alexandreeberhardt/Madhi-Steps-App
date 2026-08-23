@@ -312,6 +312,12 @@ Fabriqué par `tools/tiles/build_basemap.py` depuis des données Natural Earth
 rien du voyage, et les mettre derrière le lien secret familial obligerait à
 embarquer ce secret dans l'APK.
 
+L'URL porte une génération — `/tiles/v2/{z}/{x}/{y}.png` — et c'est une
+conséquence directe du §3.2 : le cache est lu avant le réseau et les tuiles sont
+annoncées immuables, donc un fond refabriqué ne parviendrait jamais aux
+téléphones qui ont déjà l'ancien. Bumper le numéro est la seule façon de pousser
+un nouveau fond.
+
 Trois lignes de `local.properties` branchent l'application dessus ; sans elles,
 la carte reste sur fond uni et n'émet aucune requête. **Aucun serveur de tuiles
 n'est figé dans le dépôt** : le choix engage une licence, parfois un compte, et

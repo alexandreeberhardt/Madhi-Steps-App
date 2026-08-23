@@ -81,7 +81,14 @@ Le dossier `tuiles/` est monté en lecture seule dans le conteneur `site` de
 `server/docker-compose.yml`, et servi par
 `tools/nginx/site.conf.template` :
 
-    https://madhi.alexeber.fr/tiles/{z}/{x}/{y}.png
+    https://madhi.alexeber.fr/tiles/v2/{z}/{x}/{y}.png
+
+**Le numéro de génération dans le chemin n'est pas décoratif.** L'application
+lit son cache disque avant le réseau, et ces tuiles sont annoncées immuables
+pour un an : un fond refabriqué ne parviendrait jamais aux téléphones qui ont
+déjà l'ancien. Toutes les générations servent le même dossier ; bumper le
+numéro, ici et dans `local.properties`, est la seule façon de pousser un
+nouveau fond. La génération 1 était la donnée 1:50 m, sans routes ni villes.
 
 **Public, sans mot de passe, et volontairement.** Ce sont des données du
 domaine public qui ne disent rien du voyage. Les mettre derrière le lien secret
@@ -97,7 +104,7 @@ d'avoir choisi le conteneur `site` plutôt qu'un `location` sur l'hôte.
 
 Trois lignes dans `local.properties`, jamais versionnées :
 
-    madhi.tiles.urlTemplate=https://madhi.alexeber.fr/tiles/{z}/{x}/{y}.png
+    madhi.tiles.urlTemplate=https://madhi.alexeber.fr/tiles/v2/{z}/{x}/{y}.png
     madhi.tiles.attribution=Fond : Natural Earth
     madhi.tiles.maxZoom=8
 
