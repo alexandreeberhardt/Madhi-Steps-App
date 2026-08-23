@@ -270,6 +270,10 @@ le glissement déplace la carte et les tuiles de la zone découverte se chargent
 à la volée ; « Recentrer » n'apparaît qu'après un déplacement manuel et rend
 bien le cadrage automatique, tracé dégagé de la légende et de l'échelle.
 
+**Fond 1:10 m vérifié sur appareil, 23 août 22 h 54.** Villes nommées, routes,
+limites régionales et zones urbaines s'affichent sur le OnePlus, cadrage et
+échelle justes, premier chargement complet depuis la génération `v2` de l'URL.
+
 **Ce qui n'est toujours pas vérifié.** Le pincement — `adb` ne sait pas simuler
 deux doigts, il faudra le faire à la main. Le rendu au-delà du zoom 8, là où
 les tuiles sont agrandies. Le comportement hors ligne du cache, qui est
@@ -295,8 +299,16 @@ les tuiles sont agrandies, et personne n'a encore vu ce que ça donne en main.
 
 **Le hors-ligne n'a pas été éprouvé.** Tout le pari du cache — consulter une
 zone au chaud, la retrouver trois jours plus tard sans réseau — repose sur un
-raisonnement, pas sur un essai. Un test en mode avion coûte cinq minutes et
-n'a pas été fait.
+raisonnement, pas sur un essai.
+
+Le test bute sur un détail d'outillage : le débogage se fait **par Wi-Fi**, donc
+couper le réseau du téléphone coupe aussi le lien ADB. Deux façons de s'en
+sortir, l'une comme l'autre à faire une fois avant le départ :
+
+- brancher un câble USB, puis mode avion ;
+- ou arrêter le conteneur `site` une minute, ce qui rend les tuiles
+  injoignables sans toucher au téléphone. Le chemin testé est le même : le
+  cache doit répondre seul.
 
 **La carte n'est pas un critère de sortie.** Le point bloquant du projet reste
 `arch/14_protocole_test_terrain.md` sur le Redmi Note 11, et le redémarrage
