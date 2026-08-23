@@ -134,9 +134,13 @@ s'applique pas et le site n'affiche volontairement aucune position precise.
 ## Site familial
 
 Le site que regarde la famille tourne dans la meme stack que l'API, service
-`site` de `server/docker-compose.yml` :
+`site` de `server/docker-compose.yml`. **En ligne depuis le 23 aout 2026** :
 
     https://madhi.alexeber.fr
+
+Le lien reellement distribue a la famille porte le segment secret :
+`https://madhi.alexeber.fr/f/<segment>/`. La racine du domaine repond 404, et
+tout chemin hors du segment aussi.
 
 C'est une image nginx qui monte `site/` du depot en lecture seule — aucune copie
 dans `/var/www`, donc rien qui puisse deriver — et qui relaie `/f/<segment>/api/`
@@ -186,12 +190,27 @@ versionne :
 `X-Real-IP` doit rester pose par le proxy : c'est le seul en-tete sur lequel le
 serveur compte pour le rate limiting.
 
-## Renouvellement du certificat
+## Renouvellement des certificats
 
-Le certificat courant expire le **17 novembre 2026**, soit pendant le voyage.
-S'il n'est pas renouvele, l'application ne peut plus synchroniser : les
-positions restent en attente sur le telephone au lieu d'etre perdues, mais la
-panne est silencieuse cote famille.
+Il y en a **deux** depuis la mise en ligne du site, et tous deux expirent
+pendant le voyage :
+
+| Domaine | Expiration |
+|---|---|
+| `madhi-server.alexeber.fr` | 17 novembre 2026 |
+| `madhi.alexeber.fr` | 21 novembre 2026 |
+
+Si celui de l'API n'est pas renouvele, l'application ne peut plus synchroniser :
+les positions restent en attente sur le telephone au lieu d'etre perdues, mais
+la panne est silencieuse cote famille. Si c'est celui du site, la famille
+n'accede plus a rien, alors que tout fonctionne par ailleurs.
+
+Un point d'attention propre au site : son vhost relaie **tout** vers le
+conteneur. Le defi ACME arrive sur `/.well-known/acme-challenge/` et ne doit pas
+partir dans le conteneur, qui repondrait 404 et ferait echouer le
+renouvellement en silence. Le greffon nginx de certbot pose son bloc avec une
+precedence superieure, donc cela passe — mais c'est precisement ce que
+`certbot renew --dry-run` sert a prouver, avant novembre plutot que pendant.
 
 Verifier que le renouvellement automatique est arme :
 

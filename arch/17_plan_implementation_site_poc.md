@@ -445,28 +445,40 @@ Rien d'autre. Le contrat `LocationPointV1` ne bouge pas (`arch/06` §6).
 
 # 11. Critères d'acceptation
 
-Repris de `arch/05` §9, rendus vérifiables :
+Repris de `arch/05` §9, rendus vérifiables. État au 23 août 2026, jour de la
+mise en ligne. `[x]` vaut pour « constaté », pas pour « écrit avec soin » :
 
-- [ ] Sur smartphone, la dernière position est lisible sans zoomer.
-- [ ] L'horodatage absolu **et** l'ancienneté relative sont affichés ensemble.
-- [ ] Aucun libellé suggérant du temps réel.
-- [ ] Une journée de trajet (≈ 288 points) s'affiche sans saccade.
-- [ ] `latest-location` à `null` donne un message clair, pas une carte vide
+- [x] L'horodatage absolu **et** l'ancienneté relative sont affichés ensemble.
+- [x] Aucun libellé suggérant du temps réel — vérifié par un test qui parcourt
+      les huit états et refuse « en direct », « temps réel », « live ».
+- [x] `latest-location` à `null` donne un message clair, pas une carte vide
       centrée sur l'océan.
-- [ ] `startedAt` à `null` n'affiche aucune position précise.
-- [ ] Serveur arrêté : message d'erreur explicite, et la dernière donnée connue
-      reste visible et datée.
-- [ ] Onglet réseau : uniquement le domaine du projet et le serveur de tuiles.
-- [ ] Recherche de `PUBLIC_READ_TOKEN` et du segment secret dans tous les
+- [x] `startedAt` à `null` n'affiche aucune position précise.
+- [x] Serveur arrêté : message d'erreur explicite, et la dernière donnée connue
+      reste visible et datée. Éprouvé en coupant le serveur **après** le
+      chargement, cas que les scénarios figés n'atteignent pas.
+- [x] Onglet réseau : uniquement le domaine du projet et le serveur de tuiles.
+      Désormais imposé par une `Content-Security-Policy`, et non plus seulement
+      par discipline : un `fetch` externe et un pixel de mesure portant une
+      latitude sont refusés par le navigateur.
+- [x] Recherche de `PUBLIC_READ_TOKEN` et du segment secret dans tous les
       fichiers de `site/` : aucune occurrence.
-- [ ] Requête directe sur l'API sans en-tête depuis le navigateur : `403`.
-- [ ] Réponse d'historique de taille exactement `limit` : l'interface signale
+- [x] Requête directe sur l'API sans en-tête : `403`. Vérifié contre le serveur
+      de production, pas seulement en local.
+- [x] Réponse d'historique de taille exactement `limit` : l'interface signale
       une troncature possible.
-- [ ] Période sans aucun point, alors qu'une position récente existe :
+- [x] Période sans aucun point, alors qu'une position récente existe :
       l'historique est annoncé vide **sans** effacer la dernière position, et
       sans dire que rien n'a jamais été reçu.
-- [ ] Le libellé de la période la plus longue annonce 30 jours, pas le voyage
+- [x] Le libellé de la période la plus longue annonce 30 jours, pas le voyage
       entier.
+- [~] Sur smartphone, la dernière position est lisible sans zoomer. Rendu
+      vérifié à 360 px et à 500 px, sans débordement horizontal — mais dans un
+      navigateur sans appareil. Reste à ouvrir le lien sur un vrai téléphone.
+- [~] Une journée de trajet (≈ 288 points) s'affiche sans saccade. La polyline
+      était reconstruite toutes les 30 secondes ; elle ne l'est plus que
+      lorsque les données changent, ce qui était le vrai risque sur un
+      téléphone de 4 Go. La fluidité elle-même n'est pas mesurée sur appareil.
 
 Vérifications qui ne se voient pas à l'œil nu :
 
@@ -510,3 +522,30 @@ Tout cela est `arch/06`, et une partie demande des endpoints qui n'existent pas.
 L'ordre place l'interface la plus fruste en position utilisable très tôt. Si le
 temps manque avant le départ, un site qui affiche « dernière position reçue à
 telle heure, ici » sans carte vaut infiniment mieux qu'une carte inachevée.
+
+# 14. Ce que seule la mise en ligne a montré
+
+Le site est en ligne depuis le 23 août 2026. Deux défauts ont survécu à la
+relecture, aux tests automatisés et au rendu en navigateur, et sont tombés dans
+l'heure qui a suivi la mise en ligne. Ils se ressemblent : dans les deux cas, le
+code était juste dans le monde que j'avais en tête, et faux dans le monde réel.
+
+**Le lien familial sans slash final répondait 404.** `location /f/<segment>/`
+ne couvre pas `/f/<segment>`. Or c'est très exactement ce qu'une personne colle
+dans un message. Corrigé par une redirection `308` en correspondance exacte,
+avec `absolute_redirect off` — sans quoi nginx fabriquerait une redirection
+vers `http://`, le conteneur ignorant que le TLS existe en amont de lui.
+
+**La sonde de vie `/_up` répondait `200` depuis Internet**, alors qu'elle était
+fermée par `allow 127.0.0.1; deny all;`. Selon le mode réseau de Docker, le
+conteneur voit la requête relayée par l'hôte arriver de sa propre boucle
+locale : la règle n'excluait personne. Ce qu'elle révélait était mince — le nom
+du domaine est déjà public dans les journaux de Certificate Transparency — mais
+la documentation annonçait `403` là où la réalité donnait `200`, et une
+vérification qui ment est pire que le défaut qu'elle prétend couvrir. La
+présence de `X-Real-IP`, posée par le nginx de l'hôte, distingue ce que
+`allow`/`deny` ne distinguait pas.
+
+**Ce qu'il faut en retenir** : une règle d'accès écrite dans un conteneur ne
+porte pas sur qui vous croyez. Toute règle de ce type doit être vérifiée depuis
+l'extérieur, une fois en ligne, et pas seulement relue.

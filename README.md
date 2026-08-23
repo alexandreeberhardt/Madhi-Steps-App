@@ -18,12 +18,14 @@ Le critère de réussite du projet n'est pas technique :
 |---|---|
 | Application Android | V1 fonctionnellement complète, en attente de validation terrain |
 | Serveur | POC déployé sur `madhi-server.alexeber.fr`, en HTTPS, avec sauvegarde quotidienne |
-| Site familial | POC construit, éprouvé hors ligne, pas encore déployé |
+| Site familial | POC en ligne sur `madhi.alexeber.fr`, en HTTPS, derrière un lien secret et un mot de passe |
 
-L'application n'a **pas encore** été validée en conditions réelles. Tant que
-le protocole de `arch/14_protocole_test_terrain.md` n'est pas passé sur
-l'appareil cible — le Redmi Note 11, pas le OnePlus de pré-validation — elle
-repose sur une hypothèse. C'est le seul point bloquant du projet.
+Les trois briques sont en place et la chaîne est complète, du téléphone au
+site. Cela ne veut pas dire que le projet est prêt : l'application n'a **pas
+encore** été validée en conditions réelles. Tant que le protocole de
+`arch/14_protocole_test_terrain.md` n'est pas passé sur l'appareil cible — le
+Redmi Note 11, pas le OnePlus de pré-validation — elle repose sur une
+hypothèse. C'est le seul point bloquant du projet.
 
 ## Principes
 

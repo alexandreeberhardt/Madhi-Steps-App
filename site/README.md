@@ -5,8 +5,14 @@ choisie. Rien d'autre. Le plan d'exécution et les raisons de chaque choix sont
 dans `arch/17_plan_implementation_site_poc.md`, le cahier des charges dans
 `arch/05_site_POC.md`.
 
-Le site est servi sur `https://madhi.alexeber.fr`, derrière un segment d'URL
-secret et un mot de passe familial.
+**En ligne depuis le 23 août 2026** sur `https://madhi.alexeber.fr`, derrière un
+segment d'URL secret et un mot de passe familial. Le lien distribué à la famille
+est `https://madhi.alexeber.fr/f/<segment>/` ; la racine du domaine, et tout
+chemin hors du segment, répondent 404.
+
+Tant que `trips.started_at` est nul, le site affiche « Le voyage n'a pas encore
+commencé », sans carte. C'est le comportement voulu, pas une panne : les seules
+positions en base sont celles des tests, prises à la maison.
 
 ## Pas d'étape de build
 
