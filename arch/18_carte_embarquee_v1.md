@@ -135,7 +135,23 @@ sont choisies pour rester lisibles sur les deux fonds de carte, et l'orange est
 le même que celui de l'état « hors ligne » du bandeau : un seul mot de
 vocabulaire visuel pour dire « c'est sur le téléphone ».
 
-## 3.10 L'échelle graphique n'est pas décorative
+## 3.10 Les marges du cadrage sont inégales
+
+`MapInsets` donne quatre marges au cadrage automatique, et le tracé est centré
+dans la zone libre, pas dans la zone de dessin.
+
+*Pourquoi.* Avec une marge uniforme, le marqueur de position actuelle passait
+sous la légende dès que le point le plus récent tombait en haut à gauche — ce
+qui est arrivé à la première installation sur le OnePlus. La hauteur de la
+légende est **mesurée** et non devinée : elle change avec la taille de police
+du système.
+
+*Ce que ça dit sur la méthode.* Les seize tests de cadrage passaient tous. Ils
+vérifiaient que le tracé tient dans la zone de dessin, ce qui était vrai ; ils
+ne pouvaient pas savoir qu'un élément d'interface était posé par-dessus. Un
+test de plus couvre maintenant ce cas, mais c'est l'appareil qui l'a trouvé.
+
+## 3.11 L'échelle graphique n'est pas décorative
 
 `arch/09` §3 retire de l'accueil toute statistique décorative. L'échelle y
 échappe volontairement.
@@ -183,15 +199,23 @@ présentation reste un adaptateur, comme l'annonçait l'ADR-006.
 - `persistence/RoomLocationStoreTest.kt` — ordre du voyage, plafond qui garde
   les points **les plus récents**, distinction envoyé / en attente, base vide.
 
-**Vérification visuelle de la géométrie.** Aucun appareil n'était branché en
-ADB le 23 août. Le vrai code de `domain/Map*` a donc été exécuté sur un tracé
-simulé de 900 points pour produire un rendu SVG : cadrage, code couleur et
-échelle ont été contrôlés à l'œil. Ce rendu était un outil jetable et n'a pas
-été conservé — il se réécrit en vingt lignes si besoin.
+**Vérification visuelle de la géométrie, hors appareil.** Avant tout
+branchement, le vrai code de `domain/Map*` a été exécuté sur un tracé simulé de
+900 points pour produire un rendu SVG : cadrage, code couleur et échelle
+contrôlés à l'œil. Ce rendu était un outil jetable et n'a pas été conservé — il
+se réécrit en vingt lignes.
 
-**Ce qui n'est pas vérifié.** Le rendu Compose lui-même, les gestes, et la
-fluidité à deux mille points sur un appareil réel. C'est à confirmer sur le
-OnePlus, puis sur le Redmi.
+**Vérification sur appareil, 23 août au soir.** Build release signé installé
+sur le OnePlus 8T par-dessus la version du 19 août, données conservées. La
+carte affiche le tracé réel, le bandeau annonce « Suivi actif » et l'âge de la
+dernière position, l'échelle indique 100 km, et la légende se réduit à
+« Envoyé » — cohérent avec une file d'attente vide. **Un défaut trouvé et
+corrigé** : la légende masquait le marqueur de position actuelle (§3.10).
+
+**Ce qui n'est toujours pas vérifié.** Les gestes de déplacement et de zoom, le
+bouton « Recentrer », le thème sombre, et la fluidité à deux mille points — le
+tracé de l'appareil de pré-validation en compte bien moins. Rien de tout cela
+n'a été éprouvé sur le Redmi Note 11, qui est l'appareil qui fait foi.
 
 # 6. Dette assumée et points ouverts
 

@@ -102,7 +102,7 @@ class MapViewportTest {
     @Test
     fun `le cadrage automatique fait tenir tout le trace a l'ecran`() {
         val track = listOf(paris, lyon, nordkapp)
-        val fitted = MapViewport.fitting(track, WIDTH, HEIGHT, paddingPixels = PADDING)!!
+        val fitted = MapViewport.fitting(track, WIDTH, HEIGHT, MapInsets.uniform(PADDING))!!
 
         track.forEach { point ->
             val screen = fitted.toScreen(point, WIDTH, HEIGHT)
@@ -115,7 +115,7 @@ class MapViewportTest {
 
     @Test
     fun `le cadrage automatique centre le trace`() {
-        val fitted = MapViewport.fitting(listOf(paris, nordkapp), WIDTH, HEIGHT, PADDING)!!
+        val fitted = MapViewport.fitting(listOf(paris, nordkapp), WIDTH, HEIGHT, MapInsets.uniform(PADDING))!!
 
         val first = fitted.toScreen(paris, WIDTH, HEIGHT)
         val second = fitted.toScreen(nordkapp, WIDTH, HEIGHT)
@@ -128,7 +128,7 @@ class MapViewportTest {
     fun `un trace reduit a un point ne zoome pas a l'infini`() {
         // Sans garde-fou, une etendue nulle demanderait un zoom infini au
         // premier point du voyage.
-        val fitted = MapViewport.fitting(listOf(paris), WIDTH, HEIGHT, PADDING)!!
+        val fitted = MapViewport.fitting(listOf(paris), WIDTH, HEIGHT, MapInsets.uniform(PADDING))!!
 
         assertEquals(MapViewport.SINGLE_POINT_ZOOM, fitted.zoom, 1e-9)
         assertEquals(paris.latitude, fitted.center.latitude, 1e-6)
@@ -146,10 +146,42 @@ class MapViewportTest {
 
     @Test
     fun `une marge plus grande que l'ecran ne fait pas exploser le cadrage`() {
-        val fitted = MapViewport.fitting(listOf(paris, lyon), WIDTH, HEIGHT, paddingPixels = WIDTH)
+        val fitted = MapViewport.fitting(listOf(paris, lyon), WIDTH, HEIGHT, MapInsets.uniform(WIDTH))
 
         assertNotNull(fitted)
         assertTrue(fitted!!.zoom in MapViewport.MIN_ZOOM..MapViewport.MAX_ZOOM)
+    }
+
+    @Test
+    fun `le trace evite la legende en haut et l'echelle en bas`() {
+        // Le defaut constate sur le OnePlus : avec une marge uniforme, le
+        // marqueur de position actuelle se glissait sous la legende.
+        val legend = 160.0
+        val scaleBar = 200.0
+        val insets = MapInsets(left = 40.0, top = legend, right = 40.0, bottom = scaleBar)
+        val track = listOf(paris, lyon, nordkapp)
+
+        val fitted = MapViewport.fitting(track, WIDTH, HEIGHT, insets)!!
+
+        track.forEach { point ->
+            val screen = fitted.toScreen(point, WIDTH, HEIGHT)
+            assertTrue("$point passe sous la legende", screen.y >= legend - 1.0)
+            assertTrue("$point passe sous l'echelle", screen.y <= HEIGHT - scaleBar + 1.0)
+            assertTrue("$point sort a gauche", screen.x >= 40.0 - 1.0)
+            assertTrue("$point sort a droite", screen.x <= WIDTH - 40.0 + 1.0)
+        }
+    }
+
+    @Test
+    fun `des marges inegales centrent le trace dans la zone libre`() {
+        val insets = MapInsets(top = 400.0)
+        val fitted = MapViewport.fitting(listOf(paris, lyon), WIDTH, HEIGHT, insets)!!
+
+        val first = fitted.toScreen(paris, WIDTH, HEIGHT)
+        val second = fitted.toScreen(lyon, WIDTH, HEIGHT)
+
+        // Le centre vise est celui de la zone libre, pas celui de l'ecran.
+        assertEquals(400.0 + (HEIGHT - 400.0) / 2.0, (first.y + second.y) / 2.0, 1.0)
     }
 
     @Test

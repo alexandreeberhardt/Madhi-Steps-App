@@ -8,6 +8,25 @@ import kotlin.math.min
 data class ScreenPoint(val x: Double, val y: Double)
 
 /**
+ * Les bords de la carte que le tracé ne doit pas atteindre.
+ *
+ * Ils ne sont pas symétriques, et c'est le but : la légende occupe le haut,
+ * l'échelle graphique le bas. Une marge uniforme laissait le marqueur de
+ * position actuelle passer sous la légende — constaté sur l'appareil, pas en
+ * test.
+ */
+data class MapInsets(
+    val left: Double = 0.0,
+    val top: Double = 0.0,
+    val right: Double = 0.0,
+    val bottom: Double = 0.0,
+) {
+    companion object {
+        fun uniform(pixels: Double): MapInsets = MapInsets(pixels, pixels, pixels, pixels)
+    }
+}
+
+/**
  * Ce que la carte montre : un centre géographique et un niveau de zoom.
  *
  * Toute la géométrie de la carte vit ici, hors de Compose, pour une raison
@@ -119,7 +138,7 @@ data class MapViewport(
             coordinates: List<Coordinates>,
             widthPixels: Double,
             heightPixels: Double,
-            paddingPixels: Double = 0.0,
+            insets: MapInsets = MapInsets(),
         ): MapViewport? {
             if (coordinates.isEmpty()) return null
 
@@ -136,8 +155,8 @@ data class MapViewport(
 
             // Une zone de dessin dégénérée arrive une image avant la mesure du
             // Canvas : mieux vaut un zoom par défaut qu'une division par zéro.
-            val usableWidth = widthPixels - 2.0 * paddingPixels
-            val usableHeight = heightPixels - 2.0 * paddingPixels
+            val usableWidth = widthPixels - insets.left - insets.right
+            val usableHeight = heightPixels - insets.top - insets.bottom
             if (usableWidth <= 0.0 || usableHeight <= 0.0) {
                 return MapViewport(center, SINGLE_POINT_ZOOM)
             }
@@ -146,7 +165,14 @@ data class MapViewport(
                 zoomFitting(maxX - minX, usableWidth),
                 zoomFitting(maxY - minY, usableHeight),
             )
-            return MapViewport(center, zoom.coerceIn(MIN_ZOOM, MAX_ZOOM))
+            val fitted = MapViewport(center, zoom.coerceIn(MIN_ZOOM, MAX_ZOOM))
+
+            // Le tracé est centré dans la zone libre, pas dans la zone de
+            // dessin : avec des marges inégales, les deux ne coïncident pas.
+            return fitted.pannedBy(
+                deltaXPixels = insets.left + usableWidth / 2.0 - widthPixels / 2.0,
+                deltaYPixels = insets.top + usableHeight / 2.0 - heightPixels / 2.0,
+            )
         }
 
         /**

@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.madhi.tracker.domain.MapInsets
 import com.madhi.tracker.domain.MapProjection
 import com.madhi.tracker.domain.MapScaleBar
 import com.madhi.tracker.domain.MapViewport
@@ -75,6 +76,10 @@ fun TrackMap(
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
+    // La hauteur reelle de la legende, mesuree plutot que devinee : elle
+    // change avec la taille de police du systeme, et le cadrage doit suivre.
+    var legendHeight by remember { mutableStateOf(0) }
+
     // Un cadrage choisi à la main survit à l'arrivée d'une nouvelle position ;
     // sinon la carte sauterait sous les doigts toutes les cinq minutes.
     var manualViewport by remember { mutableStateOf<MapViewport?>(null) }
@@ -83,13 +88,21 @@ fun TrackMap(
     // glissement gaspillerait deux mille logarithmes pour rien.
     val projected = remember(points) { points.map { MapProjection.normalized(it.coordinates) } }
 
-    val fitPadding = with(density) { FIT_PADDING.toPx().toDouble() }
-    val automaticViewport = remember(points, canvasSize, fitPadding) {
+    val insets = with(density) {
+        val margin = FIT_MARGIN.toPx().toDouble()
+        MapInsets(
+            left = margin,
+            right = margin,
+            top = margin + legendHeight,
+            bottom = margin + SCALE_BAND.toPx().toDouble(),
+        )
+    }
+    val automaticViewport = remember(points, canvasSize, insets) {
         MapViewport.fitting(
             coordinates = points.map { it.coordinates },
             widthPixels = canvasSize.width.toDouble(),
             heightPixels = canvasSize.height.toDouble(),
-            paddingPixels = fitPadding,
+            insets = insets,
         )
     }
     val viewport = manualViewport ?: automaticViewport
@@ -153,7 +166,10 @@ fun TrackMap(
 
         Legend(
             hasPending = points.any { it.syncState == SyncState.PENDING },
-            modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .onSizeChanged { legendHeight = it.height }
+                .padding(LEGEND_MARGIN),
         )
 
         if (manualViewport != null) {
@@ -310,7 +326,15 @@ private fun SyncState.color(): Color =
 
 private fun TrackPoint.color(): Color = syncState.color()
 
-private val FIT_PADDING: Dp = 32.dp
+private val FIT_MARGIN: Dp = 24.dp
+private val LEGEND_MARGIN: Dp = 12.dp
+
+/**
+ * Hauteur reservee a l'echelle graphique : sa marge, sa graduation et son
+ * etiquette. Constante parce qu'elle est dessinee dans le Canvas, donc jamais
+ * mesuree par la composition.
+ */
+private val SCALE_BAND: Dp = 48.dp
 private val TRACK_STROKE: Dp = 3.dp
 private val POINT_RADIUS: Dp = 2.dp
 private val MARKER_RADIUS: Dp = 7.dp

@@ -673,6 +673,34 @@ en conditions réelles. Jusque-là il n'était qu'une crainte documentée
 
 Le site familial est passé en ligne, et la carte embarquée a été écrite — voir
 `arch/17_plan_implementation_site_poc.md` et `arch/18_carte_embarquee_v1.md`.
-Aucun des deux ne touche au noyau de suivi. La carte ajoute une chose à
-vérifier au prochain branchement : son rendu et ses gestes n'ont jamais été vus
-sur un appareil réel.
+Aucun des deux ne touche au noyau de suivi.
+
+## Installation de la carte sur le OnePlus, le soir même
+
+Build release signé, installé par-dessus la version du 19 août. Le
+`versionCode` n'a pas bougé ; `adb install -r` conserve la base locale, et le
+schéma Room est inchangé.
+
+**Le suivi ne repart pas tout seul après une réinstallation.** Android
+force-stoppe le paquet à la mise à jour, et rien ne le relance tant que
+l'application n'est pas ouverte. Deux réinstallations ont donc produit deux
+interruptions de quelques minutes, refermées à la main en lançant l'activité.
+C'est le même mécanisme que le défaut de la §« Ce que le relevé a établi »,
+vu sous un autre angle : **toute mise à jour de l'APK pendant le voyage doit
+être suivie d'une ouverture de l'application.** À écrire dans la procédure de
+mise à jour.
+
+**Ce que la carte a montré.** Le tracé réel s'affiche, « Suivi actif », âge de
+la dernière position, échelle à 100 km, légende réduite à « Envoyé » — cohérent
+avec zéro point en attente. Un défaut d'affichage trouvé et corrigé dans la
+foulée : la légende masquait le marqueur de position actuelle.
+
+**Une observation à trancher.** Le tracé affiche un unique segment droit
+d'environ 440 km entre un petit groupe de points et la position actuelle, sans
+point intermédiaire. Deux lectures possibles, que l'appareil ne permet pas de
+départager : un déplacement réel non capturé entre deux positions, ou une
+mesure grossière acceptée telle quelle. `LocationValidation` est délibérément
+permissive et **ne filtre pas sur la précision** — une position imprécise vaut
+mieux qu'un trou, c'est un choix assumé. La carte est simplement le premier
+outil qui rend ces points visibles. À regarder sur le site familial, qui a les
+`accuracy_m`.

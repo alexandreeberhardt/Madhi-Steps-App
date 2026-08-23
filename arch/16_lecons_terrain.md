@@ -277,4 +277,9 @@ pas une tendance.
 - **La carte embarquée** a été livrée le 23 août, sans fond cartographique
   (ADR-006, réouverture, et `arch/18`). Le report avait tenu tant que le terrain
   portait sur le noyau ; il n'avait plus de raison d'être une fois la chaîne
-  éprouvée de bout en bout. Son rendu n'a jamais été vu sur un appareil réel.
+  éprouvée de bout en bout. Vue sur le OnePlus le soir même ; les gestes, le
+  thème sombre et la fluidité à deux mille points restent à éprouver.
+- **Un segment de 440 km sans point intermédiaire** est apparu sur la carte du
+  OnePlus. Déplacement réel non capturé, ou mesure grossière acceptée : la
+  validation ne filtre pas sur la précision, par choix. À trancher avec les
+  `accuracy_m` du serveur.
