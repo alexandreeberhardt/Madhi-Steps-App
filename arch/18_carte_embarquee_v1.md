@@ -307,7 +307,7 @@ déverrouillage.
 # 7. Le fond de carte : d'où il vient
 
 Fabriqué par `tools/tiles/build_basemap.py` depuis des données Natural Earth
-1:50 m, **domaine public**, versionnées dans le dépôt. Servi par le conteneur
+1:10 m, **domaine public**, découpées au corridor et versionnées dans le dépôt. Servi par le conteneur
 `site` du serveur, publiquement et sans mot de passe : ces tuiles ne disent
 rien du voyage, et les mettre derrière le lien secret familial obligerait à
 embarquer ce secret dans l'APK.
@@ -321,8 +321,15 @@ Le détail complet — provenance exacte, commande de refabrication, montage
 nginx, et la marche à suivre pour passer au détail OpenStreetMap avec les rues
 — est dans `tools/tiles/README.md`.
 
-**Ce que ce fond n'a pas : les rues.** Natural Earth n'en contient pas, et le
-rendu OpenStreetMap demande une pile PostGIS/Mapnik qui ne tenait pas sur la
-machine disponible. Au-delà du zoom 8, l'application agrandit le dernier niveau
-servi : le fond devient une teinte unie, et le tracé reste net par-dessus.
-Monter en détail plus tard ne demandera qu'un `madhi.tiles.maxZoom` plus haut.
+**Ce que ce fond n'a pas : les rues.** Natural Earth s'arrête aux grands axes,
+et le rendu OpenStreetMap demande une pile PostGIS/Mapnik qui ne tenait pas sur
+la machine disponible. Il donne en revanche mer, terres, lacs, fleuves,
+frontières, limites régionales, zones urbaines, autoroutes et villes nommées.
+
+**Et pas de zoom au-delà de 8**, non par économie mais par honnêteté : la donnée
+1:10 m a une résolution de l'ordre du kilomètre, quand le zoom 9 affiche
+300 mètres par pixel. Descendre plus bas ne montrerait rien de neuf, seulement
+des traits plus lisses, pour quatre fois plus de fichiers. Au-delà,
+l'application agrandit le dernier niveau servi et le tracé reste net
+par-dessus ; monter en détail plus tard ne demandera qu'un `madhi.tiles.maxZoom`
+plus haut.

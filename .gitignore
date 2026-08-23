@@ -48,3 +48,8 @@ __pycache__/
 # (arch/README_architecture.md). Les versionner ferait diverger deux copies
 # du meme document sans qu'on puisse relire la difference.
 arch/*.docx
+
+# Donnees Natural Earth mondiales, telechargees par tools/tiles/fetch_and_clip.py.
+# 137 Mo dont l'essentiel decrit des continents que ce voyage ne traverse pas.
+# Seul le decoupage au corridor est versionne, dans tools/tiles/data/.
+tools/tiles/monde/

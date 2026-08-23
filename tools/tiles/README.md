@@ -6,38 +6,53 @@ dont dépendre pendant un an de voyage.
 
 ## Ce que ça produit, et ce que ça ne produit pas
 
-Un fond géographique : mer, terres, côtes, lacs, fleuves, frontières, zones
-urbaines. Du zoom 0 au zoom 8, sur l'Europe de l'Ouest et du Nord.
+Mer, terres, côtes, lacs, fleuves, frontières, limites régionales, zones
+urbaines, grandes routes, et les villes avec leurs noms. Du zoom 0 au zoom 8,
+sur l'Europe de l'Ouest et du Nord.
 
-**Il n'y a pas de rues.** Natural Earth n'en contient pas. Les servir
-demanderait un extrait OpenStreetMap, une base PostGIS et une chaîne de rendu
-Mapnik — plusieurs dizaines de gigaoctets et plusieurs heures, qui ne tenaient
-pas sur la machine où ce fond a été fabriqué. Voir « Aller plus loin ».
+**Il n'y a pas de rues.** Natural Earth s'arrête aux grands axes. Les rues
+demanderaient un extrait OpenStreetMap, une base PostGIS et une chaîne de rendu
+Mapnik — plusieurs dizaines de gigaoctets, qui ne tenaient pas sur la machine où
+ce fond a été fabriqué. Voir « Aller plus loin ».
 
-Ce n'est pas un pis-aller pour autant : le zoom 8 est l'échelle à laquelle on
-lit un voyage de 3 000 km, et c'est celle où le tracé a besoin d'un contexte.
-Au-delà, l'application agrandit le dernier niveau disponible — le fond devient
-une teinte unie, ce qui ne gêne pas, et le tracé reste net par-dessus.
+**Et pas de zoom au-delà de 8**, non par économie mais par honnêteté : la donnée
+1:10 m a une résolution de l'ordre du kilomètre, quand le zoom 9 affiche
+300 mètres par pixel. Descendre plus bas ne montrerait rien de neuf, seulement
+des traits plus lisses, pour quatre fois plus de fichiers. L'application
+agrandit le dernier niveau servi, et le tracé reste net par-dessus.
 
 ## Provenance des données
 
-[Natural Earth](https://www.naturalearthdata.com/), échelle 1:50 m, **domaine
-public** — aucune attribution juridiquement exigée, celle affichée par
+[Natural Earth](https://www.naturalearthdata.com/), échelle **1:10 m**,
+**domaine public** — aucune attribution juridiquement exigée, celle affichée par
 l'application est une politesse.
 
 Récupérées le 23 août 2026 depuis le dépôt officiel des versions GeoJSON,
 `github.com/nvkelso/natural-earth-vector`, branche `master`, dossier
 `geojson/` :
 
-    ne_50m_land
-    ne_50m_lakes
-    ne_50m_rivers_lake_centerlines
-    ne_50m_admin_0_boundary_lines_land
-    ne_50m_urban_areas
+    ne_10m_land                             ne_10m_roads
+    ne_10m_lakes                            ne_10m_admin_0_boundary_lines_land
+    ne_10m_rivers_lake_centerlines          ne_10m_admin_1_states_provinces_lines
+    ne_10m_urban_areas                      ne_10m_populated_places
 
-Les fichiers sont **versionnés dans `data/`**, comme `site/vendor/` l'est pour
-Leaflet et pour la même raison : le fond doit pouvoir être refabriqué depuis le
-dépôt seul, sans réseau et sans qu'une URL amont ait bougé.
+Les fichiers mondiaux pèsent 137 Mo et **ne sont pas versionnés** ; ils vivent
+dans `monde/`, que `.gitignore` exclut. `fetch_and_clip.py` les télécharge, les
+découpe géométriquement sur l'emprise et jette les propriétés inutilisées :
+137 Mo deviennent 20 Mo, et c'est **ce découpage-là qui est versionné**, dans
+`data/`. Comme `site/vendor/` pour Leaflet, et pour la même raison : le fond
+doit pouvoir être refabriqué depuis le dépôt seul, sans réseau et sans qu'une
+URL amont ait bougé.
+
+Le découpage n'est pas qu'une question de poids. Sans lui, le polygone de
+l'Eurasie arrive entier dans le rendu, et chaque tuile d'Alsace reparcourt les
+côtes chinoises.
+
+**Police** : [Noto Sans](https://fonts.google.com/noto), sous licence SIL Open
+Font 1.1, versionnée dans `fonts/` avec sa licence. Prendre une police du
+système rendrait la fabrication dépendante de la machine, et celle livrée avec
+Pillow ne connaît ni Tromsø, ni Växjö, ni Genève — chacun de ces caractères
+sortait en carré.
 
 ## Refabriquer les tuiles
 
@@ -45,8 +60,13 @@ dépôt seul, sans réseau et sans qu'une URL amont ait bougé.
     tools/tiles/.venv/bin/pip install Pillow
     tools/tiles/.venv/bin/python tools/tiles/build_basemap.py --zoom 0-8
 
-Environ 30 secondes, 2 951 tuiles, 4,4 Mo. L'emprise et la plage de zoom se
-règlent en ligne de commande :
+Environ 30 secondes, 2 951 tuiles, 15 Mo. Les données découpées suffisent ; il
+n'y a rien à télécharger. Pour repartir des sources mondiales — changer
+d'emprise, ajouter une couche :
+
+    tools/tiles/.venv/bin/python tools/tiles/fetch_and_clip.py
+
+L'emprise et la plage de zoom se règlent en ligne de commande :
 
     --bbox -12,34,45,72     lon_min,lat_min,lon_max,lat_max
     --zoom 0-8
@@ -81,6 +101,10 @@ Trois lignes dans `local.properties`, jamais versionnées :
     madhi.tiles.attribution=Fond : Natural Earth
     madhi.tiles.maxZoom=8
 
+`maxZoom` doit valoir le dernier niveau réellement fabriqué. Plus haut,
+l'application demanderait des tuiles inexistantes et perdrait son fond en
+zoomant ; plus bas, elle agrandirait sans raison.
+
 Sans elles, la carte reste sur fond uni et n'émet aucune requête. C'est le
 comportement par défaut du dépôt : aucun serveur de tuiles n'y est figé.
 
@@ -96,10 +120,15 @@ Le jour où les rues deviennent nécessaires, la marche à suivre :
    Norvège, Suède, Finlande. Compter une douzaine de gigaoctets de `.osm.pbf`.
 2. Import `osm2pgsql` dans PostGIS, puis rendu Mapnik avec le style
    `openstreetmap-carto`. Compter plusieurs centaines de gigaoctets et des
-   heures de rendu ; ni le VPS ni le portable ne l'encaissaient en août 2026.
+   heures de rendu ; ni le VPS ni le portable ne l'encaissaient en août 2026 —
+   le portable n'avait que 6,4 Go de libre.
 3. Ne rendre que le corridor, aux zooms 9 à 14, et poser le résultat à côté des
    tuiles actuelles. Rien à changer dans l'application : il suffira de monter
    `madhi.tiles.maxZoom`.
+
+Le nombre de tuiles quadruple à chaque niveau : compter environ 12 000 tuiles au
+zoom 9 pour cette emprise, 48 000 au zoom 10. À ce régime, un dossier de PNG
+versionné n'est plus le bon support et il faudra passer à une archive.
 
 Le point important : **l'auto-hébergement est le seul montage qui autorise à
 pré-charger en masse pour l'hors-ligne.** Les offres gratuites des fournisseurs
