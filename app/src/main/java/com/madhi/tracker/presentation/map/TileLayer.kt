@@ -4,7 +4,8 @@ import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
@@ -12,7 +13,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import com.madhi.tracker.domain.PlacedTile
 import com.madhi.tracker.domain.TileId
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -31,28 +31,30 @@ class TileCache(private val capacity: Int) {
             size > capacity
     }
 
-    /** Les tuiles demandées et pas encore revenues, pour ne pas les redemander. */
-    private val inFlight = mutableSetOf<TileId>()
-
     operator fun get(id: TileId): ImageBitmap? = decoded[id]
 
-    fun claim(id: TileId): Boolean = id !in decoded && inFlight.add(id)
-
-    fun put(id: TileId, bitmap: ImageBitmap?) {
-        inFlight -= id
-        if (bitmap != null) decoded[id] = bitmap
+    fun put(id: TileId, bitmap: ImageBitmap) {
+        decoded[id] = bitmap
     }
 }
 
 /**
  * Charge les tuiles visibles et rend celles qui sont prêtes.
  *
+ * **Un effet par tuile, indexé sur son identifiant.** La première version
+ * tenait à la main la liste des tuiles « en cours de chargement », pour ne pas
+ * les redemander ; elle a rempli un écran sur trente. Une coroutine annulée
+ * avant même d'avoir démarré n'exécute pas son `finally` : la tuile restait
+ * marquée en cours pour toujours, et n'était jamais redemandée. Aucune erreur
+ * nulle part, juste un fond qui ne venait pas.
+ *
+ * Confier ce cycle de vie à Compose supprime la classe entière du problème :
+ * l'effet d'une tuile vit exactement tant qu'elle est visible, et repart si
+ * elle revient. Il n'y a plus de comptabilité à tenir juste.
+ *
  * Une tuile absente ne bloque rien et ne se signale pas : la carte garde son
  * fond uni à cet endroit et le tracé passe par-dessus. C'est le comportement
  * attendu hors réseau, pas une panne.
- *
- * La valeur renvoyée change d'identité à chaque tuile arrivée, ce qui suffit à
- * redéclencher le dessin sans observer chaque entrée du cache.
  */
 @Composable
 fun rememberTiles(
@@ -60,19 +62,22 @@ fun rememberTiles(
     load: suspend (TileId) -> ByteArray?,
 ): (TileId) -> ImageBitmap? {
     val cache = remember { TileCache(TILE_CACHE_CAPACITY) }
-    var generation by remember { mutableStateOf(0) }
 
-    LaunchedEffect(visible) {
-        visible.forEach { placed ->
-            if (!cache.claim(placed.id)) return@forEach
-            launch {
+    // Change d'identité à chaque tuile arrivée, ce qui suffit à redéclencher
+    // le dessin sans observer chaque entrée du cache.
+    var generation by remember { mutableIntStateOf(0) }
+
+    visible.forEach { placed ->
+        key(placed.id) {
+            LaunchedEffect(placed.id) {
+                if (cache[placed.id] != null) return@LaunchedEffect
+                val bytes = load(placed.id) ?: return@LaunchedEffect
                 val bitmap = withContext(Dispatchers.Default) {
-                    load(placed.id)?.let { bytes ->
-                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-                    }
-                }
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+                } ?: return@LaunchedEffect
+
                 cache.put(placed.id, bitmap)
-                if (bitmap != null) generation++
+                generation++
             }
         }
     }

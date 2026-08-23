@@ -245,6 +245,26 @@ sous le tracé. C'est la preuve que les deux projections coïncident — celle d
 générateur Python et celle de `domain/MapProjection.kt` — ce qui est la seule
 chose qui pouvait rater en silence.
 
+**Vérification du fond sur appareil, 23 août au soir.** Fond auto-hébergé
+déployé, application reconstruite et installée sur le OnePlus : les tuiles se
+posent sous le tracé, à la bonne échelle. **Deux défauts trouvés, tous les deux
+invisibles en test :**
+
+- *Aucune tuile ne s'affichait.* Le chargeur tenait à la main la liste des
+  tuiles « en cours », pour ne pas les redemander. Une coroutine annulée avant
+  d'avoir démarré n'exécute pas son `finally` : la tuile restait marquée en
+  cours pour toujours. Aucune erreur nulle part, juste un fond qui ne venait
+  pas. Corrigé en confiant ce cycle de vie à Compose — un effet par tuile,
+  indexé sur son identifiant — ce qui supprime la comptabilité au lieu de la
+  rendre juste.
+- *Les tuiles débordaient sous le bandeau d'état.* `drawBehind` ne borne pas au
+  cadre du composant, et une tuile déborde toujours des bords par construction.
+  Corrigé par `clipToBounds`.
+
+Le réseau avait été écarté d'abord, en interrogeant le serveur depuis le
+téléphone : `curl` répondait 200. Sans cette vérification, la piste évidente
+aurait été le réseau, et elle aurait coûté une heure.
+
 **Ce qui n'est toujours pas vérifié.** Les gestes de déplacement et de zoom, le
 bouton « Recentrer », le thème sombre, et la fluidité à deux mille points — le
 tracé de l'appareil de pré-validation en compte bien moins. Rien de tout cela
@@ -263,9 +283,8 @@ tôt si le rendu accroche sur l'appareil.
 celui d'un carrefour. Le détail OpenStreetMap est décrit dans
 `tools/tiles/README.md` et demande une infrastructure qui n'existe pas encore.
 
-**Le fond n'a jamais été vu sur un appareil.** Les tuiles sont fabriquées et le
-montage serveur est écrit, mais le déploiement sur le VPS n'a pas été fait :
-c'est une action sur un serveur en production, elle attend une décision.
+**Le fond au-delà du zoom 8** n'a pas été regardé sur l'appareil : c'est là que
+les tuiles sont agrandies, et personne n'a encore vu ce que ça donne en main.
 
 **La carte n'est pas un critère de sortie.** Le point bloquant du projet reste
 `arch/14_protocole_test_terrain.md` sur le Redmi Note 11, et le redémarrage

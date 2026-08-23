@@ -117,7 +117,9 @@ server {
         # l'application s'appuie sur cette duree : sans elle, chaque tuile
         # serait reverifiee sur le reseau, exactement ce qu'on veut eviter en
         # voyage.
-        expires 365d;
+        # Un seul en-tete de cache, pas deux : la directive `expires` en emet
+        # un de son cote, et deux Cache-Control sur la meme reponse est le
+        # genre de detail qu'un client finit par interpreter de travers.
         add_header Cache-Control "public, max-age=31536000, immutable" always;
 
         add_header X-Robots-Tag           "noindex, nofollow" always;

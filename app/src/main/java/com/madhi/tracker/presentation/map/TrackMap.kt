@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -135,6 +136,10 @@ fun TrackMap(
     Box(
         modifier = modifier
             .background(backgroundColor)
+            // Une tuile déborde toujours des bords, c'est le principe du
+            // découpage : sans découpe, elle se peint par-dessus le bandeau
+            // d'état, que `drawBehind` ne borne pas.
+            .clipToBounds()
             .onSizeChanged { canvasSize = it },
     ) {
         if (viewport == null) {
