@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.StrokeCap
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,7 +48,10 @@ import com.madhi.tracker.domain.MapProjection
 import com.madhi.tracker.domain.MapScaleBar
 import com.madhi.tracker.domain.MapViewport
 import com.madhi.tracker.domain.NormalizedPoint
+import com.madhi.tracker.domain.PlacedTile
 import com.madhi.tracker.domain.ScreenPoint
+import com.madhi.tracker.domain.TileGrid
+import com.madhi.tracker.domain.TileId
 import com.madhi.tracker.domain.model.SyncState
 import com.madhi.tracker.domain.model.TrackPoint
 import com.madhi.tracker.presentation.common.TrackColors
@@ -67,6 +72,8 @@ import com.madhi.tracker.presentation.common.TrackColors
 fun TrackMap(
     points: List<TrackPoint>,
     modifier: Modifier = Modifier,
+    loadTile: (suspend (TileId) -> ByteArray?)? = null,
+    attribution: String = "",
 ) {
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
@@ -107,6 +114,18 @@ fun TrackMap(
     }
     val viewport = manualViewport ?: automaticViewport
 
+    // Les tuiles visibles ne dependent que du cadrage et de la taille : les
+    // recalculer a chaque image de glissement est du calcul entier, negligeable
+    // a cote du decodage qu'on evite en gardant les memes identifiants.
+    val visibleTiles = remember(viewport, canvasSize) {
+        if (loadTile == null || viewport == null) {
+            emptyList()
+        } else {
+            TileGrid.visible(viewport, canvasSize.width.toDouble(), canvasSize.height.toDouble())
+        }
+    }
+    val tile = rememberTiles(visibleTiles, loadTile ?: { null })
+
     Box(
         modifier = modifier
             .background(backgroundColor)
@@ -143,6 +162,8 @@ fun TrackMap(
                     }
                 },
         ) {
+            drawTiles(visibleTiles, tile)
+
             val screen = projected.map { it.toOffset(viewport, size.width, size.height) }
             drawTrack(points, screen, strokeWidth = TRACK_STROKE.toPx())
             drawPointDots(points, screen, radius = POINT_RADIUS.toPx())
@@ -164,6 +185,15 @@ fun TrackMap(
             )
         }
 
+        if (attribution.isNotBlank()) {
+            Attribution(
+                text = attribution,
+                // En bas à droite : l'échelle graphique occupe déjà le coin
+                // gauche, et le bouton « Recentrer » lui laisse la place.
+                modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+            )
+        }
+
         Legend(
             hasPending = points.any { it.syncState == SyncState.PENDING },
             modifier = Modifier
@@ -175,10 +205,52 @@ fun TrackMap(
         if (manualViewport != null) {
             FilledTonalButton(
                 onClick = { manualViewport = null },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = RECENTER_BOTTOM_MARGIN),
             ) { Text("Recentrer") }
         }
     }
+}
+
+/**
+ * Le fond de carte, tuile par tuile.
+ *
+ * Ce qui manque ne se dessine pas et ne se signale pas : hors réseau, une
+ * carte à trous reste plus utile qu'un damier de rectangles « en cours de
+ * chargement » qui ne se rempliront jamais.
+ */
+private fun DrawScope.drawTiles(visible: List<PlacedTile>, tile: (TileId) -> ImageBitmap?) {
+    visible.forEach { placed ->
+        val bitmap = tile(placed.id) ?: return@forEach
+        drawImage(
+            image = bitmap,
+            dstOffset = IntOffset(placed.left.toInt(), placed.top.toInt()),
+            // Arrondi vers le haut : deux tuiles voisines arrondies vers le bas
+            // laissent une couture d'un pixel entre elles, très visible sur un
+            // fond clair.
+            dstSize = IntSize(
+                width = (placed.left + placed.size).toInt() - placed.left.toInt() + 1,
+                height = (placed.top + placed.size).toInt() - placed.top.toInt() + 1,
+            ),
+        )
+    }
+}
+
+/**
+ * La mention légale des données cartographiques. Discrète, mais jamais
+ * absente : les licences de données l'imposent, elle n'est pas négociable.
+ */
+@Composable
+private fun Attribution(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = LEGEND_BACKGROUND_ALPHA))
+            .padding(horizontal = 4.dp),
+    )
 }
 
 /**
@@ -340,6 +412,9 @@ private val POINT_RADIUS: Dp = 2.dp
 private val MARKER_RADIUS: Dp = 7.dp
 private val MARKER_RING: Dp = 3.dp
 private val SCALE_MARGIN: Dp = 16.dp
+
+/** Laisse la mention légale visible sous le bouton. */
+private val RECENTER_BOTTOM_MARGIN: Dp = 34.dp
 private val SCALE_LABEL_SIZE = 11.sp
 private const val SCALE_MAX_WIDTH_FRACTION = 0.4f
 private const val LEGEND_BACKGROUND_ALPHA = 0.85f

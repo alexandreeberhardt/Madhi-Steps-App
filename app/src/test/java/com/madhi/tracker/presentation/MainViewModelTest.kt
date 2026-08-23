@@ -1,5 +1,6 @@
 package com.madhi.tracker.presentation
 
+import com.madhi.tracker.application.usecase.LoadMapTile
 import com.madhi.tracker.application.usecase.ObserveRecentTrack
 import com.madhi.tracker.application.usecase.ObserveTrackingStatus
 import com.madhi.tracker.application.usecase.StartTracking
@@ -14,6 +15,7 @@ import com.madhi.tracker.fakes.FakeLocationStore
 import com.madhi.tracker.fakes.FakeRebootJournalStore
 import com.madhi.tracker.fakes.FakeSyncJournalStore
 import com.madhi.tracker.fakes.FakeSyncScheduler
+import com.madhi.tracker.fakes.FakeTileStore
 import com.madhi.tracker.fakes.FakeTrackingEnvironment
 import com.madhi.tracker.fakes.FakeTrackingIntentStore
 import com.madhi.tracker.fakes.FakeTrackingRuntime
@@ -64,6 +66,7 @@ class MainViewModelTest {
             clock = clock,
         ),
         observeRecentTrack = ObserveRecentTrack(locationStore),
+        loadMapTile = LoadMapTile(FakeTileStore()),
         startTracking = StartTracking(intentStore, runtime, captureScheduler, syncScheduler, eventLog),
     )
 

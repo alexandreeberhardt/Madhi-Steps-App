@@ -7,6 +7,7 @@ import com.madhi.tracker.application.port.EventLog
 import com.madhi.tracker.application.port.LocationSource
 import com.madhi.tracker.application.port.BatchAcknowledgement
 import com.madhi.tracker.application.port.LocationStore
+import com.madhi.tracker.application.port.TileStore
 import com.madhi.tracker.application.port.LocationSyncGateway
 import com.madhi.tracker.application.port.DeviceActivationGateway
 import com.madhi.tracker.application.port.DeviceCredentials
@@ -33,6 +34,7 @@ import com.madhi.tracker.domain.model.RebootJournal
 import com.madhi.tracker.domain.model.SyncJournal
 import com.madhi.tracker.domain.model.SyncState
 import com.madhi.tracker.domain.model.TrackerEvent
+import com.madhi.tracker.domain.TileId
 import com.madhi.tracker.domain.model.TrackPoint
 import com.madhi.tracker.domain.model.TrackingIntent
 import com.madhi.tracker.domain.success
@@ -149,6 +151,18 @@ class FakeLocationStore : LocationStore {
             .takeLast(limit)
             .map { TrackPoint(it.coordinates, it.recordedAt, it.syncState) },
     )
+}
+
+/**
+ * Une carte sans fond, comme lorsque aucun serveur de tuiles n'est configuré :
+ * c'est la valeur par défaut du dépôt, donc le cas à tester par défaut.
+ */
+class FakeTileStore(
+    override val isEnabled: Boolean = false,
+    override val attribution: String = "",
+    private val tiles: Map<TileId, ByteArray> = emptyMap(),
+) : TileStore {
+    override suspend fun tile(id: TileId): ByteArray? = tiles[id]
 }
 
 class FakeTrackingIntentStore(initial: TrackingIntent = TrackingIntent.INITIAL) : TrackingIntentStore {

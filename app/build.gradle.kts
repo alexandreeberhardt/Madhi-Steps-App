@@ -34,6 +34,15 @@ val releaseApiBaseUrl =
     secret("MADHI_API_BASE_URL_RELEASE", "madhi.api.baseUrl.release", localProperties)
         ?: "https://example.invalid/api/v1"
 
+// Le fond de carte est optionnel et n'a pas de valeur par défaut : aucun
+// serveur de tuiles n'est choisi dans le dépôt, parce que ce choix engage une
+// licence et parfois un compte. Vide, la carte reste sur fond uni.
+val tileUrlTemplate =
+    secret("MADHI_TILE_URL_TEMPLATE", "madhi.tiles.urlTemplate", localProperties) ?: ""
+
+val tileAttribution =
+    secret("MADHI_TILE_ATTRIBUTION", "madhi.tiles.attribution", localProperties) ?: ""
+
 android {
     namespace = "com.madhi.tracker"
     compileSdk = 37
@@ -84,6 +93,8 @@ android {
                 "API_BASE_URL",
                 "\"$debugApiBaseUrl\"",
             )
+            buildConfigField("String", "TILE_URL_TEMPLATE", "\"$tileUrlTemplate\"")
+            buildConfigField("String", "TILE_ATTRIBUTION", "\"$tileAttribution\"")
         }
         release {
             isMinifyEnabled = true
@@ -95,6 +106,8 @@ android {
                 "API_BASE_URL",
                 "\"$releaseApiBaseUrl\"",
             )
+            buildConfigField("String", "TILE_URL_TEMPLATE", "\"$tileUrlTemplate\"")
+            buildConfigField("String", "TILE_ATTRIBUTION", "\"$tileAttribution\"")
         }
     }
 

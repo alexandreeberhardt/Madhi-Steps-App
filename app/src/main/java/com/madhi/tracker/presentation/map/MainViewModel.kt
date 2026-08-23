@@ -2,9 +2,11 @@ package com.madhi.tracker.presentation.map
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.madhi.tracker.application.usecase.LoadMapTile
 import com.madhi.tracker.application.usecase.ObserveRecentTrack
 import com.madhi.tracker.application.usecase.ObserveTrackingStatus
 import com.madhi.tracker.application.usecase.StartTracking
+import com.madhi.tracker.domain.TileId
 import com.madhi.tracker.domain.model.TrackPoint
 import com.madhi.tracker.domain.model.TrackingHealth
 import com.madhi.tracker.domain.model.TrackingStatus
@@ -19,6 +21,7 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     observeTrackingStatus: ObserveTrackingStatus,
     observeRecentTrack: ObserveRecentTrack,
+    private val loadMapTile: LoadMapTile,
     private val startTracking: StartTracking,
 ) : ViewModel() {
 
@@ -42,6 +45,12 @@ class MainViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
             initialValue = emptyList(),
         )
+
+    val tilesEnabled: Boolean get() = loadMapTile.isEnabled
+
+    val tileAttribution: String get() = loadMapTile.attribution
+
+    suspend fun tile(id: TileId): ByteArray? = loadMapTile(id)
 
     fun onStartTracking() {
         viewModelScope.launch { startTracking() }
