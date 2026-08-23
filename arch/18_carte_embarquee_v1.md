@@ -265,10 +265,17 @@ Le réseau avait été écarté d'abord, en interrogeant le serveur depuis le
 téléphone : `curl` répondait 200. Sans cette vérification, la piste évidente
 aurait été le réseau, et elle aurait coûté une heure.
 
-**Ce qui n'est toujours pas vérifié.** Les gestes de déplacement et de zoom, le
-bouton « Recentrer », le thème sombre, et la fluidité à deux mille points — le
-tracé de l'appareil de pré-validation en compte bien moins. Rien de tout cela
-n'a été éprouvé sur le Redmi Note 11, qui est l'appareil qui fait foi.
+**Gestes et thème, vérifiés le même soir.** Sur le OnePlus, en thème sombre :
+le glissement déplace la carte et les tuiles de la zone découverte se chargent
+à la volée ; « Recentrer » n'apparaît qu'après un déplacement manuel et rend
+bien le cadrage automatique, tracé dégagé de la légende et de l'échelle.
+
+**Ce qui n'est toujours pas vérifié.** Le pincement — `adb` ne sait pas simuler
+deux doigts, il faudra le faire à la main. Le rendu au-delà du zoom 8, là où
+les tuiles sont agrandies. Le comportement hors ligne du cache, qui est
+pourtant le mode normal du voyage. La fluidité à deux mille points : le tracé
+de l'appareil de pré-validation en compte bien moins. Et rien de tout cela n'a
+été éprouvé sur le Redmi Note 11, qui est l'appareil qui fait foi.
 
 # 6. Dette assumée et points ouverts
 
@@ -285,6 +292,11 @@ celui d'un carrefour. Le détail OpenStreetMap est décrit dans
 
 **Le fond au-delà du zoom 8** n'a pas été regardé sur l'appareil : c'est là que
 les tuiles sont agrandies, et personne n'a encore vu ce que ça donne en main.
+
+**Le hors-ligne n'a pas été éprouvé.** Tout le pari du cache — consulter une
+zone au chaud, la retrouver trois jours plus tard sans réseau — repose sur un
+raisonnement, pas sur un essai. Un test en mode avion coûte cinq minutes et
+n'a pas été fait.
 
 **La carte n'est pas un critère de sortie.** Le point bloquant du projet reste
 `arch/14_protocole_test_terrain.md` sur le Redmi Note 11, et le redémarrage

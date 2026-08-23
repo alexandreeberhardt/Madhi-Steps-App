@@ -695,6 +695,13 @@ la dernière position, échelle à 100 km, légende réduite à « Envoyé » �
 avec zéro point en attente. Un défaut d'affichage trouvé et corrigé dans la
 foulée : la légende masquait le marqueur de position actuelle.
 
+**Le fond de carte, plus tard dans la soiree.** Fond auto-heberge deploye sur le
+VPS, application reconstruite et installee. Deux defauts corriges sur place, ni
+l'un ni l'autre visible en test : aucune tuile ne s'affichait (une reservation
+qui fuyait a l'annulation), puis les tuiles debordaient sous le bandeau d'etat
+(`drawBehind` ne borne pas). Gestes verifies : glissement, chargement des
+tuiles decouvertes, bouton « Recentrer ». Voir `arch/18` §5.
+
 **Une observation à trancher.** Le tracé affiche un unique segment droit
 d'environ 440 km entre un petit groupe de points et la position actuelle, sans
 point intermédiaire. Deux lectures possibles, que l'appareil ne permet pas de
