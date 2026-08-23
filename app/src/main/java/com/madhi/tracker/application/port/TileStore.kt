@@ -21,5 +21,8 @@ interface TileStore {
      */
     val attribution: String
 
+    /** Dernier niveau de zoom réellement servi par la source. */
+    val maxZoom: Int
+
     suspend fun tile(id: TileId): ByteArray?
 }

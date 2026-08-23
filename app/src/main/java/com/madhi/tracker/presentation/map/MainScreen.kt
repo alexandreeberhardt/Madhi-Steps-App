@@ -75,6 +75,7 @@ fun MainScreen(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 loadTile = if (viewModel.tilesEnabled) viewModel::tile else null,
                 attribution = viewModel.tileAttribution,
+                maxTileZoom = viewModel.tileMaxZoom,
             )
 
             HorizontalDivider()

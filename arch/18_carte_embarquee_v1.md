@@ -21,6 +21,7 @@ centrale, le bandeau bas reste compact.
 
 | Élément | Comportement |
 |---|---|
+| Fond de carte | Tuiles raster auto-hébergées : mer, terres, lacs, fleuves, frontières, zones urbaines. Absent si aucune source n'est configurée |
 | Tracé | Les positions de la base locale, reliées dans l'ordre du voyage |
 | Couleur du tracé | Bleu là où le serveur détient les points, orange là où ils ne sont encore que sur le téléphone |
 | Position actuelle | Disque cerclé de blanc sur le point le plus récent |
@@ -45,31 +46,49 @@ qu'on veut savoir d'un coup d'œil après trois jours sans réseau.
 
 # 3. Décisions techniques et leurs raisons
 
-## 3.1 Aucune tuile, aucune bibliothèque cartographique
+## 3.1 Des tuiles, mais aucune bibliothèque cartographique
 
-Le tracé est dessiné sur un fond uni, en Compose `Canvas`.
+Le fond de carte est fait de tuiles raster XYZ peintes dans le même
+`Canvas` Compose que le tracé, avec OkHttp qui était déjà là. MapLibre Native
+aurait apporté un moteur vectoriel complet, et une dépendance que personne ne
+saurait réparer seul en Norvège.
 
-*Pourquoi.* Les trois contraintes de l'ADR-006 n'ont pas bougé : `arch/00` §8
-règle 7 interdit le SDK Google Maps, la Tile Usage Policy d'OpenStreetMap
-interdit les applications mobiles sur ses serveurs de tuiles, et un fond non
-pré-téléchargé serait gris hors ligne — l'état normal du voyage. Ce qui vient
-de Room, lui, s'affiche au fond d'un fjord.
+*L'histoire de cette décision.* La V1 est d'abord sortie sans fond du tout, sur
+les trois contraintes de l'ADR-006 : pas de SDK Google (`arch/00` §8 règle 7),
+la Tile Usage Policy d'OpenStreetMap qui exclut les applications mobiles, et un
+fond gris hors ligne. À l'usage, un tracé flottant dans le vide s'est révélé
+insuffisant. La sortie a été de lever la deuxième contrainte plutôt que de la
+contourner : **le fond est auto-hébergé**, fabriqué par `tools/tiles` depuis des
+données du domaine public et servi par le VPS. Aucun compte, aucun quota,
+aucune règle d'usage tierce à respecter.
 
-*Conséquence.* Aucune dépendance ajoutée au projet. La carte ne fait aucun
-appel réseau et ne peut donc pas devenir un chemin par lequel une donnée
-s'échappe.
+*Le hors-ligne.* Le cache disque est interrogé avant le réseau, toujours (§3.2).
+Il vit dans `filesDir` et non `cacheDir` : Android vide le second sous pression
+de stockage, et le ferait au pire moment.
 
-## 3.2 Projection Web Mercator quand même
+## 3.2 Le cache disque est interrogé avant le réseau
 
-Rien n'imposait Web Mercator pour un fond uni : n'importe quelle projection
-aurait dessiné un tracé plausible.
+Une tuile déjà vue n'est jamais redemandée au serveur.
 
-*Pourquoi.* C'est la projection de toutes les tuiles. Le jour où le VPS sert un
-cache, les tuiles se peindront sous le tracé sans toucher une ligne de
-géométrie. Le coût de ce choix aujourd'hui est nul ; le gain plus tard est la
-différence entre poser une couche et tout réécrire.
+*Pourquoi.* Ce n'est pas une optimisation. Une tuile ne change pas en un an, et
+chaque requête évitée est de la batterie et du forfait données économisés dans
+un pays où les deux se comptent. Surtout : une zone consultée une fois à
+l'hôtel reste lisible trois jours plus tard au fond d'un fjord. C'est ce
+renversement de priorité qui rend le fond utilisable en voyage.
 
-## 3.3 Toute la géométrie dans `domain/`, sans Android
+Le client HTTP des tuiles est séparé de celui de l'API, et doit le rester :
+celui de l'API ne doit **jamais** porter de cache, une réponse de
+synchronisation servie depuis un cache serait un bug de correction.
+
+## 3.3 Projection Web Mercator, choisie avant d'en avoir besoin
+
+Le premier jet, sans fond, n'imposait aucune projection particulière.
+
+*Pourquoi celle-là quand même.* C'est la projection de toutes les tuiles.
+Quand le fond est arrivé, il s'est posé sous le tracé sans qu'une seule ligne
+de géométrie change. Le coût de ce choix était nul, le gain a été total.
+
+## 3.4 Toute la géométrie dans `domain/`, sans Android
 
 `MapProjection`, `MapViewport` et `MapScaleBar` ne connaissent ni Compose, ni
 Android. Le rendu ne fait que peindre des pixels.
@@ -78,7 +97,7 @@ Android. Le rendu ne fait que peindre des pixels.
 tâche Gradle `checkCoreIsFrameworkFree` garantit que cette séparation ne se
 perdra pas, et les 30 tests de géométrie tournent sans émulateur.
 
-## 3.4 La projection est calculée une fois, pas à chaque image
+## 3.5 La projection est calculée une fois, pas à chaque image
 
 `TrackMap` projette les points en coordonnées normalisées quand la liste
 change, puis ne repasse par le viewport que pour une multiplication et une
@@ -89,7 +108,7 @@ mille points et soixante images par seconde pendant un glissement, la
 différence est celle entre une carte fluide et une carte qui accroche sur un
 appareil à 4 Go.
 
-## 3.5 Le tracé est découpé en tronçons de même état, pas en segments
+## 3.6 Le tracé est découpé en tronçons de même état, pas en segments
 
 *Pourquoi.* Un appel de dessin par segment ferait deux mille appels par image.
 Comme la synchronisation avance dans l'ordre du voyage, il n'y a en pratique
@@ -97,7 +116,7 @@ que deux tronçons : ce qui est parti et ce qui reste. Le découpage reste
 général — un trou de synchronisation au milieu s'affiche correctement — mais le
 cas courant ne coûte rien.
 
-## 3.6 Deux mille points, pas le voyage entier
+## 3.7 Deux mille points, pas le voyage entier
 
 `ObserveRecentTrack.RECENT_POINT_LIMIT` plafonne à 2 000 points, soit environ
 une semaine à la cadence par défaut de cinq minutes.
@@ -108,7 +127,7 @@ laquelle la carte répond est « où suis-je et d'où est-ce que j'arrive », pa
 familial, qui a un écran et un processeur pour ça. Le plafond protège aussi la
 mémoire de l'appareil et la lisibilité du tracé.
 
-## 3.7 La requête ne lit que quatre colonnes
+## 3.8 La requête ne lit que quatre colonnes
 
 Le DAO renvoie un `TrackPointRow` — latitude, longitude, instant, état — et non
 des `LocationEntity` complètes.
@@ -117,7 +136,7 @@ des `LocationEntity` complètes.
 comptera plus de cent mille lignes au bout d'un an, se paierait à chaque
 nouvelle position enregistrée.
 
-## 3.8 Le flux s'arrête quand personne ne regarde
+## 3.9 Le flux s'arrête quand personne ne regarde
 
 `MainViewModel.track` utilise `SharingStarted.WhileSubscribed`.
 
@@ -125,7 +144,7 @@ nouvelle position enregistrée.
 capture. La carte est un confort : elle ne doit rien coûter à l'autonomie quand
 elle n'est pas affichée.
 
-## 3.9 Couleurs fixes, hors du thème
+## 3.10 Couleurs fixes, hors du thème
 
 `TrackColors.synced` (`#1E88E5`) et `TrackColors.pending` (`#F57C00`) ne
 changent pas avec le thème clair ou sombre, comme les couleurs d'état du suivi.
@@ -135,7 +154,7 @@ sont choisies pour rester lisibles sur les deux fonds de carte, et l'orange est
 le même que celui de l'état « hors ligne » du bandeau : un seul mot de
 vocabulaire visuel pour dire « c'est sur le téléphone ».
 
-## 3.10 Les marges du cadrage sont inégales
+## 3.11 Les marges du cadrage sont inégales
 
 `MapInsets` donne quatre marges au cadrage automatique, et le tracé est centré
 dans la zone libre, pas dans la zone de dessin.
@@ -151,7 +170,7 @@ vérifiaient que le tracé tient dans la zone de dessin, ce qui était vrai ; il
 ne pouvaient pas savoir qu'un élément d'interface était posé par-dessus. Un
 test de plus couvre maintenant ce cas, mais c'est l'appareil qui l'a trouvé.
 
-## 3.11 L'échelle graphique n'est pas décorative
+## 3.12 L'échelle graphique n'est pas décorative
 
 `arch/09` §3 retire de l'accueil toute statistique décorative. L'échelle y
 échappe volontairement.
@@ -169,6 +188,13 @@ une ligne quand rien n'est en attente.
 | `domain/MapProjection.kt` | Web Mercator : coordonnées ↔ carré unité, taille du monde, mètres par pixel |
 | `domain/MapViewport.kt` | Centre et zoom, passage à l'écran, glissement, pincement ancré, cadrage automatique |
 | `domain/MapScaleBar.kt` | Choix de la distance ronde qui tient dans la place disponible |
+| `domain/TileGrid.kt` | Quelles tuiles couvrent la vue, et où les poser |
+| `application/port/TileStore.kt` | D'où viennent les tuiles, et jusqu'à quel zoom |
+| `application/usecase/LoadMapTile.kt` | Une tuile, ou rien |
+| `adapter/…/tiles/HttpTileStore.kt` | Cache disque d'abord, réseau ensuite |
+| `infrastructure/di/TileModule.kt` | Client HTTP dédié, cache dans `filesDir` |
+| `presentation/map/TileLayer.kt` | Cache mémoire des tuiles décodées, chargement |
+| `tools/tiles/` | Fabrication des tuiles et provenance des données |
 | `domain/model/TrackPoint.kt` | Un point réduit à ce que la carte dessine |
 | `application/port/LocationStore.kt` | `observeRecentTrack(limit)` — ordre chronologique contractuel |
 | `application/usecase/ObserveRecentTrack.kt` | Le tracé de l'accueil et son plafond |
@@ -210,7 +236,14 @@ sur le OnePlus 8T par-dessus la version du 19 août, données conservées. La
 carte affiche le tracé réel, le bandeau annonce « Suivi actif » et l'âge de la
 dernière position, l'échelle indique 100 km, et la légende se réduit à
 « Envoyé » — cohérent avec une file d'attente vide. **Un défaut trouvé et
-corrigé** : la légende masquait le marqueur de position actuelle (§3.10).
+corrigé** : la légende masquait le marqueur de position actuelle (§3.11).
+
+**Vérification du fond, hors appareil.** Les vraies tuiles fabriquées par
+`tools/tiles` ont été composées avec le vrai `TileGrid` et le vrai
+`MapViewport`, sur un tracé France–Cap Nord : les tuiles se posent exactement
+sous le tracé. C'est la preuve que les deux projections coïncident — celle du
+générateur Python et celle de `domain/MapProjection.kt` — ce qui est la seule
+chose qui pouvait rater en silence.
 
 **Ce qui n'est toujours pas vérifié.** Les gestes de déplacement et de zoom, le
 bouton « Recentrer », le thème sombre, et la fluidité à deux mille points — le
@@ -226,8 +259,13 @@ l'écran est allumé. L'index dédié demanderait une migration de schéma, qui 
 se fait pas à quelques jours d'un départ (ADR-005). À reprendre en V2, ou plus
 tôt si le rendu accroche sur l'appareil.
 
-**Le fond de carte.** Il reste conditionné à un cache de tuiles sur le VPS.
-Tant qu'il n'existe pas, la question ne se pose pas côté Android.
+**Le fond de carte s'arrête au zoom 8.** Il donne le contexte d'un voyage, pas
+celui d'un carrefour. Le détail OpenStreetMap est décrit dans
+`tools/tiles/README.md` et demande une infrastructure qui n'existe pas encore.
+
+**Le fond n'a jamais été vu sur un appareil.** Les tuiles sont fabriquées et le
+montage serveur est écrit, mais le déploiement sur le VPS n'a pas été fait :
+c'est une action sur un serveur en production, elle attend une décision.
 
 **La carte n'est pas un critère de sortie.** Le point bloquant du projet reste
 `arch/14_protocole_test_terrain.md` sur le Redmi Note 11, et le redémarrage
@@ -235,17 +273,25 @@ automatique en particulier. Une carte qui s'afficherait mal ne coûterait pas
 une position ; un reboot non rattrapé coûte tout le temps jusqu'au prochain
 déverrouillage.
 
-# 7. Ajouter un fond de tuiles plus tard
+# 7. Le fond de carte : d'où il vient
 
-La marche à suivre, pour que le prochain n'ait pas à la redécouvrir :
+Fabriqué par `tools/tiles/build_basemap.py` depuis des données Natural Earth
+1:50 m, **domaine public**, versionnées dans le dépôt. Servi par le conteneur
+`site` du serveur, publiquement et sans mot de passe : ces tuiles ne disent
+rien du voyage, et les mettre derrière le lien secret familial obligerait à
+embarquer ce secret dans l'APK.
 
-1. **Côté serveur d'abord.** Un cache de tuiles sur le VPS, alimenté depuis une
-   source dont la licence autorise l'usage mobile. C'est là qu'est le travail,
-   et il n'est pas commencé.
-2. **Côté Android ensuite.** `MapViewport` donne déjà le centre, le zoom et la
-   taille du monde en pixels au format des tuiles (256 px, zoom entier). Les
-   tuiles visibles se déduisent du viewport, se peignent dans le `Canvas`
-   **avant** l'appel à `drawTrack`, et rien d'autre ne change.
-3. **Le hors-ligne reste la règle.** Une tuile absente ne doit jamais faire
-   disparaître le tracé ni bloquer le rendu : le fond est un bonus, la
-   géométrie est la fonction.
+Trois lignes de `local.properties` branchent l'application dessus ; sans elles,
+la carte reste sur fond uni et n'émet aucune requête. **Aucun serveur de tuiles
+n'est figé dans le dépôt** : le choix engage une licence, parfois un compte, et
+n'a pas sa place dans un dépôt public.
+
+Le détail complet — provenance exacte, commande de refabrication, montage
+nginx, et la marche à suivre pour passer au détail OpenStreetMap avec les rues
+— est dans `tools/tiles/README.md`.
+
+**Ce que ce fond n'a pas : les rues.** Natural Earth n'en contient pas, et le
+rendu OpenStreetMap demande une pile PostGIS/Mapnik qui ne tenait pas sur la
+machine disponible. Au-delà du zoom 8, l'application agrandit le dernier niveau
+servi : le fond devient une teinte unie, et le tracé reste net par-dessus.
+Monter en détail plus tard ne demandera qu'un `madhi.tiles.maxZoom` plus haut.

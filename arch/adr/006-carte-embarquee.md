@@ -1,7 +1,8 @@
 **ADR-006 — Carte embarquée dans l'application**
 
 *Statut : Reportée en fin de V1 — 2026-08-18*\
-*Complétée : carte livrée sans fond cartographique — 2026-08-23*
+*Complétée : carte livrée sans fond cartographique — 2026-08-23*\
+*Amendée : fond de carte auto-hébergé — 2026-08-23*
 
 # Contexte
 
@@ -103,3 +104,42 @@ la carte. C'est la raison pour laquelle cette échelle n'est pas décorative.
   seulement quand l'écran est allumé — le flux s'arrête sinon. L'index dédié
   demanderait une migration de schéma, ce qui ne se fait pas à quelques jours
   d'un départ (ADR-005). À reprendre en V2, ou plus tôt si le rendu accroche.
+
+# Amendement du 23 août 2026 — le fond de carte
+
+À l'usage, un tracé flottant sur fond uni s'est révélé insuffisant : on ne sait
+pas où on est. La décision est donc rouverte une seconde fois, sur le seul
+point du fond.
+
+## Ce qui change
+
+Rien aux trois contraintes. Elles sont **contournées par le haut** : le fond
+n'est ni Google, ni OpenStreetMap, il est **auto-hébergé**.
+
+`tools/tiles/build_basemap.py` fabrique des tuiles raster depuis Natural Earth
+1:50 m, domaine public, et le conteneur `site` les sert. Aucun compte, aucun
+quota, aucune politique d'usage tierce, et — le point décisif pour ce projet —
+**le seul montage qui autorise à pré-charger en masse pour l'hors-ligne**, ce
+que les offres gratuites des fournisseurs de tuiles interdisent presque toutes.
+
+Le rendu reste maison : tuiles raster peintes dans le `Canvas` existant, avec
+OkHttp déjà présent. Aucune bibliothèque cartographique n'entre au projet.
+MapLibre Native, envisagé dans le contexte initial, reste écarté pour la raison
+qui n'a pas changé : personne ne le répare seul en Norvège.
+
+## Ce que ça coûte
+
+- **Pas de rues.** Natural Earth s'arrête à l'échelle du pays ; le zoom 8 est
+  la limite honnête. Le détail OpenStreetMap demande une pile PostGIS/Mapnik et
+  des dizaines de gigaoctets, qui ne tenaient pas sur la machine disponible.
+  La marche à suivre est écrite dans `tools/tiles/README.md`.
+- **Le domaine du site ne répond plus 404 partout.** Il sert un chemin public
+  `/tiles/`. Compromis assumé : mettre les tuiles derrière le lien secret
+  familial obligerait à embarquer ce secret dans l'APK.
+- **Un fond qui n'a jamais été vu sur un téléphone**, faute de déploiement.
+
+## Ce que ça ne coûte pas
+
+Aucune dépendance ajoutée. Aucun secret de plus dans l'APK. Aucun appel réseau
+si la configuration est absente — le comportement par défaut du dépôt reste
+exactement la carte sans fond décrite plus haut.

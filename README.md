@@ -56,11 +56,12 @@ journalisation l'interdit par construction.
 aucune magie d'infrastructure.
 
 **Une carte qui marche sans réseau.** L'écran d'accueil dessine le trajet
-récent sur un fond uni, sans tuiles et sans bibliothèque cartographique : ce
-qui vient de la base locale s'affiche partout. Le tracé est bleu là où le
-serveur détient les points, orange là où ils ne sont encore que sur le
-téléphone, et une échelle graphique remplace ce qu'un fond de carte aurait
-appris sur les distances (ADR-006).
+récent sur un fond de carte auto-hébergé, fabriqué depuis des données du
+domaine public par `tools/tiles` et servi par le VPS : aucun compte, aucun
+quota, aucune bibliothèque cartographique. Le cache disque est interrogé avant
+le réseau, donc une zone consultée une fois reste lisible hors ligne. Le tracé
+est bleu là où le serveur détient les points, orange là où ils ne sont encore
+que sur le téléphone (ADR-006, `arch/18`).
 
 ## Architecture
 

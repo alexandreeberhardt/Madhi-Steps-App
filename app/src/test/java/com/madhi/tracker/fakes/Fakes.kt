@@ -34,6 +34,7 @@ import com.madhi.tracker.domain.model.RebootJournal
 import com.madhi.tracker.domain.model.SyncJournal
 import com.madhi.tracker.domain.model.SyncState
 import com.madhi.tracker.domain.model.TrackerEvent
+import com.madhi.tracker.domain.TileGrid
 import com.madhi.tracker.domain.TileId
 import com.madhi.tracker.domain.model.TrackPoint
 import com.madhi.tracker.domain.model.TrackingIntent
@@ -160,6 +161,7 @@ class FakeLocationStore : LocationStore {
 class FakeTileStore(
     override val isEnabled: Boolean = false,
     override val attribution: String = "",
+    override val maxZoom: Int = TileGrid.DEFAULT_MAX_TILE_ZOOM,
     private val tiles: Map<TileId, ByteArray> = emptyMap(),
 ) : TileStore {
     override suspend fun tile(id: TileId): ByteArray? = tiles[id]

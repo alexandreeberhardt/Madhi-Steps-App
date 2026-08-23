@@ -27,6 +27,7 @@ class HttpTileStore(
     private val urlTemplate: String,
     override val attribution: String,
     private val userAgent: String,
+    override val maxZoom: Int,
     private val ioDispatcher: CoroutineDispatcher,
 ) : TileStore {
 

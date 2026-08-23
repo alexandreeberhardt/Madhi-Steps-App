@@ -96,6 +96,34 @@ server {
         add_header Cache-Control          "no-store"          always;
     }
 
+    # --- le fond de carte -----------------------------------------------------
+    #
+    # Public, sans mot de passe, et c'est volontaire : ce sont des donnees
+    # Natural Earth du domaine public, fabriquees par tools/tiles. Elles ne
+    # disent rien du voyage. Les mettre derriere le lien secret obligerait a
+    # embarquer ce secret dans l'APK, ou il n'a rien a faire.
+    #
+    # Contrepartie assumee : ce domaine, qui repondait 404 partout, sert
+    # desormais quelque chose. Un visiteur de passage apprend qu'il y a une
+    # carte ici, rien de plus -- ni ou est le telephone, ni qu'un voyage existe.
+    location /tiles/ {
+        alias /usr/share/nginx/tiles/;
+
+        # Pas d'index : une tuile absente est un 404, jamais la liste du
+        # repertoire.
+        autoindex off;
+
+        # Un fond de carte fabrique une fois ne change plus. Le cache disque de
+        # l'application s'appuie sur cette duree : sans elle, chaque tuile
+        # serait reverifiee sur le reseau, exactement ce qu'on veut eviter en
+        # voyage.
+        expires 365d;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+
+        add_header X-Robots-Tag           "noindex, nofollow" always;
+        add_header X-Content-Type-Options "nosniff"           always;
+    }
+
     # --- les fichiers du site -------------------------------------------------
     location = /f/${SITE_SECRET_SEGMENT} {
         return 308 /f/${SITE_SECRET_SEGMENT}/;

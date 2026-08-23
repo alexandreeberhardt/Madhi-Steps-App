@@ -50,6 +50,8 @@ class MainViewModel @Inject constructor(
 
     val tileAttribution: String get() = loadMapTile.attribution
 
+    val tileMaxZoom: Int get() = loadMapTile.maxZoom
+
     suspend fun tile(id: TileId): ByteArray? = loadMapTile(id)
 
     fun onStartTracking() {

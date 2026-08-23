@@ -83,6 +83,9 @@ services:
       NGINX_ENVSUBST_FILTER: "^(SITE_SECRET_SEGMENT|PUBLIC_READ_TOKEN)$$"
     volumes:
       - ../site:/usr/share/nginx/site:ro
+      # Le fond de carte, fabrique par tools/tiles et versionne comme le reste :
+      # le fichier du depot est litteralement le fichier servi.
+      - ../tools/tiles/tuiles:/usr/share/nginx/tiles:ro
       - ../tools/nginx/site.conf.template:/etc/nginx/templates/default.conf.template:ro
       # A creer avant le premier demarrage : un fichier manquant deviendrait un
       # repertoire vide, et nginx refuserait de demarrer.

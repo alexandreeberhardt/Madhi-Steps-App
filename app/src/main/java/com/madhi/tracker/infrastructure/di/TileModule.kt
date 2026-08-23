@@ -56,6 +56,7 @@ object TileModule {
         urlTemplate = AppConfig.tileUrlTemplate,
         attribution = AppConfig.tileAttribution,
         userAgent = "MadhiTracker/${AppConfig.appVersion}",
+        maxZoom = AppConfig.tileMaxZoom,
         ioDispatcher = Dispatchers.IO,
     )
 

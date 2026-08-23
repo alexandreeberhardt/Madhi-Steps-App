@@ -21,4 +21,11 @@ object AppConfig {
 
     /** Mention légale imposée par la licence des données affichées. */
     val tileAttribution: String = BuildConfig.TILE_ATTRIBUTION.trim()
+
+    /**
+     * Dernier niveau de zoom servi par la source. Au-delà, l'application
+     * agrandit ce niveau au lieu de demander des tuiles inexistantes.
+     */
+    val tileMaxZoom: Int = BuildConfig.TILE_MAX_ZOOM
+
 }

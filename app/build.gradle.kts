@@ -43,6 +43,11 @@ val tileUrlTemplate =
 val tileAttribution =
     secret("MADHI_TILE_ATTRIBUTION", "madhi.tiles.attribution", localProperties) ?: ""
 
+// Dernier niveau de zoom servi par la source. 19 est le defaut des rendus
+// complets d'OpenStreetMap ; un fond auto-heberge s'arrete bien plus bas.
+val tileMaxZoom =
+    secret("MADHI_TILE_MAX_ZOOM", "madhi.tiles.maxZoom", localProperties)?.toIntOrNull() ?: 19
+
 android {
     namespace = "com.madhi.tracker"
     compileSdk = 37
@@ -95,6 +100,7 @@ android {
             )
             buildConfigField("String", "TILE_URL_TEMPLATE", "\"$tileUrlTemplate\"")
             buildConfigField("String", "TILE_ATTRIBUTION", "\"$tileAttribution\"")
+            buildConfigField("int", "TILE_MAX_ZOOM", "$tileMaxZoom")
         }
         release {
             isMinifyEnabled = true
@@ -108,6 +114,7 @@ android {
             )
             buildConfigField("String", "TILE_URL_TEMPLATE", "\"$tileUrlTemplate\"")
             buildConfigField("String", "TILE_ATTRIBUTION", "\"$tileAttribution\"")
+            buildConfigField("int", "TILE_MAX_ZOOM", "$tileMaxZoom")
         }
     }
 

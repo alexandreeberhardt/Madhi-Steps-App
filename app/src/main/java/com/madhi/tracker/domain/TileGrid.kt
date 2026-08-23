@@ -26,11 +26,12 @@ data class PlacedTile(
 object TileGrid {
 
     /**
-     * Au-delà, les serveurs de tuiles courants ne fournissent plus rien. On
-     * continue d'agrandir le dernier niveau disponible plutôt que de demander
-     * des tuiles qui répondront 404.
+     * Défaut prudent, valable pour la plupart des serveurs de tuiles.
+     * Chaque source a le sien, et le dépasser ne rapporte que des 404 : un
+     * fond auto-hébergé depuis des données à petite échelle s'arrête bien
+     * plus bas qu'un rendu complet d'OpenStreetMap.
      */
-    const val MAX_TILE_ZOOM = 19
+    const val DEFAULT_MAX_TILE_ZOOM = 19
 
     /**
      * Plafond de sécurité. Une zone de dessin absurde ou un zoom incohérent
@@ -42,10 +43,14 @@ object TileGrid {
         viewport: MapViewport,
         widthPixels: Double,
         heightPixels: Double,
+        maxTileZoom: Int = DEFAULT_MAX_TILE_ZOOM,
     ): List<PlacedTile> {
         if (widthPixels <= 0.0 || heightPixels <= 0.0) return emptyList()
 
-        val zoom = floor(viewport.zoom).toInt().coerceIn(0, MAX_TILE_ZOOM)
+        // Au-delà du dernier niveau servi, on agrandit celui-ci plutôt que de
+        // demander des tuiles qui n'existent pas. La carte devient floue, ce
+        // qui vaut mieux qu'un fond qui disparaît en zoomant.
+        val zoom = floor(viewport.zoom).toInt().coerceIn(0, maxTileZoom)
         val tilesPerAxis = 2.0.pow(zoom)
         val world = MapProjection.worldSizePixels(viewport.zoom)
         val tileSize = world / tilesPerAxis

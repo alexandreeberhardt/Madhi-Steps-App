@@ -103,9 +103,14 @@ class TileGridTest {
 
     @Test
     fun `au-dela du dernier niveau servi on agrandit plutot que de demander le vide`() {
-        val tiles = TileGrid.visible(MapViewport(paris, MapViewport.MAX_ZOOM), WIDTH, HEIGHT)
+        // Un fond auto-heberge s'arrete bas. Demander un z16 a une source qui
+        // s'arrete a z8 ne rapporterait que des 404 et un fond disparu.
+        val tiles = TileGrid.visible(MapViewport(paris, 16.0), WIDTH, HEIGHT, maxTileZoom = 8)
 
-        assertTrue(tiles.all { it.id.zoom <= TileGrid.MAX_TILE_ZOOM })
+        assertTrue(tiles.isNotEmpty())
+        assertTrue(tiles.all { it.id.zoom == 8 })
+        // Agrandies d'un facteur 2^8 : le fond devient flou, mais il est la.
+        assertTrue(tiles.first().size > MapProjection.TILE_SIZE_PIXELS * 100)
     }
 
     @Test

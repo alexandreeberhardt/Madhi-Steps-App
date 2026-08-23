@@ -18,5 +18,7 @@ class LoadMapTile @Inject constructor(
 
     val attribution: String get() = tileStore.attribution
 
+    val maxZoom: Int get() = tileStore.maxZoom
+
     suspend operator fun invoke(id: TileId): ByteArray? = tileStore.tile(id)
 }
