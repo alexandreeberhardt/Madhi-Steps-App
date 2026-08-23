@@ -27,6 +27,12 @@ encore** été validée en conditions réelles. Tant que le protocole de
 Redmi Note 11, pas le OnePlus de pré-validation — elle repose sur une
 hypothèse. C'est le seul point bloquant du projet.
 
+Un défaut précis est déjà connu et n'est pas corrigé : **l'application ne
+repart pas toute seule après un redémarrage du téléphone.** Observé le 23 août
+sur OxygenOS, il a coûté vingt-quatre heures de suivi
+(`arch/15_journal_tests_terrain.md`, session 5). C'est le critère bloquant de
+T1, et MIUI est plus hostile qu'OxygenOS sur ce point.
+
 ## Principes
 
 **Hors ligne d'abord.** Une position est écrite en base locale avant toute
@@ -145,6 +151,8 @@ Les plus utiles pour comprendre le projet :
 - `arch/14_protocole_test_terrain.md` — comment on prouve que ça marche
 - `arch/17_plan_implementation_site_poc.md` — plan d'exécution du site, et les
   pièges du serveur qu'il faut connaître avant de le construire
+- `arch/18_carte_embarquee_v1.md` — comment la carte est faite, pourquoi elle
+  n'a pas de fond de tuiles, et comment lui en ajouter un plus tard
 - `site/README.md` — comment développer, déployer et vérifier le site familial
 
 ## Licence

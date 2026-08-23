@@ -135,6 +135,29 @@ Conséquence sur la conception : s'abonner **aux deux fournisseurs**, GPS et
 réseau. Une position réseau à cinq cents mètres reste exploitable pour un
 tracé à vélo, et vaut infiniment mieux qu'un trou.
 
+## 2.7 Un reboot non rattrapé coûte plus cher que n'importe quelle panne réseau
+
+Trois jours sans position côté serveur, du 20 au 23 août. La synchronisation
+n'y était pour rien : la base locale ne contenait aucun point en attente. Le
+téléphone avait redémarré le 22 août à 12:57 UTC, et le processus
+`com.madhi.tracker` n'est né que le 23 à 13:25 — au déverrouillage manuel.
+L'application n'était pas repartie toute seule (session 5).
+
+C'est le défaut le plus coûteux observé jusqu'ici, et de loin. Une coupure
+réseau ne perd rien : les points s'accumulent en base et partent plus tard. Un
+reboot non rattrapé, lui, ne capture rien du tout, et le trou dure jusqu'au
+prochain déverrouillage. Ici vingt-quatre heures ; en bivouac, potentiellement
+plusieurs jours.
+
+Conséquence sur la méthode : **devant un trou côté serveur, comparer d'abord
+l'heure de naissance du processus au début du trou.** C'est une minute de
+relevé, et elle décide entre deux enquêtes qui n'ont rien à voir. Chercher un
+bug de synchronisation avant d'avoir fait cette comparaison, c'est chercher là
+où il n'y a rien.
+
+Conséquence sur le protocole : le redémarrage automatique devient le critère
+bloquant de T1, à rejouer sur MIUI où il est plus hostile qu'ici.
+
 # 3. Interface
 
 ## 3.1 L'état système doit être relu à la reprise de l'écran
@@ -242,6 +265,8 @@ pas une tendance.
 - **Le coût en batterie de l'abonnement continu.** C'est la mesure qui manque,
   et la raison même d'avoir écarté le verrou de réveil permanent. Un suivi
   parfait qui vide la batterie en une nuit ne sert à rien.
+- **Le redémarrage automatique**, désormais le point bloquant du projet : il a
+  échoué en conditions réelles sur OxygenOS (§2.7), et MIUI est plus hostile.
 - **Le comportement sur MIUI.** Tout ce document décrit OxygenOS. Le Redmi
   Note 11 arrive la semaine du 24 août ; MIUI bloque en plus le démarrage
   automatique, et n'a que 4 Go de RAM.
@@ -250,6 +275,6 @@ pas une tendance.
 - **La ligne « Alarmes exactes » du diagnostic est trompeuse** : elle affiche
   ce que l'API déclare, pas ce que le système fait. À reformuler.
 - **La carte embarquée** a été livrée le 23 août, sans fond cartographique
-  (ADR-006, réouverture). Le report avait tenu tant que le terrain portait sur
-  le noyau ; il n'avait plus de raison d'être une fois la chaîne éprouvée de
-  bout en bout.
+  (ADR-006, réouverture, et `arch/18`). Le report avait tenu tant que le terrain
+  portait sur le noyau ; il n'avait plus de raison d'être une fois la chaîne
+  éprouvée de bout en bout. Son rendu n'a jamais été vu sur un appareil réel.

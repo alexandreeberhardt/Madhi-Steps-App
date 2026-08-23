@@ -602,3 +602,77 @@ Décompte réel côté serveur, sans token de lecture :
 3. Poser le téléphone près d'une fenêtre : la nuit de T1 s'est déroulée à
    l'intérieur, où aucun fix GPS n'aboutissait.
 4. Relever l'heure de départ, `windowLength` et le compteur de positions.
+
+# Session 5 — 23 août 2026, le trou serveur de trois jours
+
+*Pas une session de test : un relevé ADB pour expliquer un trou de trois jours
+côté serveur. Il a livré la première observation directe du défaut le plus
+coûteux du projet.*
+
+## Conditions
+
+| | |
+|---|---|
+| Appareil | OnePlus 8T KB2005, Android 14 |
+| Rôle | pré-validation — l'appareil du voyage reste le Redmi Note 11 |
+| Build | `0.1.0` release, signé, celui de la session 4 |
+| Serveur | `https://madhi-server.alexeber.fr` |
+| Objet | comprendre l'absence de positions du 20 au 23 août |
+
+## Le trou observé
+
+Aucune position côté serveur entre le **20 août 14:56:34 UTC** et le
+**23 août 13:25:12 UTC**, soit près de trois jours.
+
+## Ce que le relevé a écarté
+
+**Ce n'est pas une perte de points.** La base locale ne contenait aucun point
+non synchronisé : le diagnostic affichait « Points en attente : 0 » et « Plus
+ancien en attente : jamais ». Aucun échec consécutif, couverture 100 %. La
+chaîne de synchronisation a fonctionné pendant tout l'intervalle — elle n'avait
+simplement rien à envoyer.
+
+## Ce que le relevé a établi
+
+Trois horodatages suffisent :
+
+    22 août 12:57:07 UTC   redémarrage du téléphone
+    23 août 13:25:10 UTC   naissance du processus com.madhi.tracker
+    23 août 13:25:11 UTC   création du service de suivi
+    23 août 13:25:12 UTC   première position reçue par le serveur
+
+Plus de vingt-quatre heures séparent le redémarrage de la naissance du
+processus, et celle-ci coïncide avec un déverrouillage manuel. **L'application
+n'a pas redémarré toute seule après le reboot**, et rien ne l'a relancée
+jusqu'à ce qu'on la lance à la main.
+
+C'est la première observation directe du défaut d'autostart après redémarrage
+en conditions réelles. Jusque-là il n'était qu'une crainte documentée
+(`arch/adr/007`).
+
+## Conséquences pour le protocole
+
+- **Le redémarrage automatique devient le critère bloquant de T1**, et doit
+  être rejoué sur le Redmi Note 11, dont la surcouche MIUI est plus hostile que
+  OxygenOS sur ce point précis.
+- Sur un an de voyage, un reboot non rattrapé coûte tout le temps écoulé
+  jusqu'au prochain déverrouillage. Ici, vingt-quatre heures. Personne ne
+  déverrouille son téléphone tous les jours en bivouac.
+- **Méthode à retenir** : devant un trou côté serveur, comparer d'abord l'heure
+  de naissance du processus au début du trou. Chercher un bug de
+  synchronisation sans avoir fait cette comparaison fait perdre du temps sur la
+  mauvaise piste.
+
+## Deux pièges d'exploitation confirmés
+
+- `run-as` échoue sur le build release : la base de l'appareil n'est plus
+  observable pendant les tests. Le diagnostic intégré devient la seule fenêtre.
+- Le certificat TLS expire le **17 novembre 2026**, en plein voyage.
+
+## Travail conduit le même jour
+
+Le site familial est passé en ligne, et la carte embarquée a été écrite — voir
+`arch/17_plan_implementation_site_poc.md` et `arch/18_carte_embarquee_v1.md`.
+Aucun des deux ne touche au noyau de suivi. La carte ajoute une chose à
+vérifier au prochain branchement : son rendu et ses gestes n'ont jamais été vus
+sur un appareil réel.
