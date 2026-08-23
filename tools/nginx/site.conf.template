@@ -36,12 +36,22 @@ server {
         return 404;
     }
 
-    # Sonde de vie du conteneur, fermee a tout ce qui ne vient pas de sa propre
-    # boucle locale : depuis l'exterieur, ce domaine ne confirme rien du tout.
+    # Sonde de vie du conteneur. Depuis l'exterieur, ce domaine ne confirme
+    # rien du tout : il repond 404 comme pour n'importe quel autre chemin.
+    #
+    # `allow 127.0.0.1; deny all;` ne suffisait pas, et c'est la mise en ligne
+    # qui l'a montre — /_up repondait 200 depuis Internet. Selon le mode reseau
+    # de Docker, le conteneur voit la requete relayee arriver de sa propre
+    # boucle locale, et l'autorisait donc.
+    #
+    # Le depart de l'exterieur se lit autrement : toute requete publique
+    # traverse le nginx de l'hote, qui pose X-Real-IP. Le healthcheck, lui,
+    # interroge 127.0.0.1 depuis l'interieur du conteneur et n'en pose aucun.
     location = /_up {
         access_log off;
-        allow 127.0.0.1;
-        deny all;
+        if ($http_x_real_ip) {
+            return 404;
+        }
         default_type text/plain;
         return 200 "ok\n";
     }

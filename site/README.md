@@ -143,9 +143,13 @@ montés, pas copiés. Une modification du gabarit nginx demande en plus
     curl -s -o /dev/null -w '%{http_code}\n' -u '<user>:<motdepasse>' \
       https://madhi.alexeber.fr/f/<segment>/                                              # 200
 
+    # le lien sans slash final, tel que la famille le collera
+    curl -s -o /dev/null -w '%{http_code}\n' -u '<user>:<motdepasse>' \\
+      https://madhi.alexeber.fr/f/<segment>                                               # 308
+
     # hors du chemin secret, le domaine ne dit rien
     curl -s -o /dev/null -w '%{http_code}\n' https://madhi.alexeber.fr/                   # 404
-    curl -s -o /dev/null -w '%{http_code}\n' https://madhi.alexeber.fr/_up                # 403
+    curl -s -o /dev/null -w '%{http_code}\n' https://madhi.alexeber.fr/_up                # 404
 
     # en-tetes de confidentialite
     curl -sI -u '<user>:<motdepasse>' https://madhi.alexeber.fr/f/<segment>/ \
