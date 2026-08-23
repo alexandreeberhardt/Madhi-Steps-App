@@ -10,6 +10,7 @@ import com.madhi.tracker.domain.model.Coordinates
 import com.madhi.tracker.domain.model.LocationId
 import com.madhi.tracker.domain.model.LocationPoint
 import com.madhi.tracker.domain.model.SyncState
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -292,5 +293,51 @@ class RoomLocationStoreTest {
         store.markSynced(points.map { it.id }, at = baseTime)
 
         assertEquals(0, store.pendingCount())
+    }
+    @Test
+    fun rend_le_trace_dans_l_ordre_du_voyage() = runTest {
+        // Le DAO lit les plus récents d'abord pour profiter de la limite ;
+        // la carte, elle, relie les points dans l'ordre parcouru. Une
+        // inversion dessinerait un aller-retour.
+        listOf(30L, 0L, 10L).forEach { store.save(pointAt(it)) }
+
+        val track = store.observeRecentTrack(limit = 10).first()
+
+        assertEquals(
+            listOf(baseTime, baseTime.plusSeconds(600), baseTime.plusSeconds(1_800)),
+            track.map { it.recordedAt },
+        )
+    }
+
+    @Test
+    fun le_trace_garde_les_points_les_plus_recents_quand_il_est_plafonne() = runTest {
+        // Ce qui intéresse la carte est la fin du voyage, pas son début.
+        (0L until 10L).forEach { store.save(pointAt(it)) }
+
+        val track = store.observeRecentTrack(limit = 3).first()
+
+        assertEquals(3, track.size)
+        assertEquals(baseTime.plusSeconds(7 * 60), track.first().recordedAt)
+        assertEquals(baseTime.plusSeconds(9 * 60), track.last().recordedAt)
+    }
+
+    @Test
+    fun le_trace_distingue_ce_qui_est_parti_de_ce_qui_reste_sur_le_telephone() = runTest {
+        // C'est tout le code couleur de la carte : sans cette distinction,
+        // impossible de voir d'un coup d'oeil ce que la famille a déjà reçu.
+        val sent = pointAt(0)
+        val kept = pointAt(10)
+        listOf(sent, kept).forEach { store.save(it) }
+        store.markSynced(listOf(sent.id), at = baseTime)
+
+        val track = store.observeRecentTrack(limit = 10).first()
+
+        assertEquals(listOf(SyncState.SYNCED, SyncState.PENDING), track.map { it.syncState })
+        assertEquals(sent.coordinates, track.first().coordinates)
+    }
+
+    @Test
+    fun le_trace_d_une_base_vide_est_vide() = runTest {
+        assertTrue(store.observeRecentTrack(limit = 10).first().isEmpty())
     }
 }

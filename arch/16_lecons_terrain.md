@@ -249,5 +249,7 @@ pas une tendance.
   été expliquée. L'instrumentation ajoutée la caractérisera si elle revient.
 - **La ligne « Alarmes exactes » du diagnostic est trompeuse** : elle affiche
   ce que l'API déclare, pas ce que le système fait. À reformuler.
-- **La carte embarquée** reste reportée (ADR-006), et ce report se justifie
-  encore : deux jours de terrain ont porté sur le noyau, pas sur l'affichage.
+- **La carte embarquée** a été livrée le 23 août, sans fond cartographique
+  (ADR-006, réouverture). Le report avait tenu tant que le terrain portait sur
+  le noyau ; il n'avait plus de raison d'être une fois la chaîne éprouvée de
+  bout en bout.

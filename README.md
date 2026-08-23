@@ -16,7 +16,7 @@ Le critère de réussite du projet n'est pas technique :
 
 | Brique | État |
 |---|---|
-| Application Android | V1 fonctionnellement complète, en attente de validation terrain |
+| Application Android | V1 fonctionnellement complète, carte comprise, en attente de validation terrain |
 | Serveur | POC déployé sur `madhi-server.alexeber.fr`, en HTTPS, avec sauvegarde quotidienne |
 | Site familial | POC en ligne sur `madhi.alexeber.fr`, en HTTPS, derrière un lien secret et un mot de passe |
 
@@ -48,6 +48,13 @@ journalisation l'interdit par construction.
 
 **Réparable par une seule personne.** Un module Gradle, peu de dépendances,
 aucune magie d'infrastructure.
+
+**Une carte qui marche sans réseau.** L'écran d'accueil dessine le trajet
+récent sur un fond uni, sans tuiles et sans bibliothèque cartographique : ce
+qui vient de la base locale s'affiche partout. Le tracé est bleu là où le
+serveur détient les points, orange là où ils ne sont encore que sur le
+téléphone, et une échelle graphique remplace ce qu'un fond de carte aurait
+appris sur les distances (ADR-006).
 
 ## Architecture
 

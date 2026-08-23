@@ -2,7 +2,6 @@ package com.madhi.tracker.presentation.map
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,13 +38,12 @@ import java.time.Instant
 /**
  * L'écran d'accueil de la V1.
  *
- * La carte viendra prendre la zone centrale une fois le noyau validé en
- * conditions réelles (ADR-006). D'ici là cette zone reste volontairement
- * vide : mieux vaut un espace qui assume son absence qu'un tableau de bord
- * qu'il faudrait ensuite démonter.
+ * La carte occupe la zone centrale, comme le veut `arch/09` §2, et le bandeau
+ * bas reste compact : l'état du suivi, l'âge de la dernière position, et une
+ * action seulement si elle est nécessaire.
  *
- * Le bandeau bas est déjà celui de `arch/09` §2 : l'état du suivi, l'âge de
- * la dernière position, et une action seulement si elle est nécessaire.
+ * La carte dessine le tracé sans fond cartographique (ADR-006) : ce qui vient
+ * de Room s'affiche hors ligne, ce que des tuiles ne feraient pas.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +54,7 @@ fun MainScreen(
     viewModel: MainViewModel = hiltViewModel(),
 ) {
     val status by viewModel.status.collectAsStateWithLifecycle()
+    val track by viewModel.track.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -71,10 +70,10 @@ fun MainScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // Emplacement de la carte. Rien ici tant qu'elle n'existe pas :
-            // aucune statistique décorative ne vient occuper la place
-            // (`arch/09` §3).
-            Box(modifier = Modifier.weight(1f).fillMaxWidth())
+            TrackMap(
+                points = track,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            )
 
             HorizontalDivider()
 

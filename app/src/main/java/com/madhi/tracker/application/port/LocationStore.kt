@@ -2,6 +2,7 @@ package com.madhi.tracker.application.port
 
 import com.madhi.tracker.domain.model.LocationId
 import com.madhi.tracker.domain.model.LocationPoint
+import com.madhi.tracker.domain.model.TrackPoint
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 
@@ -35,4 +36,11 @@ interface LocationStore {
     fun observePendingCount(): Flow<Int>
 
     fun observeLastRecordedAt(): Flow<Instant?>
+
+    /**
+     * Le tracé récent, du plus ancien au plus récent, plafonné à [limit]
+     * points. L'ordre chronologique est un contrat : la carte relie les
+     * points dans l'ordre reçu, une inversion dessinerait un aller-retour.
+     */
+    fun observeRecentTrack(limit: Int): Flow<List<TrackPoint>>
 }

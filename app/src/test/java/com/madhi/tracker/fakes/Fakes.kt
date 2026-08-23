@@ -33,6 +33,7 @@ import com.madhi.tracker.domain.model.RebootJournal
 import com.madhi.tracker.domain.model.SyncJournal
 import com.madhi.tracker.domain.model.SyncState
 import com.madhi.tracker.domain.model.TrackerEvent
+import com.madhi.tracker.domain.model.TrackPoint
 import com.madhi.tracker.domain.model.TrackingIntent
 import com.madhi.tracker.domain.success
 import kotlinx.coroutines.flow.Flow
@@ -141,6 +142,13 @@ class FakeLocationStore : LocationStore {
     override fun observePendingCount(): Flow<Int> = MutableStateFlow(0)
 
     override fun observeLastRecordedAt(): Flow<Instant?> = MutableStateFlow(null)
+
+    override fun observeRecentTrack(limit: Int): Flow<List<TrackPoint>> = MutableStateFlow(
+        points.values
+            .sortedBy { it.recordedAt }
+            .takeLast(limit)
+            .map { TrackPoint(it.coordinates, it.recordedAt, it.syncState) },
+    )
 }
 
 class FakeTrackingIntentStore(initial: TrackingIntent = TrackingIntent.INITIAL) : TrackingIntentStore {

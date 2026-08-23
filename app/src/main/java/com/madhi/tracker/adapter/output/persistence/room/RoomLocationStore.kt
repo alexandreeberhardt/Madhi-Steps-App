@@ -1,8 +1,11 @@
 package com.madhi.tracker.adapter.output.persistence.room
 
 import com.madhi.tracker.application.port.LocationStore
+import com.madhi.tracker.domain.model.Coordinates
 import com.madhi.tracker.domain.model.LocationId
 import com.madhi.tracker.domain.model.LocationPoint
+import com.madhi.tracker.domain.model.SyncState
+import com.madhi.tracker.domain.model.TrackPoint
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -51,6 +54,22 @@ class RoomLocationStore @Inject constructor(
 
     override fun observeLastRecordedAt(): Flow<Instant?> =
         dao.observeLastRecordedAt().map { it?.let(Instant::ofEpochMilli) }
+
+    /**
+     * Le DAO rend les points du plus récent au plus ancien ; la carte les
+     * relie dans l'ordre du voyage. L'inversion se fait ici, une fois, et non
+     * à chaque image de rendu.
+     */
+    override fun observeRecentTrack(limit: Int): Flow<List<TrackPoint>> =
+        dao.observeRecentTrack(limit).map { rows -> rows.asReversed().map { it.toDomain() } }
+
+    private fun TrackPointRow.toDomain(): TrackPoint = TrackPoint(
+        coordinates = Coordinates(latitude, longitude),
+        recordedAt = Instant.ofEpochMilli(recordedAtEpochMillis),
+        // Comme ailleurs, une valeur inconnue vaut PENDING : sur la carte, un
+        // point douteux doit se montrer comme non confirmé, pas comme envoyé.
+        syncState = SyncState.entries.find { it.name == syncState } ?: SyncState.PENDING,
+    )
 
     private companion object {
         // SQLite en accepte 999 par défaut ; on garde une marge confortable.

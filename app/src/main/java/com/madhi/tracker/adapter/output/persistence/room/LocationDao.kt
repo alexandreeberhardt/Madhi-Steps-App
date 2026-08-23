@@ -1,5 +1,6 @@
 package com.madhi.tracker.adapter.output.persistence.room
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -76,4 +77,29 @@ interface LocationDao {
 
     @Query("SELECT MIN(recorded_at) FROM locations WHERE sync_state != 'SYNCED'")
     suspend fun oldestPendingRecordedAt(): Long?
+
+    /**
+     * Le tracé de la carte, colonnes utiles seulement.
+     *
+     * `SELECT *` chargerait douze colonnes pour en dessiner trois, sur une
+     * table qui compte plus de cent mille lignes au bout d'un an. Les plus
+     * récents d'abord parce que c'est le sens de l'index et de la limite ;
+     * le store remet le résultat dans l'ordre du voyage.
+     */
+    @Query(
+        """
+        SELECT latitude, longitude, recorded_at, sync_state FROM locations
+        ORDER BY recorded_at DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeRecentTrack(limit: Int): Flow<List<TrackPointRow>>
 }
+
+/** Projection de lecture : trois valeurs à dessiner, pas une ligne entière. */
+data class TrackPointRow(
+    @ColumnInfo(name = "latitude") val latitude: Double,
+    @ColumnInfo(name = "longitude") val longitude: Double,
+    @ColumnInfo(name = "recorded_at") val recordedAtEpochMillis: Long,
+    @ColumnInfo(name = "sync_state") val syncState: String,
+)
