@@ -114,6 +114,57 @@ class TileGridTest {
     }
 
     @Test
+    fun `un ecran dense descend d'un niveau de zoom par doublement de densite`() {
+        // Une tuile fait 256 pixels logiques. Posee telle quelle sur un ecran
+        // a 400 points par pouce, elle est grande comme un timbre et ses noms
+        // de villes sont illisibles.
+        val viewport = MapViewport(paris, 12.0)
+
+        assertEquals(12, TileGrid.visible(viewport, WIDTH, HEIGHT, pixelDensity = 1.0).first().id.zoom)
+        assertEquals(11, TileGrid.visible(viewport, WIDTH, HEIGHT, pixelDensity = 2.0).first().id.zoom)
+        assertEquals(10, TileGrid.visible(viewport, WIDTH, HEIGHT, pixelDensity = 4.0).first().id.zoom)
+    }
+
+    @Test
+    fun `une tuile couvre au moins la densite de l'ecran`() {
+        // Le contrat utile : une tuile doit occuper au moins 256 x densite
+        // pixels d'ecran, pour que ses etiquettes retrouvent la taille
+        // physique pour laquelle elles ont ete dessinees. Les niveaux de zoom
+        // etant entiers, on depasse forcement un peu.
+        val viewport = MapViewport(paris, 12.0)
+        val densite = 3.0
+
+        val normale = TileGrid.visible(viewport, WIDTH, HEIGHT, pixelDensity = 1.0).first()
+        val dense = TileGrid.visible(viewport, WIDTH, HEIGHT, pixelDensity = densite).first()
+
+        assertTrue(
+            "tuile de ${dense.size} px pour une densite de $densite",
+            dense.size >= normale.size * densite,
+        )
+        assertTrue(dense.size <= normale.size * densite * 2)
+    }
+
+    @Test
+    fun `un ecran dense demande moins de tuiles pour la meme surface`() {
+        val viewport = MapViewport(paris, 12.0)
+
+        val normale = TileGrid.visible(viewport, WIDTH, HEIGHT, pixelDensity = 1.0)
+        val dense = TileGrid.visible(viewport, WIDTH, HEIGHT, pixelDensity = 3.0)
+
+        assertTrue("${dense.size} contre ${normale.size}", dense.size < normale.size)
+    }
+
+    @Test
+    fun `une densite absurde ne fait pas sortir du monde`() {
+        val viewport = MapViewport(paris, 12.0)
+
+        val tiles = TileGrid.visible(viewport, WIDTH, HEIGHT, pixelDensity = 100_000.0)
+
+        assertTrue(tiles.isNotEmpty())
+        assertTrue(tiles.all { it.id.zoom >= 0 })
+    }
+
+    @Test
     fun `le nombre de tuiles reste plafonne`() {
         // Un cadrage aberrant ne doit pas declencher des milliers de requetes.
         val tiles = TileGrid.visible(MapViewport(paris, 12.0), 20_000.0, 20_000.0)

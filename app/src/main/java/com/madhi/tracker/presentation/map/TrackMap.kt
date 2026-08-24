@@ -119,7 +119,7 @@ fun TrackMap(
     // Les tuiles visibles ne dependent que du cadrage et de la taille : les
     // recalculer a chaque image de glissement est du calcul entier, negligeable
     // a cote du decodage qu'on evite en gardant les memes identifiants.
-    val visibleTiles = remember(viewport, canvasSize, maxTileZoom) {
+    val visibleTiles = remember(viewport, canvasSize, maxTileZoom, density.density) {
         if (loadTile == null || viewport == null) {
             emptyList()
         } else {
@@ -128,6 +128,7 @@ fun TrackMap(
                 widthPixels = canvasSize.width.toDouble(),
                 heightPixels = canvasSize.height.toDouble(),
                 maxTileZoom = maxTileZoom,
+                pixelDensity = density.density.toDouble(),
             )
         }
     }

@@ -1,6 +1,7 @@
 package com.madhi.tracker.domain
 
 import kotlin.math.floor
+import kotlin.math.ln
 import kotlin.math.pow
 
 /** Une tuile du découpage standard XYZ : niveau de zoom, colonne, ligne. */
@@ -39,18 +40,29 @@ object TileGrid {
      */
     private const val MAX_TILES = 64
 
+    private const val LN_2 = 0.6931471805599453
+
     fun visible(
         viewport: MapViewport,
         widthPixels: Double,
         heightPixels: Double,
         maxTileZoom: Int = DEFAULT_MAX_TILE_ZOOM,
+        pixelDensity: Double = 1.0,
     ): List<PlacedTile> {
         if (widthPixels <= 0.0 || heightPixels <= 0.0) return emptyList()
+
+        // Une tuile fait 256 pixels *logiques*, pas 256 pixels d'écran. Sur un
+        // téléphone à 400 points par pouce, la poser telle quelle donne une
+        // tuile grande comme un timbre : les noms de villes y sont écrits pour
+        // être lus à trois fois cette taille. On descend donc d'un niveau de
+        // zoom par doublement de densité, et chaque tuile est peinte plus
+        // grande — ce qui en demande neuf fois moins au passage.
+        val densityOffset = ln(pixelDensity.coerceAtLeast(0.25)) / LN_2
 
         // Au-delà du dernier niveau servi, on agrandit celui-ci plutôt que de
         // demander des tuiles qui n'existent pas. La carte devient floue, ce
         // qui vaut mieux qu'un fond qui disparaît en zoomant.
-        val zoom = floor(viewport.zoom).toInt().coerceIn(0, maxTileZoom)
+        val zoom = floor(viewport.zoom - densityOffset).toInt().coerceIn(0, maxTileZoom)
         val tilesPerAxis = 2.0.pow(zoom)
         val world = MapProjection.worldSizePixels(viewport.zoom)
         val tileSize = world / tilesPerAxis
