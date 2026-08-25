@@ -20,11 +20,25 @@ import { Etat } from "../features/trip-state.js";
  * @property {string} etat
  * @property {import("../api-client.js").ErreurApi | null} erreur
  * @property {boolean} historiqueVide
- * @property {boolean} tronque
+ * @property {number} resolutionSecondes
  * @property {number | null} anciennete
  * @property {boolean} aUnePosition
  * @property {string} libellePeriode
  */
+
+// En dessous, l'espacement est plus fin que la cadence de capture : rien n'est
+// regroupe et l'annoncer serait un bruit inutile.
+const SEUIL_TRACE_RESUME_S = 600;
+
+/**
+ * @param {number} secondes
+ * @returns {string}
+ */
+function cadenceLisible(secondes) {
+  if (secondes < 3600) return `toutes les ${Math.round(secondes / 60)} minutes`;
+  const heures = Math.round(secondes / 3600);
+  return heures <= 1 ? "par heure" : `toutes les ${heures} heures`;
+}
 
 /**
  * @param {VueBandeau} vue
@@ -37,13 +51,16 @@ export function messagesPour(vue) {
 
   // Ces deux-la portent sur la periode affichee, pas sur le voyage : ils se
   // combinent avec n'importe quel etat.
-  if (vue.tronque) {
+  // Le serveur ne tronque plus, il resume : la periode est couverte en
+  // entier, mais espacee. Ce n'est plus un avertissement — rien ne manque a la
+  // fin — seulement une precision sur ce qu'on regarde.
+  if (vue.resolutionSecondes > SEUIL_TRACE_RESUME_S) {
     avis.push({
-      ton: "attention",
-      titre: "Le trajet affiché est peut-être incomplet.",
+      ton: "info",
+      titre: `Trajet résumé : environ une position ${cadenceLisible(vue.resolutionSecondes)}.`,
       detail:
-        "Le serveur a renvoyé le nombre maximum de points pour cette période. " +
-        "Les plus récents peuvent manquer ; la dernière position, elle, reste exacte.",
+        "La période est couverte en entier, mais les positions sont espacées " +
+        "pour rester affichables. Choisir une période plus courte les montre toutes.",
     });
   }
   // Sans aucune position connue, « aucun deplacement sur cette periode » ne

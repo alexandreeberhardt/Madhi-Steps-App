@@ -59,7 +59,7 @@
  * @property {LocationPointV1[]} points
  * @property {FenetreTemporelle | null} fenetre
  * @property {boolean} historiqueCharge
- * @property {boolean} tronque
+ * @property {number} resolutionSecondes  pas d'echantillonnage annonce par le serveur
  * @property {boolean} chargement
  * @property {import("./api-client.js").ErreurApi | null} erreur
  * @property {Date | null} derniereMajReussie

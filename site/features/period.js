@@ -6,14 +6,16 @@
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
 
-// « Tout le voyage » n'est pas servable en un appel : le plafond du serveur est
-// de 10 000 points, une annee en vaut environ 105 000, et la troncature porte
-// sur les points les plus recents (arch/17 §4.1). La periode la plus longue
-// annonce donc ce qu'elle montre vraiment : 30 jours.
+// « Tout le voyage » est servable depuis que le serveur echantillonne au lieu
+// de tronquer : il rend une position par tranche de temps et couvre toujours
+// toute la periode demandee, quelle que soit sa duree. L'ancienne limite a
+// 30 jours venait d'un plafond de 10 000 points qui coupait les positions les
+// plus recentes, en silence (arch/17 §4.1, corrige).
 export const PERIODES = Object.freeze([
   Object.freeze({ id: "AUJOURDHUI", libelle: "Aujourd'hui", jours: null }),
   Object.freeze({ id: "SEPT_JOURS", libelle: "7 jours", jours: 7 }),
   Object.freeze({ id: "TRENTE_JOURS", libelle: "30 jours", jours: 30 }),
+  Object.freeze({ id: "TOUT_LE_VOYAGE", libelle: "Tout le voyage", jours: null }),
 ]);
 
 export const PERIODE_PAR_DEFAUT = "AUJOURDHUI";
@@ -38,6 +40,11 @@ export function bornesDePeriode(idPeriode, debutVoyage, maintenant = new Date())
       break;
     case "TRENTE_JOURS":
       from = new Date(maintenant.getTime() - 30 * JOUR_MS);
+      break;
+    case "TOUT_LE_VOYAGE":
+      // Remonter au plus loin : c'est le bornage au depart, plus bas, qui
+      // ramene la fenetre au debut reel du voyage.
+      from = new Date(0);
       break;
     default:
       throw new Error(`periode inconnue : ${idPeriode}`);

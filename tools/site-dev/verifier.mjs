@@ -19,7 +19,7 @@ const { formaterAbsolu, formaterDuree, formaterRelatif } = await import(
   new URL("utils/time.js", RACINE)
 );
 const { messagesPour } = await import(new URL("components/status-banner.js", RACINE));
-const { LIMITE_POINTS, ErreurApi } = await import(new URL("api-client.js", RACINE));
+const { POINTS_VISES, ErreurApi } = await import(new URL("api-client.js", RACINE));
 
 const MAINTENANT = new Date("2026-09-15T12:00:00Z");
 const JOUR_MS = 24 * 60 * 60 * 1000;
@@ -141,10 +141,18 @@ verifier("serveur muet : la derniere donnee connue reste affichable", () => {
 
 // --- periodes ---------------------------------------------------------------
 
-verifier("la periode la plus longue annonce 30 jours, pas le voyage", () => {
+verifier("tout le voyage est proposé depuis que le serveur echantillonne", () => {
   const libelles = PERIODES.map((periode) => periode.libelle).join(" ");
-  assert.match(libelles, /30 jours/);
-  assert.doesNotMatch(libelles.toLowerCase(), /tout le voyage/);
+  assert.match(libelles.toLowerCase(), /tout le voyage/);
+});
+
+verifier("tout le voyage remonte au depart, jamais avant", () => {
+  // Avant le depart, la base contient les positions de pre-validation, prises
+  // a la maison. Les afficher revelerait le domicile a la famille elargie.
+  const depart = "2026-09-10T06:00:00Z";
+  const fenetre = bornesDePeriode("TOUT_LE_VOYAGE", depart, MAINTENANT);
+  assert.equal(fenetre.from.toISOString(), new Date(depart).toISOString());
+  assert.equal(fenetre.borneAuDepart, true);
 });
 
 verifier("les bornes ne remontent jamais avant le depart", () => {
@@ -172,9 +180,11 @@ verifier("le format des bornes est celui qu'exige le serveur", () => {
   assert.match(fenetre.from.toISOString(), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 });
 
-verifier("trente jours de captures restent sous le plafond du serveur", () => {
+verifier("une annee de captures depasse ce qu'un appel peut rendre point par point", () => {
+  // C'est la raison d'etre de l'echantillonnage cote serveur : sans lui,
+  // « tout le voyage » ne serait pas servable.
   const pointsParJour = (24 * 60) / 5;
-  assert.ok(30 * pointsParJour < LIMITE_POINTS);
+  assert.ok(365 * pointsParJour > POINTS_VISES);
 });
 
 // --- messages ---------------------------------------------------------------
@@ -184,7 +194,7 @@ function vueBandeau(surcharges = {}) {
     etat: Etat.RECENT,
     erreur: null,
     historiqueVide: false,
-    tronque: false,
+    resolutionSecondes: 1,
     anciennete: 5 * 60 * 1000,
     aUnePosition: true,
     libellePeriode: "7 jours",
@@ -227,13 +237,24 @@ verifier("un historique vide ne dit pas que rien n'a jamais ete recu", () => {
   assert.match(avis[0].detail, /dernière position connue reste affichée/);
 });
 
-verifier("une reponse de la taille du plafond est signalee", () => {
-  const avis = messagesPour(vueBandeau({ tronque: true }));
-  assert.match(avis[0].titre, /incomplet/);
+verifier("un trace espace est annonce comme resume, pas comme incomplet", () => {
+  // La nuance compte : rien ne manque a la fin, contrairement a l'ancienne
+  // troncature. La famille ne doit pas croire le suivi en panne.
+  const avis = messagesPour(vueBandeau({ resolutionSecondes: 3600 }));
+  assert.match(avis[0].titre, /résumé/);
+  assert.doesNotMatch(avis[0].titre, /incomplet/);
+  assert.equal(avis[0].ton, "info");
 });
 
-verifier("le bandeau de troncature accompagne l'etat, il ne le remplace pas", () => {
-  const avis = messagesPour(vueBandeau({ etat: Etat.HORS_LIGNE, anciennete: JOUR_MS, tronque: true }));
+verifier("un espacement plus fin que la cadence de capture ne se signale pas", () => {
+  // Sur sept jours le serveur ne regroupe rien : l'annoncer serait du bruit.
+  assert.equal(messagesPour(vueBandeau({ resolutionSecondes: 61 })).length, 0);
+});
+
+verifier("l'avis de trace resume accompagne l'etat, il ne le remplace pas", () => {
+  const avis = messagesPour(
+    vueBandeau({ etat: Etat.HORS_LIGNE, anciennete: JOUR_MS, resolutionSecondes: 3600 }),
+  );
   assert.equal(avis.length, 2);
 });
 

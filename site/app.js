@@ -13,7 +13,6 @@
 import { TITRE_PAR_DEFAUT, TRIP_ID } from "./config.js";
 import {
   ErreurApi,
-  LIMITE_POINTS,
   getLatestLocation,
   getLocations,
   getTripStatus,
@@ -58,7 +57,7 @@ const donnees = {
   points: [],
   fenetre: null,
   historiqueCharge: false,
-  tronque: false,
+  resolutionSecondes: 1,
   chargement: false,
   erreur: null,
   derniereMajReussie: null,
@@ -139,7 +138,7 @@ async function charger() {
 }
 
 /**
- * @returns {Promise<{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], fenetre: import("./types.js").FenetreTemporelle | null}>}
+ * @returns {Promise<{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number}>}
  */
 async function recupererVoyage() {
   // Le statut vient en premier : `startedAt` commande tout le reste.
@@ -148,21 +147,34 @@ async function recupererVoyage() {
   if (statut.startedAt === null) {
     // Avant le depart, ne rien demander de precis. Les positions en base sont
     // celles de la pre-validation et des tests terrain, prises a la maison.
-    return { statut, dernierePosition: null, points: [], fenetre: null };
+    return {
+      statut,
+      dernierePosition: null,
+      points: [],
+      fenetre: null,
+      resolutionSecondes: 1,
+    };
   }
 
   const fenetre = bornesDePeriode(donnees.periode, statut.startedAt);
-  const [dernierePosition, points] = await Promise.all([
-    // La derniere position ne vient jamais de l'historique : l'historique est
-    // plafonne a 10 000 points et coupe les plus recents.
+  const [dernierePosition, historique] = await Promise.all([
+    // La derniere position ne vient toujours pas de l'historique. Celui-ci ne
+    // coupe plus la fin, mais il l'echantillonne : sur un an, la position la
+    // plus recente qu'il rende peut dater d'une demi-heure.
     getLatestLocation(TRIP_ID),
     getLocations(TRIP_ID, fenetre.from, fenetre.to),
   ]);
-  return { statut, dernierePosition, points, fenetre };
+  return {
+    statut,
+    dernierePosition,
+    points: historique.points,
+    fenetre,
+    resolutionSecondes: historique.resolutionSecondes,
+  };
 }
 
 /**
- * @param {{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], fenetre: import("./types.js").FenetreTemporelle | null}} resultat
+ * @param {{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number}} resultat
  */
 function appliquer(resultat) {
   donnees.statut = resultat.statut;
@@ -170,9 +182,10 @@ function appliquer(resultat) {
   donnees.points = resultat.points;
   donnees.fenetre = resultat.fenetre;
   donnees.historiqueCharge = resultat.fenetre !== null;
-  // Une reponse de la taille exacte du plafond est probablement tronquee : le
-  // serveur trie du plus ancien au plus recent, puis coupe.
-  donnees.tronque = resultat.points.length >= LIMITE_POINTS;
+  // Le serveur ne tronque plus : il echantillonne et annonce son pas. Le site
+  // n'a donc plus a deviner si le trajet est ampute, seulement a dire s'il est
+  // resume.
+  donnees.resolutionSecondes = resultat.resolutionSecondes;
 }
 
 function rendre() {
@@ -187,7 +200,7 @@ function rendre() {
     etat,
     erreur: donnees.erreur,
     historiqueVide: historiqueEstVide(donnees),
-    tronque: donnees.tronque,
+    resolutionSecondes: donnees.resolutionSecondes,
     anciennete: ancienneteDernierePosition(donnees, maintenant),
     aUnePosition,
     libellePeriode: libelleDePeriode(donnees.periode),
@@ -276,7 +289,7 @@ function choisirPeriode(idPeriode) {
   donnees.periode = idPeriode;
   donnees.points = [];
   donnees.historiqueCharge = false;
-  donnees.tronque = false;
+  donnees.resolutionSecondes = 1;
   rendre();
   charger();
 }

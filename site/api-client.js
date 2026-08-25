@@ -10,10 +10,11 @@
 
 const RACINE_API = "./api";
 
-// Plafond impose par le serveur. Une reponse de cette taille exacte est
-// probablement tronquee : le serveur trie par recorded_at croissant puis coupe,
-// donc ce sont les points les plus recents qui manquent.
-export const LIMITE_POINTS = 10000;
+// Nombre de positions demande au serveur. Ce n'est plus un plafond qui coupe :
+// le serveur echantillonne pour couvrir toute la periode, et annonce le pas
+// qu'il a retenu. Une reponse de cette taille n'est donc plus le signe d'un
+// trajet ampute, seulement d'un trajet resume.
+export const POINTS_VISES = 10000;
 
 // Sans delai maximum, un serveur injoignable laisse le site en chargement
 // indefini, ce qui se lit comme un site casse.
@@ -66,12 +67,18 @@ export async function getLocations(tripId, from, to) {
   const parametres = new URLSearchParams({
     from: from.toISOString(),
     to: to.toISOString(),
-    limit: String(LIMITE_POINTS),
+    limit: String(POINTS_VISES),
   });
-  const corps = await demanderJson(
+  const { corps, enTetes } = await demander(
     `${RACINE_API}/trips/${encodeURIComponent(tripId)}/locations?${parametres}`,
   );
-  return Array.isArray(corps) ? corps : [];
+  const annonce = Number(enTetes.get("X-Madhi-Resolution-Seconds"));
+  return {
+    points: Array.isArray(corps) ? corps : [],
+    // Un serveur anterieur a l'echantillonnage ne pose pas l'en-tete. Une
+    // seconde signifie « rien n'a ete regroupe », ce qui etait vrai de lui.
+    resolutionSecondes: Number.isFinite(annonce) && annonce > 0 ? annonce : 1,
+  };
 }
 
 /**
@@ -79,6 +86,19 @@ export async function getLocations(tripId, from, to) {
  * @returns {Promise<any>}
  */
 async function demanderJson(chemin) {
+  const { corps } = await demander(chemin);
+  return corps;
+}
+
+/**
+ * Comme [demanderJson], mais rend aussi les en-tetes : le serveur y annonce
+ * le pas d'echantillonnage de l'historique, et le site doit pouvoir dire ce
+ * qu'il montre plutot que de le deviner.
+ *
+ * @param {string} chemin
+ * @returns {Promise<{corps: any, enTetes: Headers}>}
+ */
+async function demander(chemin) {
   const controleur = new AbortController();
   const minuterie = setTimeout(() => controleur.abort(), DELAI_MAX_MS);
   let reponse;
@@ -104,7 +124,7 @@ async function demanderJson(chemin) {
   }
 
   try {
-    return await reponse.json();
+    return { corps: await reponse.json(), enTetes: reponse.headers };
   } catch (cause) {
     throw new ErreurApi("reponse_illisible", reponse.status);
   }
