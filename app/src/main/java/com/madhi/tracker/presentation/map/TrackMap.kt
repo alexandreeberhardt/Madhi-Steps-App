@@ -23,7 +23,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
@@ -80,7 +82,12 @@ fun TrackMap(
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val backgroundColor = MaterialTheme.colorScheme.surfaceVariant
-    val inkColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val inkColor = MaterialTheme.colorScheme.onSurface
+
+    // L'échelle porte son propre fond, comme la légende et la mention légale.
+    // Sans lui elle suivrait le thème du téléphone — gris pâle en thème
+    // sombre — alors que les tuiles, elles, sont toujours claires.
+    val chipColor = MaterialTheme.colorScheme.surface.copy(alpha = LEGEND_BACKGROUND_ALPHA)
     val markerRingColor = MaterialTheme.colorScheme.surface
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
@@ -88,6 +95,10 @@ fun TrackMap(
     // La hauteur reelle de la legende, mesuree plutot que devinee : elle
     // change avec la taille de police du systeme, et le cadrage doit suivre.
     var legendHeight by remember { mutableStateOf(0) }
+
+    // Idem pour la mention légale, dont la longueur dépend du fournisseur de
+    // tuiles : celle de Thunderforest tient sur toute la largeur de l'écran.
+    var attributionHeight by remember { mutableStateOf(0) }
 
     // Un cadrage choisi à la main survit à l'arrivée d'une nouvelle position ;
     // sinon la carte sauterait sous les doigts toutes les cinq minutes.
@@ -103,7 +114,7 @@ fun TrackMap(
             left = margin,
             right = margin,
             top = margin + legendHeight,
-            bottom = margin + SCALE_BAND.toPx().toDouble(),
+            bottom = margin + SCALE_BAND.toPx() + attributionHeight,
         )
     }
     val automaticViewport = remember(points, canvasSize, insets) {
@@ -191,8 +202,11 @@ fun TrackMap(
             drawScaleBar(
                 metersPerPixel = viewport.metersPerPixel,
                 inkColor = inkColor,
+                chipColor = chipColor,
                 textMeasurer = textMeasurer,
-                marginPixels = SCALE_MARGIN.toPx(),
+                // L'échelle se pose au-dessus de la mention légale, qui
+                // occupe le bas de la carte et la masquerait sinon.
+                marginPixels = SCALE_MARGIN.toPx() + attributionHeight,
                 maxWidthPixels = size.width * SCALE_MAX_WIDTH_FRACTION,
             )
         }
@@ -202,7 +216,10 @@ fun TrackMap(
                 text = attribution,
                 // En bas à droite : l'échelle graphique occupe déjà le coin
                 // gauche, et le bouton « Recentrer » lui laisse la place.
-                modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .onSizeChanged { attributionHeight = it.height }
+                    .padding(6.dp),
             )
         }
 
@@ -219,7 +236,8 @@ fun TrackMap(
                 onClick = { manualViewport = null },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = RECENTER_BOTTOM_MARGIN),
+                    .padding(end = 16.dp, bottom = RECENTER_BOTTOM_MARGIN)
+                    .padding(bottom = with(density) { attributionHeight.toDp() }),
             ) { Text("Recentrer") }
         }
     }
@@ -340,6 +358,7 @@ private fun DrawScope.drawCurrentPosition(
 private fun DrawScope.drawScaleBar(
     metersPerPixel: Double,
     inkColor: Color,
+    chipColor: Color,
     textMeasurer: TextMeasurer,
     marginPixels: Float,
     maxWidthPixels: Float,
@@ -351,14 +370,27 @@ private fun DrawScope.drawScaleBar(
     val right = left + bar.widthPixels.toFloat()
     val tick = marginPixels / 2f
 
-    drawLine(inkColor, Offset(left, baseline), Offset(right, baseline), strokeWidth = 2f)
-    drawLine(inkColor, Offset(left, baseline - tick), Offset(left, baseline), strokeWidth = 2f)
-    drawLine(inkColor, Offset(right, baseline - tick), Offset(right, baseline), strokeWidth = 2f)
-
     val label = textMeasurer.measure(
         text = formatDistance(bar.distanceMeters),
         style = TextStyle(color = inkColor, fontSize = SCALE_LABEL_SIZE),
     )
+
+    val padding = tick / 2f
+    val top = baseline - tick - label.size.height - padding
+    drawRoundRect(
+        color = chipColor,
+        topLeft = Offset(left - padding, top),
+        size = Size(
+            width = maxOf(right - left, label.size.width.toFloat()) + 2 * padding,
+            height = baseline - top + padding,
+        ),
+        cornerRadius = CornerRadius(padding, padding),
+    )
+
+    drawLine(inkColor, Offset(left, baseline), Offset(right, baseline), strokeWidth = 2f)
+    drawLine(inkColor, Offset(left, baseline - tick), Offset(left, baseline), strokeWidth = 2f)
+    drawLine(inkColor, Offset(right, baseline - tick), Offset(right, baseline), strokeWidth = 2f)
+
     drawText(label, topLeft = Offset(left, baseline - tick - label.size.height))
 }
 
