@@ -711,3 +711,60 @@ permissive et **ne filtre pas sur la précision** — une position imprécise va
 mieux qu'un trou, c'est un choix assumé. La carte est simplement le premier
 outil qui rend ces points visibles. À regarder sur le site familial, qui a les
 `accuracy_m`.
+
+# Session 6 — 25 et 26 août 2026, la carte finie
+
+*Pas un test terrain : deux soirées d'outillage sur le OnePlus, closes par la
+seule verification qui manquait vraiment.*
+
+## Ce qui a change
+
+**Le fond de carte passe a Thunderforest**, offre gratuite, style *Outdoors*.
+Le fond auto-heberge s'arretait aux grands axes ; celui-ci descend au niveau de
+la rue. Le fond precedent reste deploye en repli (ADR-006, `arch/18` §3.2).
+
+**Trois boutons de periode** sous la carte : aujourd'hui, 7 jours, tout le
+voyage. Chaque periode porte un pas de temps, ce qui borne le nombre de points
+quelle que soit la cadence de capture reglee.
+
+**Le serveur n'a plus de plafond qui tronque.** En cherchant d'ou venait la
+limite a 30 jours du site, un defaut plus grave est apparu : `location_history`
+triait par date croissante puis coupait a 10 000, donc les positions les **plus
+recentes** disparaissaient, sans erreur. Au bout de 35 jours de voyage, le site
+aurait affiche une derniere position figee avec un statut vert. Corrige par
+echantillonnage (`arch/17` §4.1).
+
+## Ce qui a ete verifie sur le OnePlus
+
+Fond, glissement, chargement des tuiles decouvertes, bouton « Recentrer »,
+themes clair et sombre, et les trois periodes. **Le hors-ligne tient** : les
+zones deja consultees restent lisibles sans reseau — rapporte par Alexandre le
+26 aout, non observe directement. C'etait le dernier pari non eprouve de la
+carte.
+
+## Quatre defauts trouves en installant, aucun visible en test
+
+- Aucune tuile ne s'affichait : une reservation qui fuyait a l'annulation.
+- Les tuiles debordaient sous le bandeau d'etat (`drawBehind` ne borne pas).
+- La legende masquait le marqueur de position, puis la mention legale a masque
+  l'echelle.
+- Les tuiles etaient posees au pixel d'ecran et non au pixel logique : sur un
+  ecran a 400 points par pouce, les noms de villes etaient trois fois trop
+  petits. Une partie de ce qui faisait paraitre le fond pauvre.
+
+**Ce que ca dit de la methode.** Les tests de cadrage passaient tous. Ils
+verifiaient que le trace tient dans la zone de dessin, ce qui etait vrai ; ils
+ne pouvaient pas savoir qu'un element d'interface etait pose par-dessus, ni
+qu'une tuile etait trop petite pour etre lue. **L'appareil trouve ce que le
+test ne sait pas regarder.**
+
+## Ce qui reste ouvert
+
+Le pincement — `adb` ne simule pas deux doigts. La fluidite a deux mille
+points. Et rien sur le Redmi Note 11.
+
+Le point bloquant du projet n'a pas bouge : le redemarrage automatique. Une
+piste concrete n'a jamais ete exploree — la session 4 note que **les trois
+reglages OxygenOS n'ont jamais ete appliques au paquet `com.madhi.tracker`**.
+Le defaut est peut-etre une case a cocher, pas un bug.
+

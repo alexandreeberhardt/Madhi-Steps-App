@@ -55,13 +55,19 @@ journalisation l'interdit par construction.
 **Réparable par une seule personne.** Un module Gradle, peu de dépendances,
 aucune magie d'infrastructure.
 
-**Une carte qui marche sans réseau.** L'écran d'accueil dessine le trajet
-récent sur un fond de carte auto-hébergé, fabriqué depuis des données du
-domaine public par `tools/tiles` et servi par le VPS : aucun compte, aucun
-quota, aucune bibliothèque cartographique. Le cache disque est interrogé avant
-le réseau, donc une zone consultée une fois reste lisible hors ligne. Le tracé
-est bleu là où le serveur détient les points, orange là où ils ne sont encore
-que sur le téléphone (ADR-006, `arch/18`).
+**Une carte qui marche sans réseau.** L'écran d'accueil dessine le trajet sur
+un fond de tuiles raster, sans aucune bibliothèque cartographique. Le cache
+disque est interrogé **avant** le réseau : une zone consultée une fois reste
+lisible hors ligne, ce qui est le mode normal du voyage. Le tracé est bleu là
+où le serveur détient les points, orange là où ils ne sont encore que sur le
+téléphone, et trois boutons choisissent la période — aujourd'hui, sept jours,
+tout le voyage.
+
+La source des tuiles est une configuration hors du dépôt, jamais du code : sans
+elle la carte reste sur fond uni et n'émet aucune requête. Un fond
+auto-hébergé, fabriqué par `tools/tiles` depuis des données du domaine public,
+reste déployé en repli — c'est la seule source que le projet contrôle de bout
+en bout (ADR-006, `arch/18`).
 
 ## Architecture
 

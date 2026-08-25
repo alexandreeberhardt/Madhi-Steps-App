@@ -1,145 +1,89 @@
 **ADR-006 — Carte embarquée dans l'application**
 
-*Statut : Reportée en fin de V1 — 2026-08-18*\
-*Complétée : carte livrée sans fond cartographique — 2026-08-23*\
-*Amendée : fond de carte auto-hébergé — 2026-08-23*
+*Statut : Accepté — décision courante arrêtée le 26 août 2026*
 
 # Contexte
 
-Deux documents divergeaient :
+Deux documents divergeaient. `arch/01_android_POC.md` §11 place la carte hors du
+périmètre du POC et décrit un écran de statut textuel ; `arch/09_design_app_V1.md`
+§1-2 en fait le contenu principal, occupant 75 à 85 % de la hauteur.
 
-- `arch/01_android_POC.md` §11 place explicitement la « carte embarquée » hors du
-  périmètre du POC, et décrit en §10 un écran de statut textuel.
-- `arch/09_design_app_V1.md` §1-2 fait de la carte le contenu principal, occupant
-  75 à 85 % de la hauteur de l'écran.
+Trois contraintes pèsent sur un fond de carte embarqué :
 
-Trois contraintes techniques pèsent sur la carte embarquée :
-
-1. `arch/00` §8 règle 7 interdit le SDK Google Maps. Le choix conforme est
-   MapLibre Native Android, fork open source de Mapbox sans télémétrie.
-2. La Tile Usage Policy d'OpenStreetMap interdit les applications mobiles sur
-   `tile.openstreetmap.org`. Il faut donc un proxy/cache de tuiles sur le VPS —
-   du travail serveur qui n'existe pas encore.
-3. Hors ligne, ce qui est le cas normal du voyage, les tuiles non pré-téléchargées
-   sont absentes : la carte serait grise. Le tracé, lui, vient de Room et
-   s'affiche toujours.
-
-# Options
-
-**1. Carte MapLibre + tuiles proxifiées par le VPS + cache ambiant**, dès la V1.
-**2. Écran de statut d'abord, carte ajoutée en fin de V1**, une fois le noyau
-prouvé en conditions réelles.
-**3. Tracé seul dessiné sur Canvas**, sans tuiles ni dépendance cartographique.
+1. `arch/00` §8 règle 7 interdit le SDK Google Maps.
+2. La Tile Usage Policy d'OpenStreetMap exclut les applications mobiles de ses
+   serveurs de tuiles.
+3. Hors ligne — le cas normal du voyage — un fond non pré-téléchargé est gris.
+   Le tracé, lui, vient de Room et s'affiche toujours.
 
 # Décision
 
-**Option 2.** L'écran principal de la phase POC est un écran de statut conforme à
-`arch/01` §10. La carte est ajoutée en fin de V1, après validation terrain du
-noyau tracking et synchronisation, et l'écran principal prend alors la forme
-décrite par `arch/09` §2.
+**La carte est le contenu principal de l'écran d'accueil. Le tracé est dessiné
+sur `Canvas`, en Web Mercator, à partir de la base locale. Le fond est fait de
+tuiles raster dont la source est une configuration hors du dépôt.**
 
-La lecture retenue des deux documents est chronologique et non contradictoire :
-`arch/01` décrit le noyau technique à prouver, `arch/09` décrit l'application
-finie qui part en voyage. Les deux s'appliquent, dans cet ordre.
+Aucune bibliothèque cartographique n'entre au projet. MapLibre Native est
+écarté : c'est un moteur complet, et le critère du projet est qu'une seule
+personne puisse le réparer pendant un an.
+
+Aucun fournisseur de tuiles n'est figé dans le dépôt : le choix engage une
+licence, parfois un compte, et n'a pas sa place dans un dépôt public. Sans
+configuration, la carte reste sur fond uni et n'émet aucune requête.
+
+# Options écartées
+
+**SDK Google Maps** — interdit par `arch/00` §8 règle 7.
+
+**MapLibre Native + tuiles vectorielles.** Techniquement le meilleur choix :
+rendu supérieur, et hors-ligne complet par un extrait `.pmtiles` du corridor —
+2,5 Go jusqu'au zoom 14 pour un couloir de 100 km, mesuré le 26 août 2026. Rien
+ne bloque côté infrastructure. C'est la dépendance qui bloque, et cette
+décision-là appartient au critère « réparable par une seule personne ».
+**À rouvrir si le détail hors ligne partout devient nécessaire.**
+
+**Tuiles OpenStreetMap directes** — hors des règles d'usage pour une
+application mobile, avec un risque de blocage en cours de voyage.
+
+**Pile PostGIS/Mapnik auto-hébergée** — 150 à 250 Go pour l'import du corridor.
+Ni le VPS (27 Go libres) ni le portable (6,7 Go) ne l'encaissent.
 
 # Conséquences
 
-- Le risque principal du projet est la perte de points, pas l'absence de carte sur
-  le téléphone. L'ordre de travail suit ce risque.
-- La carte utile à la famille est celle du site web, qui la sert déjà
-  (`arch/05`, `arch/11`). La carte embarquée est un confort, pas une fonction
-  critique.
-- La présentation étant un adaptateur, remplacer l'écran de statut par un écran
-  carte ne touche ni le domaine, ni les use cases, ni la persistance. Le
-  `TrackingStatus` exposé par `ObserveTrackingStatus` est le même dans les deux cas.
-- Décision à rouvrir à l'ouverture de la phase 11, avec le choix du fournisseur de
-  tuiles et la stratégie hors ligne. Cet ADR sera alors complété ou remplacé.
+- **La présentation reste un adaptateur.** Ni le domaine, ni les use cases, ni
+  la persistance ne savent qu'une carte existe.
+- **Le détail affiché est celui du fournisseur**, ni plus ni moins. Changer de
+  source est une modification de trois lignes, éprouvée deux fois.
+- **Le hors-ligne dépend de la licence de la source.** Les offres gratuites
+  autorisent en général le cache des tuiles consultées et interdisent le
+  pré-chargement d'une zone. Le fond auto-hébergé de `tools/tiles` reste
+  déployé pour cette raison : c'est la seule source que le projet contrôle de
+  bout en bout, donc la seule qu'on ait le droit de pré-charger.
+- **Chaque tuile dit au fournisseur où l'on regarde.** Ce n'est pas le chemin
+  des positions, mais c'en est une fuite, et elle disparaîtrait avec un fond
+  auto-hébergé.
+- L'état courant et les détails d'implémentation sont dans `arch/18`.
 
-# Réouverture du 23 août 2026
+# Historique
 
-La décision prévoyait d'être rouverte au moment d'écrire la carte. Elle l'est,
-et l'arbitrage porte cette fois sur le **fond de carte**, pas sur la carte.
+Cette décision a été prise en trois temps, et l'ordre a compté.
 
-## Ce qui a changé
+**18 août 2026 — reportée.** Le risque du projet était la perte de points, pas
+l'absence de carte. L'écran d'accueil est resté un écran de statut le temps que
+le noyau soit prouvé en conditions réelles.
 
-Rien sur le terrain, et c'est l'argument : le relevé du 23 août montre que le
-risque restant est le redémarrage non rattrapé, pas la synchronisation. Le
-noyau tenait la condition posée par l'option 2 — « une fois le noyau prouvé en
-conditions réelles ». La carte pouvait donc être écrite.
+**23 août 2026 — carte livrée, puis fond auto-hébergé.** Le noyau éprouvé, la
+carte a été écrite. Livrée d'abord sans fond, sur les trois contraintes
+ci-dessus ; un tracé flottant dans le vide s'est révélé insuffisant à l'usage.
+La sortie a été de contourner la deuxième contrainte par le haut plutôt que de
+l'enfreindre : un fond fabriqué depuis des données Natural Earth du domaine
+public, servi par le VPS.
 
-Les trois contraintes du fond de carte, elles, sont intactes : pas de SDK
-Google, pas de tuiles OSM pour une application mobile sans cache sur le VPS,
-et un fond gris hors ligne — c'est-à-dire la plupart du temps.
+**26 août 2026 — fournisseur externe.** Natural Earth s'arrête aux grands axes ;
+le détail au niveau de la rue demandait des données OpenStreetMap, que le projet
+n'a pas les moyens de rendre lui-même. Thunderforest, offre gratuite, style
+*Outdoors*. Le fond auto-hébergé est conservé en repli.
 
-## Décision
-
-**Option 3 pour le fond, option 2 pour le calendrier.** L'écran principal
-montre désormais la carte, et cette carte dessine le tracé sur un fond uni.
-Aucune tuile, aucune dépendance cartographique, aucun appel réseau : ce qui
-vient de Room s'affiche partout, y compris au fond d'un fjord sans réseau.
-
-Ce que les tuiles auraient apporté et qui manquerait sans elles — savoir à
-quelle distance on regarde — est rendu par une échelle graphique dessinée sur
-la carte. C'est la raison pour laquelle cette échelle n'est pas décorative.
-
-## Conséquences
-
-- La géométrie vit dans `domain/MapProjection.kt`, `domain/MapViewport.kt` et
-  `domain/MapScaleBar.kt`, sans dépendance Android, et se teste sans émulateur.
-  Le rendu Compose n'a plus qu'à peindre.
-- La projection retenue est **Web Mercator**, celle des tuiles, alors que rien
-  ne l'imposait pour un fond uni. C'est le choix qui rend l'ajout ultérieur
-  d'un cache de tuiles indolore : les tuiles se peindraient sous le tracé sans
-  toucher une ligne de géométrie.
-- La carte encode l'état de synchronisation par la couleur : bleu pour ce que
-  le serveur détient, orange pour ce qui n'est encore que sur le téléphone.
-  C'est la seule information de synchronisation sur l'accueil ; le compteur de
-  file reste au diagnostic (`arch/09` §3).
-- Le tracé est plafonné à 2 000 points, environ une semaine à la cadence par
-  défaut. `arch/09` §2 parle de « trajet récent », et l'historique complet est
-  l'affaire du site familial.
-- **Dette assumée** : la requête du tracé trie sur `recorded_at`, que l'index
-  `(sync_state, recorded_at)` ne sert pas. SQLite balaie donc la table. À
-  cent mille lignes le coût reste de quelques dizaines de millisecondes, et
-  seulement quand l'écran est allumé — le flux s'arrête sinon. L'index dédié
-  demanderait une migration de schéma, ce qui ne se fait pas à quelques jours
-  d'un départ (ADR-005). À reprendre en V2, ou plus tôt si le rendu accroche.
-
-# Amendement du 23 août 2026 — le fond de carte
-
-À l'usage, un tracé flottant sur fond uni s'est révélé insuffisant : on ne sait
-pas où on est. La décision est donc rouverte une seconde fois, sur le seul
-point du fond.
-
-## Ce qui change
-
-Rien aux trois contraintes. Elles sont **contournées par le haut** : le fond
-n'est ni Google, ni OpenStreetMap, il est **auto-hébergé**.
-
-`tools/tiles/build_basemap.py` fabrique des tuiles raster depuis Natural Earth
-1:50 m, domaine public, et le conteneur `site` les sert. Aucun compte, aucun
-quota, aucune politique d'usage tierce, et — le point décisif pour ce projet —
-**le seul montage qui autorise à pré-charger en masse pour l'hors-ligne**, ce
-que les offres gratuites des fournisseurs de tuiles interdisent presque toutes.
-
-Le rendu reste maison : tuiles raster peintes dans le `Canvas` existant, avec
-OkHttp déjà présent. Aucune bibliothèque cartographique n'entre au projet.
-MapLibre Native, envisagé dans le contexte initial, reste écarté pour la raison
-qui n'a pas changé : personne ne le répare seul en Norvège.
-
-## Ce que ça coûte
-
-- **Pas de rues.** Natural Earth s'arrête à l'échelle du pays ; le zoom 8 est
-  la limite honnête. Le détail OpenStreetMap demande une pile PostGIS/Mapnik et
-  des dizaines de gigaoctets, qui ne tenaient pas sur la machine disponible.
-  La marche à suivre est écrite dans `tools/tiles/README.md`.
-- **Le domaine du site ne répond plus 404 partout.** Il sert un chemin public
-  `/tiles/`. Compromis assumé : mettre les tuiles derrière le lien secret
-  familial obligerait à embarquer ce secret dans l'APK.
-- **Un fond qui n'a jamais été vu sur un téléphone**, faute de déploiement.
-
-## Ce que ça ne coûte pas
-
-Aucune dépendance ajoutée. Aucun secret de plus dans l'APK. Aucun appel réseau
-si la configuration est absente — le comportement par défaut du dépôt reste
-exactement la carte sans fond décrite plus haut.
+Ce que cette histoire enseigne, et qui vaut au-delà de la carte : **le report a
+été bon**. Il a évité d'écrire trois fois une carte pendant que le vrai risque
+n'était pas fermé. Et le choix de Web Mercator, fait quand aucun fond n'existait,
+a rendu chacune des deux additions indolores.

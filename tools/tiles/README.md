@@ -1,8 +1,14 @@
 # Fond de carte auto-hébergé
 
-Fabrique les tuiles raster que l'application affiche sous le tracé, et que le
-serveur sert lui-même. Aucun compte, aucune clé d'API, aucun quota, aucun tiers
-dont dépendre pendant un an de voyage.
+Fabrique des tuiles raster que le serveur sert lui-même. Aucun compte, aucune
+clé d'API, aucun quota, aucun tiers dont dépendre pendant un an.
+
+**Ce fond n'est plus celui que l'application utilise au quotidien.** Depuis le
+26 août 2026 elle affiche Thunderforest, qui donne le détail au niveau de la
+rue (ADR-006). Celui-ci reste fabriqué, déployé et documenté pour une raison
+précise : c'est la seule source que le projet contrôle de bout en bout, donc la
+**seule qu'on ait le droit de pré-charger en masse** — ce qu'un an sans réseau
+finira par exiger. Y revenir est une modification de trois lignes.
 
 ## Ce que ça produit, et ce que ça ne produit pas
 

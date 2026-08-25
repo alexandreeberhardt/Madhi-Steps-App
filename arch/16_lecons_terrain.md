@@ -274,11 +274,10 @@ pas une tendance.
   été expliquée. L'instrumentation ajoutée la caractérisera si elle revient.
 - **La ligne « Alarmes exactes » du diagnostic est trompeuse** : elle affiche
   ce que l'API déclare, pas ce que le système fait. À reformuler.
-- **La carte embarquée** a été livrée le 23 août, sans fond cartographique
-  (ADR-006, réouverture, et `arch/18`). Le report avait tenu tant que le terrain
-  portait sur le noyau ; il n'avait plus de raison d'être une fois la chaîne
-  éprouvée de bout en bout. Vue sur le OnePlus le soir même ; les gestes, le
-  thème sombre et la fluidité à deux mille points restent à éprouver.
+- **La carte embarquée** est livrée, fond de carte et sélecteur de période
+  compris (ADR-006, `arch/18`). Éprouvée sur le OnePlus, hors ligne compris.
+  Restent à voir : le pincement, la fluidité à deux mille points, et tout sur
+  le Redmi.
 - **Un segment de 440 km sans point intermédiaire** est apparu sur la carte du
   OnePlus. Déplacement réel non capturé, ou mesure grossière acceptée : la
   validation ne filtre pas sur la précision, par choix. À trancher avec les
