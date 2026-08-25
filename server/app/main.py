@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -18,6 +18,7 @@ from .db import (
     create_pool,
     ingest_locations,
     known_location_ids,
+    history_bounds,
     latest_location,
     location_history,
     seed_configured_trip_and_activation_code,
@@ -25,6 +26,7 @@ from .db import (
     utc_iso,
 )
 from .logging_config import configure_logging
+from .sampling import MAX_HISTORY_POINTS, sampling_step_seconds
 from .models import (
     ActivationRequest,
     ActivationResponse,
@@ -176,20 +178,35 @@ async def get_latest_location(
 async def get_locations(
     trip_id: UUID,
     raw_request: Request,
+    response: Response,
     authorization: Annotated[str | None, Header()] = None,
     from_: Annotated[str | None, Query(alias="from")] = None,
     to: str | None = None,
-    limit: int = 10000,
+    limit: int = MAX_HISTORY_POINTS,
 ):
     enforce_read_auth(authorization)
-    if limit < 1 or limit > 10000:
+    if limit < 1 or limit > MAX_HISTORY_POINTS:
         raise HTTPException(status_code=400, detail={"error": "invalid_limit"})
     try:
         from_instant = parse_recorded_at(from_) if from_ else None
         to_instant = parse_recorded_at(to) if to else None
     except ValueError:
         raise HTTPException(status_code=400, detail={"error": "invalid_time_range"}) from None
-    rows = await location_history(raw_request.app.state.pool, trip_id, from_instant, to_instant, limit)
+
+    pool = raw_request.app.state.pool
+    bounds = await history_bounds(pool, trip_id, from_instant, to_instant)
+    bucket_seconds = sampling_step_seconds(
+        first_at=bounds["first_at"] if bounds else None,
+        last_at=bounds["last_at"] if bounds else None,
+        target_points=limit,
+    )
+
+    rows = await location_history(pool, trip_id, from_instant, to_instant, bucket_seconds)
+
+    # Le client doit pouvoir dire ce qu'il montre. Un en-tete plutot qu'une
+    # enveloppe : la reponse reste la liste que decrit `arch/13`, et les
+    # clients qui l'ignorent continuent de fonctionner.
+    response.headers["X-Madhi-Resolution-Seconds"] = str(bucket_seconds)
     return [row_to_location(row) for row in rows]
 
 

@@ -224,3 +224,86 @@ async def test_latest_location_is_null_when_every_point_predates_departure():
 
         assert latest.status_code == 200, latest.text
         assert latest.json() is None
+
+
+async def test_history_covers_the_whole_range_instead_of_truncating_the_end():
+    """Le defaut que le plafond de 10 000 points creait : la fin manquait.
+
+    L'ancienne requete triait par date croissante puis coupait. Passe le
+    plafond, ce sont les positions les plus recentes qui disparaissaient --
+    sans erreur, avec un statut vert. Le site affichait une derniere position
+    figee. C'est la panne muette que ce projet cherche a eliminer.
+    """
+    code = "ABCD-1010"
+    await seed_activation(code)
+    async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=60) as client:
+        activation = await activate(client, code)
+        headers = {"Authorization": f"Bearer {activation['deviceToken']}"}
+        depart = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+        # Deux cents positions etalees sur cent jours, et une cible de vingt.
+        points = [
+            point(index, activation["deviceId"], depart + timedelta(hours=12 * index))
+            for index in range(200)
+        ]
+        for lot in (points[:100], points[100:]):
+            response = await client.post("/locations/batch", headers=headers, json={"points": lot})
+            assert response.status_code == 200, response.text
+
+        response = await client.get(
+            f"/trips/{activation['tripId']}/locations", params={"limit": 20}
+        )
+        assert response.status_code == 200, response.text
+        rendus = response.json()
+
+        assert len(rendus) <= 20, "l'echantillonnage doit respecter la cible"
+        # Le point capital : la derniere position du voyage est presente.
+        assert rendus[-1]["recordedAt"] == points[-1]["recordedAt"]
+        assert rendus[0]["recordedAt"] == points[0]["recordedAt"]
+
+
+async def test_history_announces_the_resolution_it_used():
+    """Le client doit pouvoir dire ce qu'il montre, pas le deviner."""
+    code = "ABCD-1011"
+    await seed_activation(code)
+    async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=60) as client:
+        activation = await activate(client, code)
+        headers = {"Authorization": f"Bearer {activation['deviceToken']}"}
+        depart = datetime(2026, 3, 1, tzinfo=timezone.utc)
+        points = [
+            point(index, activation["deviceId"], depart + timedelta(days=index))
+            for index in range(40)
+        ]
+        response = await client.post("/locations/batch", headers=headers, json={"points": points})
+        assert response.status_code == 200, response.text
+
+        serre = await client.get(f"/trips/{activation['tripId']}/locations", params={"limit": 5})
+        large = await client.get(f"/trips/{activation['tripId']}/locations", params={"limit": 5000})
+
+        assert int(serre.headers["X-Madhi-Resolution-Seconds"]) > int(
+            large.headers["X-Madhi-Resolution-Seconds"]
+        )
+        # Une cible large ne regroupe rien : les quarante positions ressortent.
+        assert len(large.json()) == 40
+
+
+async def test_history_of_a_short_range_loses_nothing():
+    """Aujourd'hui et sept jours doivent rendre chaque position, sans exception."""
+    code = "ABCD-1012"
+    await seed_activation(code)
+    async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=60) as client:
+        activation = await activate(client, code)
+        headers = {"Authorization": f"Bearer {activation['deviceToken']}"}
+        depart = datetime(2026, 5, 1, tzinfo=timezone.utc)
+        # Une journee a cinq minutes.
+        points = [
+            point(index, activation["deviceId"], depart + timedelta(minutes=5 * index))
+            for index in range(288)
+        ]
+        response = await client.post("/locations/batch", headers=headers, json={"points": points})
+        assert response.status_code == 200, response.text
+
+        response = await client.get(f"/trips/{activation['tripId']}/locations")
+        assert response.status_code == 200, response.text
+        assert len(response.json()) == 288
+

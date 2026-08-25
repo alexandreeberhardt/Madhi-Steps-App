@@ -177,28 +177,78 @@ async def latest_location(pool: asyncpg.Pool, trip_id: UUID) -> asyncpg.Record |
         )
 
 
+async def history_bounds(
+    pool: asyncpg.Pool,
+    trip_id: UUID,
+    from_instant: datetime | None,
+    to_instant: datetime | None,
+) -> asyncpg.Record | None:
+    """Premier et dernier instant de la fenetre demandee, et son effectif.
+
+    Sert a choisir le pas d'echantillonnage avant de lire les points. La
+    requete ne touche que l'index (trip_id, recorded_at).
+    """
+    async with pool.acquire() as conn:
+        return await conn.fetchrow(
+            """
+            select min(recorded_at) as first_at,
+                   max(recorded_at) as last_at,
+                   count(*)         as total
+              from locations
+             where trip_id = $1
+               and ($2::timestamptz is null or recorded_at >= $2)
+               and ($3::timestamptz is null or recorded_at <= $3)
+            """,
+            trip_id,
+            from_instant,
+            to_instant,
+        )
+
+
 async def location_history(
     pool: asyncpg.Pool,
     trip_id: UUID,
     from_instant: datetime | None,
     to_instant: datetime | None,
-    limit: int,
+    bucket_seconds: int,
 ) -> list[asyncpg.Record]:
+    """L'historique, une position par tranche de `bucket_seconds`.
+
+    Il n'y a volontairement **aucun LIMIT**. Un plafond en nombre de points
+    coupe la fin du tableau, donc les positions les plus recentes, et sans
+    erreur : le site afficherait une derniere position figee avec un statut
+    vert. C'est la panne muette que ce projet cherche a eliminer. Le pas de
+    temps borne la reponse par construction, et il la borne en couvrant toute
+    la periode au lieu d'en amputer la fin.
+
+    `distinct on` retient la premiere ligne de chaque tranche selon le `order
+    by` -- donc la plus ancienne, a egalite l'identifiant le plus petit, ce qui
+    rend le resultat stable d'un appel a l'autre.
+    """
     async with pool.acquire() as conn:
         return await conn.fetch(
             """
-            select *
-              from locations
-             where trip_id = $1
-               and ($2::timestamptz is null or recorded_at >= $2)
-               and ($3::timestamptz is null or recorded_at <= $3)
-             order by recorded_at asc, id asc
-             limit $4
+            with fenetre as (
+                select *
+                  from locations
+                 where trip_id = $1
+                   and ($2::timestamptz is null or recorded_at >= $2)
+                   and ($3::timestamptz is null or recorded_at <= $3)
+            ),
+            echantillon as (
+                select distinct on (floor(extract(epoch from recorded_at) / $4::bigint))
+                       *
+                  from fenetre
+                 order by floor(extract(epoch from recorded_at) / $4::bigint),
+                          recorded_at asc,
+                          id asc
+            )
+            select * from echantillon order by recorded_at asc, id asc
             """,
             trip_id,
             from_instant,
             to_instant,
-            limit,
+            bucket_seconds,
         )
 
 

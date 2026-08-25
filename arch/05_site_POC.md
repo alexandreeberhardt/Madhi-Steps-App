@@ -33,7 +33,8 @@ secondaires.
 - 7 derniers jours.
 
 - Tout le voyage si les performances restent acceptables ; sinon période
-  limitée.
+  limitée. *Servable depuis le 26 août 2026 : le serveur échantillonne au lieu
+  de tronquer (`arch/17` §4.1).*
 
 # 4. Architecture frontend
 

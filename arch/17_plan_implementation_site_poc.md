@@ -128,7 +128,8 @@ Paramètres : `from`, `to`, `limit`.
   `parse_recorded_at` exige littéralement que la chaîne se termine par `Z`.
   `Date.prototype.toISOString()` produit le bon format.
 - `limit` doit être entre 1 et 10 000, sinon `400 {"error": "invalid_limit"}`.
-  Le défaut est 10 000.
+  Le défaut est 10 000. Ce n'est pas un plafond qui coupe mais un nombre de
+  points visé : le serveur échantillonne pour couvrir toute la période (§4.1).
 - Le tri est `recorded_at asc`.
 
 ## 3.4 Forme d'un point
@@ -151,28 +152,44 @@ famille ne doit pas confondre.
 
 Ce sont les points sur lesquels une implémentation naïve échoue en silence.
 
-## 4.1 `limit` tronque les points les **plus récents**
+## 4.1 `limit` tronquait les points les **plus récents** — corrigé le 26 août 2026
 
-`location_history` ordonne par `recorded_at asc` **puis** applique `limit`. Une
-requête sur tout le voyage avec `limit=10000` renvoie donc les 10 000 points
-les **plus anciens**, et coupe tout ce qui suit — sans erreur.
+*Le piège décrit ici a été supprimé côté serveur. La section reste parce que la
+raison du correctif compte plus que le correctif.*
 
-Conséquence : au bout de 35 jours de voyage, un site qui demande naïvement tout
-l'historique afficherait une « dernière position » figée au 35ᵉ jour, avec un
-statut vert. C'est exactement la panne muette que le projet cherche à éliminer.
+`location_history` ordonnait par `recorded_at asc` **puis** appliquait `limit`.
+Une requête sur tout le voyage avec `limit=10000` renvoyait donc les 10 000
+points les **plus anciens**, et coupait tout ce qui suit — sans erreur.
 
-À 288 points par jour, une année vaut environ 105 000 points, soit dix fois le
-plafond. Trois conséquences fermes :
+Conséquence : au bout de 35 jours de voyage, un site qui demandait naïvement
+tout l'historique aurait affiché une « dernière position » figée au 35ᵉ jour,
+avec un statut vert. Exactement la panne muette que le projet cherche à
+éliminer.
+
+**Ce qui a changé.** Le serveur n'applique plus de `limit` du tout. Il choisit
+un pas de temps — `span / limit`, une seconde au minimum — et ne rend qu'une
+position par tranche, via un `distinct on`. `limit` n'est plus un plafond qui
+coupe mais une **cible** : la réponse couvre toujours toute la période
+demandée, quitte à l'espacer. Une année tient alors en 10 000 points espacés
+d'environ 53 minutes.
+
+Le serveur annonce le pas retenu dans l'en-tête `X-Madhi-Resolution-Seconds`,
+pour que le client puisse dire ce qu'il montre au lieu de le deviner. Un
+en-tête plutôt qu'une enveloppe : la réponse reste la liste que décrit
+`arch/13`, et un client qui l'ignore continue de fonctionner.
+
+Ce qui reste vrai :
 
 1. **La dernière position ne vient jamais de l'historique.** Elle vient de
-   `latest-location`, qui n'a pas de `limit`.
-2. **Toute requête d'historique est bornée par une fenêtre de dates**, jamais
-   par le seul `limit`.
-3. Le filtre « tout le voyage » de `arch/05` §3 n'est **pas** un seul appel. Au
-   POC, le limiter à 30 jours et afficher explicitement la période réellement
-   couverte. `arch/05` §3 l'autorise (« sinon période limitée ») et `arch/06` §5
-   renvoie la pagination et les polylines simplifiées à la V2. Ne pas inventer
-   de pagination ici.
+   `latest-location`. L'historique ne coupe plus la fin, mais il l'échantillonne :
+   sur un an, la position la plus récente qu'il rende peut dater d'une
+   demi-heure.
+2. **Toute requête d'historique reste bornée par une fenêtre de dates.** Pas
+   pour éviter la troncature — elle n'existe plus — mais parce que remonter
+   avant le départ ramènerait les positions de pré-validation, prises à la
+   maison.
+3. Toujours pas de pagination : `arch/06` §5 la renvoie à la V2, et
+   l'échantillonnage la rend inutile pour l'affichage d'un tracé.
 
 De plus : si une réponse contient exactement `limit` points, considérer qu'elle
 est probablement tronquée et le signaler dans l'interface plutôt que de
@@ -311,10 +328,14 @@ Les périodes de `arch/05` §3, chacune produisant `{ from: Date, to: Date }` :
     SEPT_JOURS      maintenant - 7 j -> maintenant
     TRENTE_JOURS    maintenant - 30 j -> maintenant
 
-`TRENTE_JOURS` est la version bornée du « tout le voyage » de `arch/05` §3, que
-le plafond de 10 000 points interdit de servir en un appel (§4.1). Son libellé
-doit dire ce qu'il montre — « 30 derniers jours », pas « tout le voyage » — et
-l'interface affiche la période réellement couverte.
+`TOUT_LE_VOYAGE` s'est ajouté le 26 août 2026, une fois l'échantillonnage
+serveur en place (§4.1) : il est désormais servable en un appel. `TRENTE_JOURS`
+reste, comme palier intermédiaire.
+
+Le libellé doit toujours dire ce qu'il montre. Quand le pas d'échantillonnage
+dépasse la cadence de capture, l'interface annonce un **tracé résumé** — et non
+un tracé incomplet : rien ne manque à la fin, contrairement à l'ancienne
+troncature.
 
 `from` est toujours borné par `startedAt` quand il existe : demander
 l'historique avant le départ ramènerait les points de test.
