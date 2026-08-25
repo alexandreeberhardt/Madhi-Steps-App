@@ -17,7 +17,7 @@ Le critère de réussite du projet n'est pas technique :
 | Brique | État |
 |---|---|
 | Application Android | V1 fonctionnellement complète, carte comprise, en attente de validation terrain |
-| Serveur | POC déployé sur `madhi-server.alexeber.fr`, en HTTPS, avec sauvegarde quotidienne |
+| Serveur | POC déployé sur `madhi-server.alexeber.fr`, en HTTPS, avec sauvegarde quotidienne et surveillance |
 | Site familial | POC en ligne sur `madhi.alexeber.fr`, en HTTPS, derrière un lien secret et un mot de passe |
 
 Les trois briques sont en place et la chaîne est complète, du téléphone au
@@ -131,6 +131,22 @@ répertoire `site/` du dépôt est monté tel quel, sans copie intermédiaire.
 Le déploiement sur `madhi.alexeber.fr` et les vérifications à faire ensuite
 sont dans `site/README.md`.
 
+## Surveillance
+
+Cinq sondes tournent sur le VPS tous les quarts d'heure — API, site, disque,
+âge de la dernière sauvegarde, âge de la dernière position — et alertent sur le
+téléphone. Elles existent parce qu'une panne silencieuse est la panne coûteuse :
+le script de sauvegarde pouvait échouer trente jours d'affilée sans que
+personne le sache.
+
+Aucune alerte ne porte de coordonnée. La sonde de position lit `/status`, qui
+ne renvoie que des horodatages, jamais `/latest-location`.
+
+    sudo tools/monitoring/madhi-check.sh --dry-run
+
+Voir `tools/monitoring/README.md`, et `SERVER_DEPLOYMENT.md` pour la place de
+cette surveillance dans l'exploitation.
+
 ## Serveur de simulation
 
 Le serveur réel est déployé (voir `SERVER_DEPLOYMENT.md`) et les builds le
@@ -161,6 +177,8 @@ Les plus utiles pour comprendre le projet :
 - `arch/18_carte_embarquee_v1.md` — comment la carte est faite, pourquoi elle
   n'a pas de fond de tuiles, et comment lui en ajouter un plus tard
 - `site/README.md` — comment développer, déployer et vérifier le site familial
+- `tools/monitoring/README.md` — ce qui est surveillé, ce qui ne l'est pas, et
+  comment prouver que l'alerte arrive
 
 ## Licence
 

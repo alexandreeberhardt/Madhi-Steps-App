@@ -1,0 +1,17 @@
+[Unit]
+Description=Surveillance minimale du serveur Madhi Tracker
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# /CHEMIN/DU/DEPOT est a remplacer a l'installation, comme pour la sauvegarde :
+# le nom du repertoire du depot varie d'une machine a l'autre. Voir
+# tools/monitoring/README.md.
+ExecStart=/CHEMIN/DU/DEPOT/tools/monitoring/madhi-check.sh
+# La configuration vit dans /etc/madhi/monitoring.env, lu par le script
+# lui-meme : lance a la main, il se comporte exactement comme sous systemd.
+#
+# Le script sort en 1 des qu'une sonde est rouge, donc `systemctl status`
+# affiche `failed` tant que la panne dure. C'est voulu : l'alerte part une fois,
+# mais l'etat, lui, doit rester visible sur la machine.

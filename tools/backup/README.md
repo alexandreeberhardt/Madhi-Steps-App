@@ -74,8 +74,11 @@ le repertoire en 0700, un shell non privilegie ne peut plus le lister, donc
 sans avoir rien change.
 
 Un echec fait sortir le script en code 1, donc `systemctl status` passe en
-`failed`. C'est le seul signal : le POC n'a pas d'alerte, la supervision est
-un sujet V2 (`arch/08`).
+`failed`. Ce n'est plus le seul signal : `tools/monitoring/` regarde l'age de la
+sauvegarde la plus recente tous les quarts d'heure et alerte au-dela de 26 h.
+C'est l'age du fichier qui est juge, pas l'etat du service — un timer qu'on
+aurait oublie d'activer ne laisse aucune trace d'echec, alors qu'il est
+exactement aussi grave qu'un `pg_dump` en erreur.
 
 ## Verifier qu'une sauvegarde contient bien tout
 

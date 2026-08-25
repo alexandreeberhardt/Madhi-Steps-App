@@ -99,6 +99,34 @@ Reserve connue : les copies restent sur le VPS. Perdre la machine, c'est perdre
 la base et ses sauvegardes en meme temps. Tirer une copie chez soi de temps en
 temps, voir `tools/backup/README.md`.
 
+## Surveillance
+
+Les cinq points de `arch/07` §6 sont controles tous les quarts d'heure par
+`tools/monitoring/madhi-check.sh` : sante de l'API, disponibilite du site,
+espace disque, age de la derniere sauvegarde, age de la derniere position recue.
+Une panne part en alerte sur le telephone, une fois au basculement puis une fois
+par jour tant qu'elle dure, et le retablissement est annonce.
+
+    systemctl list-timers | grep madhi-check
+    sudo journalctl -u madhi-check.service --no-pager -n 20
+    sudo tools/monitoring/madhi-check.sh --dry-run
+
+L'installation, les seuils et les verifications sont dans
+`tools/monitoring/README.md`. Deux choses a savoir avant de compter dessus :
+
+**Le canal d'alerte se prouve, il ne se suppose pas.** Une chaine de
+surveillance dont le dernier maillon est mort ressemble en tout point a une
+chaine qui fonctionne :
+
+    sudo tools/monitoring/madhi-check.sh --test-alert
+
+**Un VPS eteint n'alerte pas.** Le script tourne sur la machine qu'il surveille.
+`MADHI_HEARTBEAT_URL` comble ce trou en pinguant une sonde externe quand tout va
+bien ; sans elle, la surveillance suppose un VPS vivant.
+
+Aucune alerte ne contient de coordonnees : la sonde de position lit `/status`,
+qui ne renvoie que des compteurs et des horodatages.
+
 ## Le jour du depart
 
 Toutes les positions vivent dans un seul trip, y compris celles qui ne sont pas
@@ -211,6 +239,10 @@ partir dans le conteneur, qui repondrait 404 et ferait echouer le
 renouvellement en silence. Le greffon nginx de certbot pose son bloc avec une
 precedence superieure, donc cela passe — mais c'est precisement ce que
 `certbot renew --dry-run` sert a prouver, avant novembre plutot que pendant.
+
+La surveillance ne previent pas a l'avance : le jour ou un certificat expire, la
+sonde `api` ou la sonde `site` passe au rouge, mais c'est le jour meme. Les
+dates ci-dessus restent a tenir a la main.
 
 Verifier que le renouvellement automatique est arme :
 

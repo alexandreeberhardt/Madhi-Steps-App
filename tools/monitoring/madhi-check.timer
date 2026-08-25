@@ -1,0 +1,13 @@
+[Unit]
+Description=Surveillance du serveur Madhi Tracker, tous les quarts d'heure
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+# Sans Persistent : rattraper les controles manques n'a aucun sens, seul l'etat
+# present compte. Le decalage evite de taper l'API a la seconde ronde, en meme
+# temps que tout le reste.
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

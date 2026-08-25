@@ -3,6 +3,11 @@
 .env.*
 !.env.example
 
+# Configuration de la surveillance : elle porte l'adresse d'alerte, qui tient
+# lieu de mot de passe. Sa place est /etc/madhi/monitoring.env, mais une copie
+# de travail dans le depot ne doit pas partir avec.
+monitoring.env
+
 # Android signing material
 *.jks
 *.keystore
