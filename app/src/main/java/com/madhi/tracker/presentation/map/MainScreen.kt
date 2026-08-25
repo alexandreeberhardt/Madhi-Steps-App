@@ -1,6 +1,8 @@
 package com.madhi.tracker.presentation.map
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -117,6 +119,10 @@ private fun PeriodSelector(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // Défilante plutôt qu'ajustée au pixel : les trois libellés tiennent
+            // tout juste sur un écran de 360 points, et la première personne
+            // qui agrandit la police du système verrait la rangée se briser.
+            .horizontalScroll(rememberScrollState())
             .padding(start = 20.dp, end = 20.dp, top = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -124,7 +130,7 @@ private fun PeriodSelector(
             FilterChip(
                 selected = period == selected,
                 onClick = { onSelect(period) },
-                label = { Text(periodLabel(period)) },
+                label = { Text(periodLabel(period), maxLines = 1) },
             )
         }
     }
