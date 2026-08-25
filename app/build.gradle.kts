@@ -13,11 +13,16 @@ plugins {
  * Lit une valeur de configuration sensible sans jamais la faire entrer dans Git.
  * Ordre : variable d'environnement, puis fichier local non versionné, puis défaut.
  * L'environnement l'emporte pour que la CI n'ait besoin d'aucun fichier.
+ *
+ * Lu en UTF-8 explicitement : `Properties.load(InputStream)` décode en
+ * ISO-8859-1, et la mention légale « Maps © Thunderforest » s'affichait
+ * « Maps Â© Thunderforest » sur le téléphone. Le piège est classique et
+ * silencieux — rien n'échoue, le texte est simplement faux.
  */
 fun localConfig(fileName: String): Properties =
     Properties().apply {
         val file = rootProject.file(fileName)
-        if (file.exists()) file.inputStream().use(::load)
+        if (file.exists()) file.reader(Charsets.UTF_8).use(::load)
     }
 
 val localProperties = localConfig("local.properties")
