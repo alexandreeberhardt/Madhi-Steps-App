@@ -55,13 +55,9 @@ class RoomLocationStore @Inject constructor(
     override fun observeLastRecordedAt(): Flow<Instant?> =
         dao.observeLastRecordedAt().map { it?.let(Instant::ofEpochMilli) }
 
-    /**
-     * Le DAO rend les points du plus récent au plus ancien ; la carte les
-     * relie dans l'ordre du voyage. L'inversion se fait ici, une fois, et non
-     * à chaque image de rendu.
-     */
-    override fun observeRecentTrack(limit: Int): Flow<List<TrackPoint>> =
-        dao.observeRecentTrack(limit).map { rows -> rows.asReversed().map { it.toDomain() } }
+    override fun observeTrack(since: Instant, bucketMillis: Long): Flow<List<TrackPoint>> =
+        dao.observeTrack(since.toEpochMilli(), bucketMillis.coerceAtLeast(1L))
+            .map { rows -> rows.map { it.toDomain() } }
 
     private fun TrackPointRow.toDomain(): TrackPoint = TrackPoint(
         coordinates = Coordinates(latitude, longitude),

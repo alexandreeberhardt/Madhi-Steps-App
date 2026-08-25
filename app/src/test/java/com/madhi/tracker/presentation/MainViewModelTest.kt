@@ -1,7 +1,7 @@
 package com.madhi.tracker.presentation
 
 import com.madhi.tracker.application.usecase.LoadMapTile
-import com.madhi.tracker.application.usecase.ObserveRecentTrack
+import com.madhi.tracker.application.usecase.ObserveTrack
 import com.madhi.tracker.application.usecase.ObserveTrackingStatus
 import com.madhi.tracker.application.usecase.StartTracking
 import com.madhi.tracker.domain.model.CaptureInterval
@@ -65,7 +65,7 @@ class MainViewModelTest {
             credentials = credentials,
             clock = clock,
         ),
-        observeRecentTrack = ObserveRecentTrack(locationStore),
+        observeTrack = ObserveTrack(locationStore, clock),
         loadMapTile = LoadMapTile(FakeTileStore()),
         startTracking = StartTracking(intentStore, runtime, captureScheduler, syncScheduler, eventLog),
     )

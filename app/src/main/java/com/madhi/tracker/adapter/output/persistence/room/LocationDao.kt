@@ -79,21 +79,30 @@ interface LocationDao {
     suspend fun oldestPendingRecordedAt(): Long?
 
     /**
-     * Le tracé de la carte, colonnes utiles seulement.
+     * Le tracé de la carte, colonnes utiles seulement et un point par pas de
+     * temps.
      *
      * `SELECT *` chargerait douze colonnes pour en dessiner trois, sur une
-     * table qui compte plus de cent mille lignes au bout d'un an. Les plus
-     * récents d'abord parce que c'est le sens de l'index et de la limite ;
-     * le store remet le résultat dans l'ordre du voyage.
+     * table qui compte plus de cent mille lignes au bout d'un an. Le
+     * regroupement par pas de temps borne le résultat sans plafond arbitraire :
+     * « tout le voyage » rend une position par heure, pas les cent mille.
+     *
+     * `MIN(recorded_at)` choisit la position la plus ancienne de chaque pas,
+     * et SQLite prend latitude, longitude et état sur **cette ligne-là** —
+     * comportement documenté des colonnes nues accompagnant un MIN. La
+     * qualification `locations.recorded_at` dans le GROUP BY est nécessaire :
+     * sans elle, le nom désignerait l'alias de sortie, qui est un agrégat.
      */
     @Query(
         """
-        SELECT latitude, longitude, recorded_at, sync_state FROM locations
-        ORDER BY recorded_at DESC
-        LIMIT :limit
+        SELECT latitude, longitude, MIN(locations.recorded_at) AS recorded_at, sync_state
+        FROM locations
+        WHERE locations.recorded_at >= :sinceEpochMillis
+        GROUP BY locations.recorded_at / :bucketMillis
+        ORDER BY MIN(locations.recorded_at) ASC
         """,
     )
-    fun observeRecentTrack(limit: Int): Flow<List<TrackPointRow>>
+    fun observeTrack(sinceEpochMillis: Long, bucketMillis: Long): Flow<List<TrackPointRow>>
 }
 
 /** Projection de lecture : trois valeurs à dessiner, pas une ligne entière. */

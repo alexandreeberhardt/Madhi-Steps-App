@@ -146,12 +146,19 @@ class FakeLocationStore : LocationStore {
 
     override fun observeLastRecordedAt(): Flow<Instant?> = MutableStateFlow(null)
 
-    override fun observeRecentTrack(limit: Int): Flow<List<TrackPoint>> = MutableStateFlow(
-        points.values
-            .sortedBy { it.recordedAt }
-            .takeLast(limit)
-            .map { TrackPoint(it.coordinates, it.recordedAt, it.syncState) },
-    )
+    override fun observeTrack(since: Instant, bucketMillis: Long): Flow<List<TrackPoint>> =
+        MutableStateFlow(
+            points.values
+                .filter { !it.recordedAt.isBefore(since) }
+                .sortedBy { it.recordedAt }
+                // Reproduit le regroupement SQL : un point par tranche, le
+                // plus ancien de la tranche.
+                .groupBy { it.recordedAt.toEpochMilli() / bucketMillis.coerceAtLeast(1L) }
+                .toSortedMap()
+                .values
+                .map { tranche -> tranche.first() }
+                .map { TrackPoint(it.coordinates, it.recordedAt, it.syncState) },
+        )
 }
 
 /**

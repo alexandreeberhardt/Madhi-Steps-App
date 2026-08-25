@@ -3,24 +3,29 @@ package com.madhi.tracker.presentation.map
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.madhi.tracker.application.usecase.LoadMapTile
-import com.madhi.tracker.application.usecase.ObserveRecentTrack
+import com.madhi.tracker.application.usecase.ObserveTrack
 import com.madhi.tracker.application.usecase.ObserveTrackingStatus
 import com.madhi.tracker.application.usecase.StartTracking
 import com.madhi.tracker.domain.TileId
+import com.madhi.tracker.domain.model.TrackPeriod
 import com.madhi.tracker.domain.model.TrackPoint
 import com.madhi.tracker.domain.model.TrackingHealth
 import com.madhi.tracker.domain.model.TrackingStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MainViewModel @Inject constructor(
     observeTrackingStatus: ObserveTrackingStatus,
-    observeRecentTrack: ObserveRecentTrack,
+    observeTrack: ObserveTrack,
     private val loadMapTile: LoadMapTile,
     private val startTracking: StartTracking,
 ) : ViewModel() {
@@ -32,19 +37,28 @@ class MainViewModel @Inject constructor(
             initialValue = null,
         )
 
+    private val selectedPeriod = MutableStateFlow(TrackPeriod.SEVEN_DAYS)
+
+    val period: StateFlow<TrackPeriod> = selectedPeriod
+
     /**
-     * Le tracé dessiné par la carte.
+     * Le tracé dessiné par la carte, pour la période choisie.
      *
      * `WhileSubscribed` compte double ici : écran éteint, la requête cesse et
      * la base n'est plus relue à chaque position enregistrée. La carte ne doit
      * rien coûter quand personne ne la regarde.
      */
-    val track: StateFlow<List<TrackPoint>> = observeRecentTrack()
+    val track: StateFlow<List<TrackPoint>> = selectedPeriod
+        .flatMapLatest { observeTrack(it) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
             initialValue = emptyList(),
         )
+
+    fun onPeriodSelected(period: TrackPeriod) {
+        selectedPeriod.value = period
+    }
 
     val tilesEnabled: Boolean get() = loadMapTile.isEnabled
 

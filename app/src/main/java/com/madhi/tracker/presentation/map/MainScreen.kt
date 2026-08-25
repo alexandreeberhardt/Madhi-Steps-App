@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.madhi.tracker.domain.model.TrackPeriod
 import com.madhi.tracker.domain.model.TrackingHealth
 import com.madhi.tracker.domain.model.TrackingProblem
 import com.madhi.tracker.domain.model.TrackingStatus
@@ -55,6 +57,7 @@ fun MainScreen(
 ) {
     val status by viewModel.status.collectAsStateWithLifecycle()
     val track by viewModel.track.collectAsStateWithLifecycle()
+    val period by viewModel.period.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -80,6 +83,11 @@ fun MainScreen(
 
             HorizontalDivider()
 
+            PeriodSelector(
+                selected = period,
+                onSelect = viewModel::onPeriodSelected,
+            )
+
             StatusBar(
                 status = status,
                 now = now,
@@ -90,6 +98,44 @@ fun MainScreen(
     }
 }
 
+/**
+ * Le choix de ce que la carte montre.
+ *
+ * Posé sous la carte plutôt que par-dessus : `arch/09` §2 veut une carte qui
+ * occupe l'écran, et trois boutons flottants lui mangeraient un coin. Il est
+ * en tête du bandeau parce qu'il gouverne la carte, pas l'état du suivi.
+ *
+ * Les libellés sont ceux du site familial (`site/features/period.js`), à une
+ * exception près : le site s'arrête à trente jours faute de pouvoir en servir
+ * davantage en un appel. Ici la base est locale.
+ */
+@Composable
+private fun PeriodSelector(
+    selected: TrackPeriod,
+    onSelect: (TrackPeriod) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 20.dp, top = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        TrackPeriod.entries.forEach { period ->
+            FilterChip(
+                selected = period == selected,
+                onClick = { onSelect(period) },
+                label = { Text(periodLabel(period)) },
+            )
+        }
+    }
+}
+
+private fun periodLabel(period: TrackPeriod): String = when (period) {
+    TrackPeriod.TODAY -> "Aujourd'hui"
+    TrackPeriod.SEVEN_DAYS -> "7 jours"
+    TrackPeriod.EVERYTHING -> "Tout le voyage"
+}
+
 @Composable
 private fun StatusBar(
     status: TrackingStatus?,
@@ -98,7 +144,9 @@ private fun StatusBar(
     onFixProblem: (TrackingProblem) -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(20.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         if (status == null) {

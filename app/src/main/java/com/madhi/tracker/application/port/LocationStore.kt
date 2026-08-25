@@ -38,9 +38,14 @@ interface LocationStore {
     fun observeLastRecordedAt(): Flow<Instant?>
 
     /**
-     * Le tracé récent, du plus ancien au plus récent, plafonné à [limit]
-     * points. L'ordre chronologique est un contrat : la carte relie les
-     * points dans l'ordre reçu, une inversion dessinerait un aller-retour.
+     * Le tracé depuis [since], du plus ancien au plus récent.
+     *
+     * [bucketMillis] est le pas de temps : les positions d'un même pas sont
+     * réduites à une seule. C'est ce qui borne le nombre de points quelle que
+     * soit la durée demandée. Un pas de 1 ms ne regroupe rien.
+     *
+     * L'ordre chronologique est un contrat : la carte relie les points dans
+     * l'ordre reçu, une inversion dessinerait un aller-retour.
      */
-    fun observeRecentTrack(limit: Int): Flow<List<TrackPoint>>
+    fun observeTrack(since: Instant, bucketMillis: Long): Flow<List<TrackPoint>>
 }

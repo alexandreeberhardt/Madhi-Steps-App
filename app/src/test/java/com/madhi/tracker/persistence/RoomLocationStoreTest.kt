@@ -296,12 +296,11 @@ class RoomLocationStoreTest {
     }
     @Test
     fun rend_le_trace_dans_l_ordre_du_voyage() = runTest {
-        // Le DAO lit les plus récents d'abord pour profiter de la limite ;
-        // la carte, elle, relie les points dans l'ordre parcouru. Une
-        // inversion dessinerait un aller-retour.
+        // Insérés dans le désordre : la carte relie les points dans l'ordre
+        // parcouru, une inversion dessinerait un aller-retour.
         listOf(30L, 0L, 10L).forEach { store.save(pointAt(it)) }
 
-        val track = store.observeRecentTrack(limit = 10).first()
+        val track = store.observeTrack(Instant.EPOCH, bucketMillis = 1).first()
 
         assertEquals(
             listOf(baseTime, baseTime.plusSeconds(600), baseTime.plusSeconds(1_800)),
@@ -310,15 +309,49 @@ class RoomLocationStoreTest {
     }
 
     @Test
-    fun le_trace_garde_les_points_les_plus_recents_quand_il_est_plafonne() = runTest {
-        // Ce qui intéresse la carte est la fin du voyage, pas son début.
+    fun le_trace_ne_remonte_pas_avant_la_periode_demandee() = runTest {
         (0L until 10L).forEach { store.save(pointAt(it)) }
 
-        val track = store.observeRecentTrack(limit = 3).first()
+        val track = store.observeTrack(baseTime.plusSeconds(7 * 60), bucketMillis = 1).first()
 
         assertEquals(3, track.size)
         assertEquals(baseTime.plusSeconds(7 * 60), track.first().recordedAt)
         assertEquals(baseTime.plusSeconds(9 * 60), track.last().recordedAt)
+    }
+
+    @Test
+    fun le_pas_de_temps_reduit_chaque_tranche_a_un_point() = runTest {
+        // Dix points d'une minute, regroupés par tranches de cinq minutes :
+        // il en reste deux, et ce sont les plus anciens de chaque tranche.
+        (0L until 10L).forEach { store.save(pointAt(it)) }
+
+        val track = store.observeTrack(Instant.EPOCH, bucketMillis = 5 * 60_000L).first()
+
+        assertEquals(2, track.size)
+        assertEquals(baseTime, track.first().recordedAt)
+        assertEquals(baseTime.plusSeconds(5 * 60), track.last().recordedAt)
+    }
+
+    @Test
+    fun le_point_garde_les_coordonnees_de_sa_propre_ligne_apres_regroupement() = runTest {
+        // Le piège du regroupement SQL : rendre l'horodatage d'une ligne et
+        // les coordonnées d'une autre placerait le point au mauvais endroit.
+        (0L until 4L).forEach { store.save(pointAt(it)) }
+
+        val groupe = store.observeTrack(Instant.EPOCH, bucketMillis = 60 * 60_000L).first().single()
+        val attendu = pointAt(0)
+
+        assertEquals(attendu.recordedAt, groupe.recordedAt)
+        assertEquals(attendu.coordinates, groupe.coordinates)
+    }
+
+    @Test
+    fun un_pas_de_temps_nul_ne_fait_pas_disparaitre_le_trace() = runTest {
+        // Une division par zéro en SQL rendrait NULL, donc un seul groupe
+        // pour toute la base. Le store ramène le pas à un millimètre de temps.
+        (0L until 3L).forEach { store.save(pointAt(it)) }
+
+        assertEquals(3, store.observeTrack(Instant.EPOCH, bucketMillis = 0).first().size)
     }
 
     @Test
@@ -330,7 +363,7 @@ class RoomLocationStoreTest {
         listOf(sent, kept).forEach { store.save(it) }
         store.markSynced(listOf(sent.id), at = baseTime)
 
-        val track = store.observeRecentTrack(limit = 10).first()
+        val track = store.observeTrack(Instant.EPOCH, bucketMillis = 1).first()
 
         assertEquals(listOf(SyncState.SYNCED, SyncState.PENDING), track.map { it.syncState })
         assertEquals(sent.coordinates, track.first().coordinates)
@@ -338,6 +371,6 @@ class RoomLocationStoreTest {
 
     @Test
     fun le_trace_d_une_base_vide_est_vide() = runTest {
-        assertTrue(store.observeRecentTrack(limit = 10).first().isEmpty())
+        assertTrue(store.observeTrack(Instant.EPOCH, bucketMillis = 1).first().isEmpty())
     }
 }
