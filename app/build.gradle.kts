@@ -209,6 +209,12 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
+    // Les gestes de la carte ne se testent qu'en composant l'écran pour de
+    // vrai : le défaut corrigé par MapCamera vivait dans le câblage Compose,
+    // pas dans la géométrie, et aucun test de `domain/` ne pouvait le voir.
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    debugImplementation(libs.compose.ui.test.manifest)
     testImplementation(libs.androidx.test.junit)
     testImplementation(libs.room.testing)
     testImplementation(libs.work.testing)

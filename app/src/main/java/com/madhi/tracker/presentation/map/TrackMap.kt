@@ -15,6 +15,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,6 +76,7 @@ import com.madhi.tracker.presentation.common.TrackColors
 fun TrackMap(
     points: List<TrackPoint>,
     modifier: Modifier = Modifier,
+    camera: MapCamera = rememberMapCamera(),
     loadTile: (suspend (TileId) -> ByteArray?)? = null,
     attribution: String = "",
     maxTileZoom: Int = TileGrid.DEFAULT_MAX_TILE_ZOOM,
@@ -100,10 +102,6 @@ fun TrackMap(
     // tuiles : celle de Thunderforest tient sur toute la largeur de l'écran.
     var attributionHeight by remember { mutableStateOf(0) }
 
-    // Un cadrage choisi à la main survit à l'arrivée d'une nouvelle position ;
-    // sinon la carte sauterait sous les doigts toutes les cinq minutes.
-    var manualViewport by remember { mutableStateOf<MapViewport?>(null) }
-
     // La projection ne dépend que des points : la refaire à chaque image de
     // glissement gaspillerait deux mille logarithmes pour rien.
     val projected = remember(points) { points.map { MapProjection.normalized(it.coordinates) } }
@@ -125,7 +123,12 @@ fun TrackMap(
             insets = insets,
         )
     }
-    val viewport = manualViewport ?: automaticViewport
+    val viewport = camera.manual ?: automaticViewport
+
+    // Le cadrage automatique est confié à la caméra après la composition : le
+    // gestionnaire de gestes le relit là, et non dans une variable locale
+    // qu'il aurait figée au premier passage.
+    SideEffect { camera.followTrack(automaticViewport) }
 
     // Les tuiles visibles ne dependent que du cadrage et de la taille : les
     // recalculer a chaque image de glissement est du calcul entier, negligeable
@@ -166,22 +169,19 @@ fun TrackMap(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
+                .pointerInput(camera) {
                     detectTransformGestures { centroid, pan, zoom, _ ->
-                        val current = manualViewport ?: automaticViewport ?: return@detectTransformGestures
-                        val width = size.width.toDouble()
-                        val height = size.height.toDouble()
-                        manualViewport = current
-                            .pannedBy(pan.x.toDouble(), pan.y.toDouble())
-                            .zoomedBy(
-                                scale = zoom.toDouble(),
-                                focus = ScreenPoint(
-                                    x = centroid.x.toDouble(),
-                                    y = centroid.y.toDouble(),
-                                ),
-                                widthPixels = width,
-                                heightPixels = height,
-                            )
+                        camera.onGesture(
+                            panXPixels = pan.x.toDouble(),
+                            panYPixels = pan.y.toDouble(),
+                            scale = zoom.toDouble(),
+                            focus = ScreenPoint(
+                                x = centroid.x.toDouble(),
+                                y = centroid.y.toDouble(),
+                            ),
+                            widthPixels = size.width.toDouble(),
+                            heightPixels = size.height.toDouble(),
+                        )
                     }
                 },
         ) {
@@ -231,9 +231,9 @@ fun TrackMap(
                 .padding(LEGEND_MARGIN),
         )
 
-        if (manualViewport != null) {
+        if (camera.isManual) {
             FilledTonalButton(
-                onClick = { manualViewport = null },
+                onClick = camera::recenter,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 16.dp, bottom = RECENTER_BOTTOM_MARGIN)
