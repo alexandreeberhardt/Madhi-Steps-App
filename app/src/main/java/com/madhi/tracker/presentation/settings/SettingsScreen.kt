@@ -1,6 +1,5 @@
 package com.madhi.tracker.presentation.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -20,6 +18,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,10 @@ fun SettingsScreen(
             )
         },
     ) { padding ->
+        // Replié par défaut, et à chaque retour sur l'écran : l'état courant
+        // est ce qu'on vient voir, le reste est du dépannage.
+        var autresOuverts by rememberSaveable { mutableStateOf(false) }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -82,46 +87,80 @@ fun SettingsScreen(
                 Line("Dernier envoi réussi", relativeAge(state.syncJournal.lastSuccessAt, now))
             }
 
-            Section("Appareil") {
-                Line("Relié au voyage", if (state.deviceActivated) "oui" else "non")
-                OutlinedButton(onClick = onOpenActivation, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (state.deviceActivated) "Réactiver l'appareil" else "Activer l'appareil")
-                }
-            }
+            AutresReglages(expanded = autresOuverts, onToggle = { autresOuverts = !autresOuverts })
 
-            Section("Diagnostic") {
-                Text(
-                    "État détaillé du GPS, du réseau, des autorisations et du serveur.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                OutlinedButton(onClick = onOpenDiagnostics, modifier = Modifier.fillMaxWidth()) {
-                    Text("Ouvrir le diagnostic")
+            if (autresOuverts) {
+                Section("Appareil") {
+                    Line("Relié au voyage", if (state.deviceActivated) "oui" else "non")
+                    OutlinedButton(onClick = onOpenActivation, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            if (state.deviceActivated) {
+                                "Réactiver l'appareil"
+                            } else {
+                                "Activer l'appareil"
+                            },
+                        )
+                    }
                 }
-            }
 
-            Section("Application") {
-                Line("Version", state.appVersion)
+                Section("Diagnostic") {
+                    Text(
+                        "État détaillé du GPS, du réseau, des autorisations et du serveur.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    OutlinedButton(onClick = onOpenDiagnostics, modifier = Modifier.fillMaxWidth()) {
+                        Text("Ouvrir le diagnostic")
+                    }
+                }
+
+                Section("Application") {
+                    Line("Version", state.appVersion)
+                    Text(
+                        "Les positions sont envoyées uniquement au serveur du voyage. " +
+                            "Aucun service tiers ne les reçoit, et aucune coordonnée n'est " +
+                            "écrite dans les journaux techniques.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+
+                HorizontalDivider()
+
+                OutlinedButton(
+                    onClick = viewModel::onToggleTracking,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        if (state.intent.enabled) {
+                            "Désactiver le tracking"
+                        } else {
+                            "Activer le tracking"
+                        },
+                    )
+                }
+                // Cette précision évite la crainte légitime de perdre son trajet
+                // en coupant le suivi (`arch/09` §5).
                 Text(
-                    "Les positions sont envoyées uniquement au serveur du voyage. " +
-                        "Aucun service tiers ne les reçoit, et aucune coordonnée n'est " +
-                        "écrite dans les journaux techniques.",
+                    "Désactiver arrête la collecte de nouvelles positions. Les positions " +
+                        "déjà enregistrées sont conservées et continuent d'être envoyées.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-
-            HorizontalDivider()
-
-            OutlinedButton(onClick = viewModel::onToggleTracking, modifier = Modifier.fillMaxWidth()) {
-                Text(if (state.intent.enabled) "Désactiver le tracking" else "Activer le tracking")
-            }
-            // Cette précision évite la crainte légitime de perdre son trajet
-            // en coupant le suivi (`arch/09` §5).
-            Text(
-                "Désactiver arrête la collecte de nouvelles positions. Les positions " +
-                    "déjà enregistrées sont conservées et continuent d'être envoyées.",
-                style = MaterialTheme.typography.bodySmall,
-            )
         }
+    }
+}
+
+/**
+ * Le reste des réglages, replié.
+ *
+ * Ce qu'on vient chercher ici au quotidien tient en deux choses : la cadence,
+ * et l'état de la synchronisation. Activer l'appareil, ouvrir le diagnostic,
+ * couper le suivi sont des gestes de dépannage — rares, et jamais urgents au
+ * point de justifier qu'ils encombrent l'écran tous les jours.
+ */
+@Composable
+private fun AutresReglages(expanded: Boolean, onToggle: () -> Unit) {
+    TextButton(onClick = onToggle, modifier = Modifier.fillMaxWidth()) {
+        Text(if (expanded) "Masquer les autres réglages" else "Autres réglages")
     }
 }
 
