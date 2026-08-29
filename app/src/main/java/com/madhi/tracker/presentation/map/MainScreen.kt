@@ -138,6 +138,7 @@ private fun PeriodSelector(
 
 private fun periodLabel(period: TrackPeriod): String = when (period) {
     TrackPeriod.TODAY -> "Aujourd'hui"
+    TrackPeriod.LAST_24H -> "24 h"
     TrackPeriod.SEVEN_DAYS -> "7 jours"
     TrackPeriod.EVERYTHING -> "Tout le voyage"
 }

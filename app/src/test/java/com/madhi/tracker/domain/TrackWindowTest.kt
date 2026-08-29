@@ -35,6 +35,26 @@ class TrackWindowTest {
     }
 
     @Test
+    fun `vingt-quatre heures est une duree, pas une date`() {
+        // La difference avec « aujourd'hui » saute aux yeux la nuit : a 11h30
+        // heure de Paris, la journee civile a commence il y a 11h30, les
+        // vingt-quatre heures remontent a la veille a la meme heure.
+        val since = TrackWindow.since(TrackPeriod.LAST_24H, now, paris)
+
+        assertEquals(Instant.parse("2026-08-25T09:30:00Z"), since)
+    }
+
+    @Test
+    fun `vingt-quatre heures ne depend pas du fuseau`() {
+        val honolulu = ZoneId.of("Pacific/Honolulu")
+
+        assertEquals(
+            TrackWindow.since(TrackPeriod.LAST_24H, now, paris),
+            TrackWindow.since(TrackPeriod.LAST_24H, now, honolulu),
+        )
+    }
+
+    @Test
     fun `sept jours remonte de sept jours pleins`() {
         val since = TrackWindow.since(TrackPeriod.SEVEN_DAYS, now, paris)
 
@@ -58,23 +78,27 @@ class TrackWindowTest {
         val an = 365 * jour
 
         val aujourdhui = jour / TrackWindow.bucketMillis(TrackPeriod.TODAY)
+        val vingtQuatreHeures = jour / TrackWindow.bucketMillis(TrackPeriod.LAST_24H)
         val semaine = 7 * jour / TrackWindow.bucketMillis(TrackPeriod.SEVEN_DAYS)
         val voyage = an / TrackWindow.bucketMillis(TrackPeriod.EVERYTHING)
 
         assertEquals(1_440, aujourdhui)
+        assertEquals(1_440, vingtQuatreHeures)
         assertEquals(2_016, semaine)
         assertEquals(8_760, voyage)
     }
 
     @Test
-    fun `plus la periode est longue, plus le pas est grossier`() {
+    fun `le pas ne se raffine jamais quand la periode s'allonge`() {
+        // Les periodes sont declarees de la plus courte a la plus longue, et
+        // le pas doit suivre cet ordre. « Aujourd'hui » et « 24 h » partagent
+        // le leur : elles ne peuvent pas depasser un jour.
+        val pas = TrackPeriod.entries.map(TrackWindow::bucketMillis)
+
+        assertEquals(pas.sorted(), pas)
         assertTrue(
-            TrackWindow.bucketMillis(TrackPeriod.TODAY) <
+            TrackWindow.bucketMillis(TrackPeriod.LAST_24H) <
                 TrackWindow.bucketMillis(TrackPeriod.SEVEN_DAYS),
-        )
-        assertTrue(
-            TrackWindow.bucketMillis(TrackPeriod.SEVEN_DAYS) <
-                TrackWindow.bucketMillis(TrackPeriod.EVERYTHING),
         )
     }
 }

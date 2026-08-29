@@ -17,6 +17,7 @@ import java.time.temporal.ChronoUnit
  * soit la cadence de capture réglée** :
  *
  * - aujourd'hui, une minute au plus : 1 440 points ;
+ * - vingt-quatre heures, une minute : 1 440 points ;
  * - sept jours, cinq minutes : environ 2 000 points ;
  * - tout le voyage, une heure : environ 8 800 points par an.
  */
@@ -26,6 +27,9 @@ object TrackWindow {
         // Le jour civil de la voyageuse, pas les vingt-quatre dernières
         // heures : « aujourd'hui » désigne une date, pas une durée.
         TrackPeriod.TODAY -> now.atZone(zone).toLocalDate().atStartOfDay(zone).toInstant()
+
+        // Une duree, cette fois : elle ne depend pas de l'heure qu'il est.
+        TrackPeriod.LAST_24H -> now.minus(24, ChronoUnit.HOURS)
 
         TrackPeriod.SEVEN_DAYS -> now.minus(7, ChronoUnit.DAYS)
 
@@ -37,6 +41,11 @@ object TrackWindow {
 
     fun bucketMillis(period: TrackPeriod): Long = when (period) {
         TrackPeriod.TODAY -> 60_000L
+
+        // Meme pas qu'« aujourd'hui » : la periode ne peut pas etre plus
+        // longue qu'un jour, donc le meme plafond de points la borne.
+        TrackPeriod.LAST_24H -> 60_000L
+
         TrackPeriod.SEVEN_DAYS -> 300_000L
         TrackPeriod.EVERYTHING -> 3_600_000L
     }
