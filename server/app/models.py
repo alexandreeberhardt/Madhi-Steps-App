@@ -21,6 +21,10 @@ class ActivationResponse(BaseModel):
     tripId: str
 
 
+class ReverseGeocodeResponse(BaseModel):
+    address: str
+
+
 class LocationPoint(BaseModel):
     model_config = ConfigDict(extra="ignore")
 

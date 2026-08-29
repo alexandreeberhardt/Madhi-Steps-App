@@ -25,6 +25,7 @@ from .db import (
     trip_status,
     utc_iso,
 )
+from .geocoding import ReverseGeocoder
 from .logging_config import configure_logging
 from .sampling import MAX_HISTORY_POINTS, sampling_step_seconds
 from .models import (
@@ -35,6 +36,7 @@ from .models import (
     LocationPoint,
     LocationResponse,
     RejectedPoint,
+    ReverseGeocodeResponse,
     TripStatusResponse,
     parse_recorded_at,
 )
@@ -46,6 +48,17 @@ settings = load_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger("madhi.server")
 rate_limiter = InMemoryRateLimiter(settings.rate_limit_per_minute)
+
+# Absent tant que l'option n'est pas allumee : le code ne peut pas appeler un
+# tiers que la configuration n'a pas autorise.
+geocoder = (
+    ReverseGeocoder(
+        url=settings.reverse_geocode_url,
+        user_agent=settings.reverse_geocode_user_agent,
+    )
+    if settings.reverse_geocode_enabled
+    else None
+)
 
 
 @asynccontextmanager
@@ -159,6 +172,38 @@ async def locations_batch(
         extra={"device_id": str(device.device_id), "trip_id": str(device.trip_id)},
     )
     return LocationBatchResponse(accepted=accepted, duplicates=duplicates, rejected=rejected)
+
+
+@app.get("/api/v1/reverse-geocode", response_model=ReverseGeocodeResponse)
+async def reverse_geocode(
+    lat: float,
+    lon: float,
+    raw_request: Request,
+    token: Annotated[str, Depends(parse_bearer)],
+) -> ReverseGeocodeResponse:
+    """L'adresse d'une position, pour la bulle d'un point de la carte.
+
+    Authentifie comme l'envoi de positions : ce n'est pas un service de
+    geocodage ouvert, c'est un relais pour les appareils du voyage. Sans cette
+    condition, l'adresse du serveur suffirait a faire tourner un geocodeur
+    gratuit sur le dos du VPS.
+
+    Aucune coordonnee n'entre dans les journaux, ici comme ailleurs.
+    """
+    device = await authenticate_device(raw_request.app.state.pool, settings, token)
+    if device is None:
+        raise HTTPException(status_code=401, detail={"error": "unauthorized"})
+
+    if geocoder is None:
+        raise HTTPException(status_code=503, detail={"error": "reverse_geocode_disabled"})
+
+    if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lon <= 180.0):
+        raise HTTPException(status_code=400, detail={"error": "invalid_coordinates"})
+
+    address = await geocoder.lookup(lat, lon)
+    if address is None:
+        raise HTTPException(status_code=404, detail={"error": "address_not_found"})
+    return ReverseGeocodeResponse(address=address)
 
 
 @app.get("/api/v1/trips/{trip_id}/latest-location", response_model=LocationResponse | None)

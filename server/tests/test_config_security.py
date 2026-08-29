@@ -29,6 +29,32 @@ def production_settings(**overrides) -> Settings:
     return Settings(**values)
 
 
+def test_le_geocodage_exige_une_identite_reelle():
+    # Nominatim refuse le trafic anonyme, et il a raison : c'est un bien
+    # commun. Mieux vaut echouer au demarrage qu'etre bloque en voyage.
+    settings = production_settings(reverse_geocode_enabled=True, reverse_geocode_user_agent="")
+
+    with pytest.raises(RuntimeError, match="REVERSE_GEOCODE_USER_AGENT"):
+        validate_settings(settings)
+
+
+def test_le_geocodage_refuse_une_adresse_en_clair():
+    settings = production_settings(
+        reverse_geocode_enabled=True,
+        reverse_geocode_user_agent="Madhi Tracker (contact@exemple.fr)",
+        reverse_geocode_url="http://nominatim.openstreetmap.org/reverse",
+    )
+
+    with pytest.raises(RuntimeError, match="REVERSE_GEOCODE_URL"):
+        validate_settings(settings)
+
+
+def test_le_geocodage_eteint_n_exige_rien():
+    # Le defaut : un deploiement qui ne touche pas a cette option reste
+    # valide, et aucune coordonnee ne sort du VPS.
+    validate_settings(production_settings())
+
+
 def test_production_rejects_example_secret():
     settings = production_settings(device_token_hash_secret="dev-secret-change-me")
 

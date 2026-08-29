@@ -79,6 +79,34 @@ PostgreSQL est lance par Docker Compose et stocke les donnees dans le volume :
 
 Ce volume contient les positions serveur et doit etre sauvegarde.
 
+## Adresse des points de la carte
+
+Toucher un point du trace dans l'application ouvre une bulle avec l'heure et
+l'adresse. L'adresse est demandee au serveur, jamais par le telephone : c'est
+le seul moyen qu'un tiers ne voie ni la position exacte ni l'adresse IP du
+reseau mobile traverse. Le VPS, lui, expose une adresse IP fixe deja publique.
+
+**L'option est eteinte par defaut**, et un deploiement qui n'y touche pas ne
+change rien a ce qui sort du VPS. Pour l'allumer, dans le `.env` du serveur :
+
+    REVERSE_GEOCODE_ENABLED=true
+    REVERSE_GEOCODE_USER_AGENT=Madhi Tracker (<une adresse de courriel joignable>)
+
+L'identite est obligatoire des que l'option est allumee, et le serveur refuse
+de demarrer sans elle : Nominatim exige un `User-Agent` nominatif et refuse le
+trafic anonyme. Il a raison, c'est un bien commun. Le relais espace ses appels
+d'au moins une seconde et met les reponses en cache, comme le demande sa
+politique d'usage.
+
+Verifier apres redeploiement, avec un jeton d'appareil valide :
+
+    curl -s -H "Authorization: Bearer <deviceToken>" \
+      "https://madhi-server.alexeber.fr/api/v1/reverse-geocode?lat=48.8566&lon=2.3522"
+
+Un `503 reverse_geocode_disabled` signifie que l'option n'est pas allumee.
+Aucun de ces echecs n'est visible comme une panne dans l'application : la bulle
+affiche alors l'heure et les coordonnees, qui viennent de la base locale.
+
 ## Sauvegarde
 
 Une sauvegarde quotidienne est fournie par `tools/backup/` : un `pg_dump`

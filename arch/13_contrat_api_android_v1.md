@@ -137,18 +137,58 @@ Erreurs globales — sémantique figée par `arch/03` §10 :
 
 **Aucun code de retour, quel qu'il soit, ne déclenche la suppression d'un point.**
 
-# 6. Endpoints non utilisés par l'application V1
+# 6. `GET /api/v1/reverse-geocode`
+
+Le seul `GET` que l'application émette, et seulement sur geste explicite :
+toucher un point du tracé ouvre une bulle qui affiche l'heure et l'adresse.
+
+```
+GET /api/v1/reverse-geocode?lat=48.8566&lon=2.3522
+Authorization: Bearer <deviceToken>
+```
+
+Réponse `200` :
+
+```json
+{ "address": "12 Rue de la Paix, Paris, France" }
+```
+
+| Code | Signification | Conduite de l'application |
+|------|---------------|---------------------------|
+| `200` | Adresse trouvée | Affichée dans la bulle |
+| `400` | `invalid_coordinates` | Coordonnées seules |
+| `401` | Jeton refusé | Coordonnées seules |
+| `404` | `address_not_found` | Coordonnées seules |
+| `503` | `reverse_geocode_disabled` | Coordonnées seules |
+
+**Aucun de ces cas n'est une panne.** L'adresse est un agrément ; l'heure et les
+coordonnées viennent de la base locale et s'affichent hors réseau. Une bulle
+sans adresse reste une bulle utile, et c'est le cas normal du voyage.
+
+**Pourquoi le serveur et pas le téléphone.** Interroger Nominatim depuis
+l'appareil livrerait à un tiers la position exacte et l'adresse IP du réseau
+mobile traversé, à chaque ouverture de bulle. En passant par le VPS, le tiers ne
+voit qu'une adresse IP fixe, déjà publique, et le téléphone continue de ne
+parler qu'au serveur du voyage (`arch/00` §4).
+
+L'endpoint est authentifié comme l'envoi de positions : ce n'est pas un service
+de géocodage ouvert. Il est **éteint par défaut** côté serveur
+(`REVERSE_GEOCODE_ENABLED`), parce qu'allumer une sortie vers un tiers est une
+décision qui se prend explicitement.
+
+# 7. Endpoints non utilisés par l'application V1
 
 `GET /api/v1/trips/{tripId}/latest-location`,
 `GET /api/v1/trips/{tripId}/locations?from=&to=` et
 `GET /api/v1/trips/{tripId}/status` existent au contrat (`arch/00` §6) mais sont
-consommés par le site familial, pas par l'application. L'application V1 n'émet
-aucun `GET` : son écran principal lit exclusivement la base locale.
+consommés par le site familial, pas par l'application. L'écran principal de
+l'application lit exclusivement la base locale : le seul `GET` qu'elle émette
+est celui du §6, sur geste explicite, et son échec ne change rien à l'affichage.
 
 C'est un choix délibéré : l'application reste utile sans réseau, et le serveur ne
 devient jamais un prérequis d'affichage.
 
-# 7. Réseau côté client
+# 8. Réseau côté client
 
 - Timeouts : connexion 15 s, lecture 30 s, écriture 30 s.
 - Aucune tentative parallèle : une synchronisation à la fois, verrou applicatif.
@@ -157,7 +197,7 @@ devient jamais un prérequis d'affichage.
 - Aucune coordonnée n'est écrite dans les logs, en aucune circonstance (`arch/01` §4,
   `arch/03` §5).
 
-# 8. Évolution
+# 9. Évolution
 
 Les champs obligatoires de `LocationPointV1` ne changent pas (`arch/00` §5). Les
 métadonnées V2 (heartbeat, device health) passeront par un endpoint distinct et

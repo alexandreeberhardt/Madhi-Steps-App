@@ -33,6 +33,11 @@ class Settings:
     rate_limit_per_minute: int
     public_read_token: str | None
     log_level: str
+    # Valeurs par defaut : ces trois champs sont arrives apres les autres, et
+    # une configuration qui les ignore doit rester une configuration valide.
+    reverse_geocode_enabled: bool = False
+    reverse_geocode_url: str = "https://nominatim.openstreetmap.org/reverse"
+    reverse_geocode_user_agent: str = ""
 
     @property
     def production(self) -> bool:
@@ -54,6 +59,12 @@ def load_settings() -> Settings:
         rate_limit_per_minute=int(_env("RATE_LIMIT_PER_MINUTE", "120")),
         public_read_token=os.getenv("PUBLIC_READ_TOKEN"),
         log_level=_env("LOG_LEVEL", "INFO"),
+        # Eteint par defaut : allumer cette option fait sortir des
+        # coordonnees du VPS vers un tiers. C'est une decision, elle se prend
+        # explicitement, et un deploiement qui ne la touche pas ne change rien.
+        reverse_geocode_enabled=_env("REVERSE_GEOCODE_ENABLED", "false").lower() == "true",
+        reverse_geocode_url=_env("REVERSE_GEOCODE_URL", "https://nominatim.openstreetmap.org/reverse"),
+        reverse_geocode_user_agent=_env("REVERSE_GEOCODE_USER_AGENT", ""),
     )
     validate_settings(settings)
     return settings
@@ -68,6 +79,13 @@ def validate_settings(settings: Settings) -> None:
         raise RuntimeError("RATE_LIMIT_PER_MINUTE must be positive")
     if settings.activation_code_ttl_minutes <= 0:
         raise RuntimeError("ACTIVATION_CODE_TTL_MINUTES must be positive")
+    if settings.reverse_geocode_enabled:
+        # Nominatim exige une identite reelle et joignable. Sans elle, le
+        # service refuse le trafic, et il a raison : c'est un bien commun.
+        if not settings.reverse_geocode_user_agent:
+            raise RuntimeError("REVERSE_GEOCODE_USER_AGENT is required when REVERSE_GEOCODE_ENABLED=true")
+        if not settings.reverse_geocode_url.startswith("https://"):
+            raise RuntimeError("REVERSE_GEOCODE_URL must be https")
 
     if not settings.production:
         return
