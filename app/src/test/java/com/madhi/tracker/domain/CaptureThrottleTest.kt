@@ -47,8 +47,8 @@ class CaptureThrottleTest {
 
     @Test
     fun `le seuil suit l'intervalle configure`() {
-        assertTrue(redundant(secondsSinceLast = 60, interval = CaptureInterval.TWO))
-        assertFalse(redundant(secondsSinceLast = 120, interval = CaptureInterval.TWO))
+        assertTrue(redundant(secondsSinceLast = 60, interval = CaptureInterval.ofMinutes(2)))
+        assertFalse(redundant(secondsSinceLast = 120, interval = CaptureInterval.ofMinutes(2)))
         assertTrue(redundant(secondsSinceLast = 600, interval = CaptureInterval.THIRTY))
     }
 

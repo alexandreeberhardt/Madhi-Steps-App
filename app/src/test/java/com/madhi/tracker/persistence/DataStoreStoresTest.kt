@@ -87,14 +87,14 @@ class DataStoreStoresTest {
     fun l_intention_survit_a_une_nouvelle_instance_du_store() = runTest {
         DataStoreTrackingIntentStore(dataStore).apply {
             setEnabled(true)
-            setCaptureInterval(CaptureInterval.FIFTEEN)
+            setCaptureInterval(CaptureInterval.ofMinutes(15))
         }
 
         // Simule une relecture après redémarrage du processus.
         val reread = DataStoreTrackingIntentStore(dataStore).read()
 
         assertTrue(reread.enabled)
-        assertEquals(CaptureInterval.FIFTEEN, reread.captureInterval)
+        assertEquals(CaptureInterval.ofMinutes(15), reread.captureInterval)
     }
 
     @Test
@@ -108,11 +108,24 @@ class DataStoreStoresTest {
     }
 
     @Test
-    fun un_intervalle_persiste_inconnu_retombe_sur_le_defaut() = runTest {
-        // Cas d'une évolution de la liste des paliers entre deux versions.
-        dataStore.edit { it[TrackerPreferences.CAPTURE_INTERVAL_MINUTES] = 7 }
+    fun une_cadence_persistee_hors_bornes_retombe_sur_le_defaut() = runTest {
+        // La liste des paliers n'est plus fermée : sept minutes est desormais
+        // une cadence legitime, choisie par « Autre ». Ce qui reste refuse,
+        // c'est ce qui sort des bornes — une valeur ecrite par une version
+        // future, ou un fichier abime.
+        dataStore.edit { it[TrackerPreferences.CAPTURE_INTERVAL_MINUTES] = 100_000 }
 
         assertEquals(CaptureInterval.DEFAULT, DataStoreTrackingIntentStore(dataStore).read().captureInterval)
+    }
+
+    @Test
+    fun une_cadence_hors_palier_se_relit_telle_quelle() = runTest {
+        dataStore.edit { it[TrackerPreferences.CAPTURE_INTERVAL_MINUTES] = 7 }
+
+        assertEquals(
+            CaptureInterval.ofMinutes(7),
+            DataStoreTrackingIntentStore(dataStore).read().captureInterval,
+        )
     }
 
     // --- Journal de synchronisation

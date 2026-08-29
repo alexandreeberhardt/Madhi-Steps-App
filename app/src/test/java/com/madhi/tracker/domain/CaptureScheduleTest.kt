@@ -52,6 +52,6 @@ class CaptureScheduleTest {
     @Test
     fun `l'intervalle configure est respecte`() {
         assertEquals(28.minutes, delayAfter(minutesAgo = 2, interval = CaptureInterval.THIRTY))
-        assertEquals(1.minutes, delayAfter(minutesAgo = 1, interval = CaptureInterval.TWO))
+        assertEquals(1.minutes, delayAfter(minutesAgo = 1, interval = CaptureInterval.ofMinutes(2)))
     }
 }

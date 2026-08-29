@@ -172,7 +172,7 @@ class CaptureLocationTest {
 
     @Test
     fun `l'acquisition ne deborde jamais sur la capture suivante`() = runTest {
-        intentStore.setCaptureInterval(CaptureInterval.TWO)
+        intentStore.setCaptureInterval(CaptureInterval.ofMinutes(2))
         locationSource.willReturn(validFix())
 
         captureLocation()

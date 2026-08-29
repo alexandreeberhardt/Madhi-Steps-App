@@ -174,7 +174,7 @@ class RunScheduledCaptureTest {
     @Test
     fun `l'intervalle configure change la cadence de surveillance`() = runTest {
         givenPointRecorded(minutesAgo = 1)
-        intentStore.setCaptureInterval(CaptureInterval.TWO)
+        intentStore.setCaptureInterval(CaptureInterval.ofMinutes(2))
 
         runScheduledCapture()
 

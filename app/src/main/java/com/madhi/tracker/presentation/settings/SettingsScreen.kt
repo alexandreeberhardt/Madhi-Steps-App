@@ -27,8 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.madhi.tracker.domain.model.CaptureInterval
-import com.madhi.tracker.presentation.common.TrackingStatusColors
+import com.madhi.tracker.presentation.common.CaptureIntervalChips
 import com.madhi.tracker.presentation.common.relativeAge
 import java.time.Instant
 
@@ -70,23 +69,11 @@ fun SettingsScreen(
         ) {
             Section("Suivi") {
                 Text("Fréquence de localisation", style = MaterialTheme.typography.bodyLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CaptureInterval.entries.forEach { interval ->
-                        FilterChip(
-                            selected = state.intent.captureInterval == interval,
-                            onClick = { viewModel.onIntervalSelected(interval) },
-                            label = { Text("${interval.minutes} min") },
-                        )
-                    }
-                }
-                if (state.intent.captureInterval.hasSignificantBatteryCost) {
-                    Text(
-                        "À deux minutes, le GPS reste allumé presque en continu. " +
-                            "L'autonomie est fortement réduite.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TrackingStatusColors.degraded,
-                    )
-                }
+                CaptureIntervalChips(
+                    selected = state.intent.captureInterval,
+                    onSelect = viewModel::onIntervalSelected,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             Section("Synchronisation") {

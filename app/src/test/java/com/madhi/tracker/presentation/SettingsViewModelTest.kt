@@ -61,10 +61,10 @@ class SettingsViewModelTest {
     fun `changer la frequence la persiste et rafraichit l'ecran`() = runTest {
         val viewModel = viewModel()
 
-        viewModel.onIntervalSelected(CaptureInterval.FIFTEEN)
+        viewModel.onIntervalSelected(CaptureInterval.ofMinutes(15))
 
-        assertEquals(CaptureInterval.FIFTEEN, viewModel.state.value.intent.captureInterval)
-        assertEquals(CaptureInterval.FIFTEEN, intentStore.read().captureInterval)
+        assertEquals(CaptureInterval.ofMinutes(15), viewModel.state.value.intent.captureInterval)
+        assertEquals(CaptureInterval.ofMinutes(15), intentStore.read().captureInterval)
     }
 
     @Test

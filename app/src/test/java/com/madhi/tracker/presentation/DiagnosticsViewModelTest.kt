@@ -77,10 +77,10 @@ class DiagnosticsViewModelTest {
         intentStore.setEnabled(true)
         val viewModel = viewModel()
 
-        viewModel.onIntervalSelected(CaptureInterval.TWO)
+        viewModel.onIntervalSelected(CaptureInterval.ofMinutes(2))
 
-        assertEquals(CaptureInterval.TWO, viewModel.report.value!!.intent.captureInterval)
-        assertEquals(CaptureInterval.TWO.duration, captureScheduler.lastDelay)
+        assertEquals(CaptureInterval.ofMinutes(2), viewModel.report.value!!.intent.captureInterval)
+        assertEquals(CaptureInterval.ofMinutes(2).duration, captureScheduler.lastDelay)
     }
 
     @Test

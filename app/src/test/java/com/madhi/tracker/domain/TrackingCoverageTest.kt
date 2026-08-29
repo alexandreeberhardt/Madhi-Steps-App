@@ -55,7 +55,7 @@ class TrackingCoverageTest {
 
     @Test
     fun `l'intervalle configure change le nombre attendu`() {
-        assertEquals(30, TrackingCoverage.evaluate(1.hours, CaptureInterval.TWO, 30).expected)
+        assertEquals(30, TrackingCoverage.evaluate(1.hours, CaptureInterval.ofMinutes(2), 30).expected)
         assertEquals(2, TrackingCoverage.evaluate(1.hours, CaptureInterval.THIRTY, 2).expected)
     }
 

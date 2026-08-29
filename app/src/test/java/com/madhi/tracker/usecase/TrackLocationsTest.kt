@@ -83,7 +83,7 @@ class TrackLocationsTest {
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { trackLocations() }
         assertEquals(1, locationSource.streamSubscriptions)
 
-        intentStore.setCaptureInterval(CaptureInterval.FIFTEEN)
+        intentStore.setCaptureInterval(CaptureInterval.ofMinutes(15))
 
         // Le flux precedent est referme — donc le recepteur relache — avant
         // qu'un nouveau soit ouvert.
@@ -143,7 +143,7 @@ class TrackLocationsTest {
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { useCase() }
 
-        stoppedIntentStore.setCaptureInterval(CaptureInterval.TWO)
+        stoppedIntentStore.setCaptureInterval(CaptureInterval.ofMinutes(2))
 
         assertEquals(0, locationSource.streamSubscriptions)
         job.cancelAndJoin()

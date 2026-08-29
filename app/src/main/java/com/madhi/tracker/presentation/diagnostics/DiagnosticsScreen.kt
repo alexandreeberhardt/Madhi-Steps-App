@@ -36,8 +36,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import com.madhi.tracker.application.usecase.DiagnosticsReport
-import com.madhi.tracker.domain.model.CaptureInterval
 import com.madhi.tracker.domain.model.TrackingHealth
+import com.madhi.tracker.presentation.common.CaptureIntervalChips
 import com.madhi.tracker.presentation.common.TrackingStatusColors
 import java.time.Duration
 import java.time.Instant
@@ -146,22 +146,11 @@ private fun TrackingControls(report: DiagnosticsReport, viewModel: DiagnosticsVi
 private fun IntervalSelector(report: DiagnosticsReport, viewModel: DiagnosticsViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text("Fréquence", style = MaterialTheme.typography.labelLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CaptureInterval.entries.forEach { interval ->
-                FilterChip(
-                    selected = report.intent.captureInterval == interval,
-                    onClick = { viewModel.onIntervalSelected(interval) },
-                    label = { Text("${interval.minutes}") },
-                )
-            }
-        }
-        if (report.intent.captureInterval.hasSignificantBatteryCost) {
-            Text(
-                "2 minutes maintient le GPS presque en continu : autonomie fortement réduite.",
-                style = MaterialTheme.typography.bodySmall,
-                color = TrackingStatusColors.degraded,
-            )
-        }
+        CaptureIntervalChips(
+            selected = report.intent.captureInterval,
+            onSelect = viewModel::onIntervalSelected,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

@@ -81,19 +81,19 @@ class TrackingLifecycleTest {
     fun `changer d'intervalle prend effet immediatement`() = runTest {
         startTracking()
 
-        changeInterval(CaptureInterval.TWO)
+        changeInterval(CaptureInterval.ofMinutes(2))
 
         // Sans reprogrammation, passer de 30 a 2 minutes n'aurait d'effet
         // qu'une demi-heure plus tard.
         assertEquals(2.minutes, captureScheduler.lastDelay)
-        assertEquals(CaptureInterval.TWO, intentStore.read().captureInterval)
+        assertEquals(CaptureInterval.ofMinutes(2), intentStore.read().captureInterval)
     }
 
     @Test
     fun `changer d'intervalle suivi arrete ne reveille pas le metronome`() = runTest {
-        changeInterval(CaptureInterval.TEN)
+        changeInterval(CaptureInterval.ofMinutes(10))
 
-        assertEquals(CaptureInterval.TEN, intentStore.read().captureInterval)
+        assertEquals(CaptureInterval.ofMinutes(10), intentStore.read().captureInterval)
         assertTrue(captureScheduler.scheduledDelays.isEmpty())
     }
 
