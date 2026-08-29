@@ -6,12 +6,14 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +40,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -47,6 +50,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.madhi.tracker.R
 import com.madhi.tracker.domain.MapInsets
 import com.madhi.tracker.domain.MapProjection
 import com.madhi.tracker.domain.MapScaleBar
@@ -236,9 +240,17 @@ fun TrackMap(
                 onClick = camera::recenter,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = RECENTER_BOTTOM_MARGIN)
+                    .padding(end = 16.dp, bottom = SCALE_MARGIN)
                     .padding(bottom = with(density) { attributionHeight.toDp() }),
-            ) { Text("Recentrer") }
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_recenter),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.size(6.dp))
+                Text("Recentrer")
+            }
         }
     }
 }
@@ -455,10 +467,13 @@ private val TRACK_STROKE: Dp = 3.dp
 private val POINT_RADIUS: Dp = 2.dp
 private val MARKER_RADIUS: Dp = 7.dp
 private val MARKER_RING: Dp = 3.dp
+/**
+ * Marge de l'échelle graphique, et donc du bouton « Recentrer » : les deux se
+ * posent sur la même ligne de base, au-dessus de la mention légale. Le bouton
+ * flottait dix-huit points plus haut, sans rien pour justifier l'écart.
+ */
 private val SCALE_MARGIN: Dp = 16.dp
 
-/** Laisse la mention légale visible sous le bouton. */
-private val RECENTER_BOTTOM_MARGIN: Dp = 34.dp
 private val SCALE_LABEL_SIZE = 11.sp
 private const val SCALE_MAX_WIDTH_FRACTION = 0.4f
 private const val LEGEND_BACKGROUND_ALPHA = 0.85f

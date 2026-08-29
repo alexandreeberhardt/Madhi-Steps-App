@@ -16,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -27,10 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.madhi.tracker.R
 import com.madhi.tracker.domain.model.TrackPeriod
 import com.madhi.tracker.domain.model.TrackingHealth
 import com.madhi.tracker.domain.model.TrackingProblem
@@ -66,10 +69,19 @@ fun MainScreen(
             TopAppBar(
                 title = { Text("Voyage") },
                 actions = {
-                    // Un libellé plutôt qu'une icône : la bibliothèque
-                    // d'icônes Material entière pour un seul engrenage serait
-                    // une dépendance mal placée, et le mot est plus clair.
-                    TextButton(onClick = onOpenSettings) { Text("Réglages") }
+                    // L'icône est tracée dans `res/drawable`, pas importée : la
+                    // bibliothèque d'icônes Material entière pour un engrenage
+                    // serait une dépendance mal placée. Le mot reste à côté —
+                    // un engrenage seul se confond avec bien des choses.
+                    TextButton(onClick = onOpenSettings) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_settings),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text("Réglages")
+                    }
                 },
             )
         },
