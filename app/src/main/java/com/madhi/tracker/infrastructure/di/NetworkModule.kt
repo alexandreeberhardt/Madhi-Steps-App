@@ -1,9 +1,11 @@
 package com.madhi.tracker.infrastructure.di
 
+import com.madhi.tracker.adapter.output.network.HttpAddressLookup
 import com.madhi.tracker.adapter.output.network.HttpDeviceActivationGateway
 import com.madhi.tracker.adapter.output.network.HttpLocationSyncGateway
 import com.madhi.tracker.adapter.output.persistence.credentials.KeystoreDeviceCredentials
 import com.madhi.tracker.adapter.output.scheduling.WorkManagerSyncScheduler
+import com.madhi.tracker.application.port.AddressLookup
 import com.madhi.tracker.application.port.DeviceActivationGateway
 import com.madhi.tracker.application.port.DeviceCredentials
 import com.madhi.tracker.application.port.LocationSyncGateway
@@ -14,6 +16,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import okhttp3.Call
 import okhttp3.OkHttpClient
@@ -53,6 +56,20 @@ object NetworkModule {
         credentials: DeviceCredentials,
         json: Json,
     ): LocationSyncGateway = HttpLocationSyncGateway(callFactory, credentials, json, AppConfig.apiBaseUrl)
+
+    @Provides
+    @Singleton
+    fun provideAddressLookup(
+        callFactory: Call.Factory,
+        credentials: DeviceCredentials,
+        json: Json,
+    ): AddressLookup = HttpAddressLookup(
+        callFactory = callFactory,
+        credentials = credentials,
+        json = json,
+        baseUrl = AppConfig.apiBaseUrl,
+        ioDispatcher = Dispatchers.IO,
+    )
 
     @Provides
     @Singleton

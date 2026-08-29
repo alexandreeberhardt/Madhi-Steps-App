@@ -7,6 +7,7 @@ import com.madhi.tracker.application.port.EventLog
 import com.madhi.tracker.application.port.LocationSource
 import com.madhi.tracker.application.port.BatchAcknowledgement
 import com.madhi.tracker.application.port.LocationStore
+import com.madhi.tracker.application.port.AddressLookup
 import com.madhi.tracker.application.port.TileStore
 import com.madhi.tracker.application.port.LocationSyncGateway
 import com.madhi.tracker.application.port.DeviceActivationGateway
@@ -26,6 +27,7 @@ import com.madhi.tracker.domain.error.SyncFailure
 import com.madhi.tracker.domain.model.DeviceActivation
 import com.madhi.tracker.domain.failure
 import com.madhi.tracker.domain.model.CaptureInterval
+import com.madhi.tracker.domain.model.Coordinates
 import com.madhi.tracker.domain.model.DeviceVendor
 import com.madhi.tracker.domain.model.LocationFix
 import com.madhi.tracker.domain.model.LocationId
@@ -165,6 +167,18 @@ class FakeLocationStore : LocationStore {
  * Une carte sans fond, comme lorsque aucun serveur de tuiles n'est configuré :
  * c'est la valeur par défaut du dépôt, donc le cas à tester par défaut.
  */
+class FakeAddressLookup(
+    private val addresses: Map<Coordinates, String> = emptyMap(),
+) : AddressLookup {
+
+    val asked = mutableListOf<Coordinates>()
+
+    override suspend fun address(coordinates: Coordinates): String? {
+        asked += coordinates
+        return addresses[coordinates]
+    }
+}
+
 class FakeTileStore(
     override val isEnabled: Boolean = false,
     override val attribution: String = "",

@@ -91,6 +91,8 @@ fun MainScreen(
                 points = track,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 loadTile = if (viewModel.tilesEnabled) viewModel::tile else null,
+                loadAddress = viewModel::address,
+                now = now,
                 attribution = viewModel.tileAttribution,
                 maxTileZoom = viewModel.tileMaxZoom,
             )

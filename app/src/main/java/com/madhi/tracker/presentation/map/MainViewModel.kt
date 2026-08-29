@@ -3,10 +3,12 @@ package com.madhi.tracker.presentation.map
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.madhi.tracker.application.usecase.LoadMapTile
+import com.madhi.tracker.application.usecase.LookUpAddress
 import com.madhi.tracker.application.usecase.ObserveTrack
 import com.madhi.tracker.application.usecase.ObserveTrackingStatus
 import com.madhi.tracker.application.usecase.StartTracking
 import com.madhi.tracker.domain.TileId
+import com.madhi.tracker.domain.model.Coordinates
 import com.madhi.tracker.domain.model.TrackPeriod
 import com.madhi.tracker.domain.model.TrackPoint
 import com.madhi.tracker.domain.model.TrackingHealth
@@ -27,6 +29,7 @@ class MainViewModel @Inject constructor(
     observeTrackingStatus: ObserveTrackingStatus,
     observeTrack: ObserveTrack,
     private val loadMapTile: LoadMapTile,
+    private val lookUpAddress: LookUpAddress,
     private val startTracking: StartTracking,
 ) : ViewModel() {
 
@@ -67,6 +70,9 @@ class MainViewModel @Inject constructor(
     val tileMaxZoom: Int get() = loadMapTile.maxZoom
 
     suspend fun tile(id: TileId): ByteArray? = loadMapTile(id)
+
+    /** L'adresse d'un point du tracé, ou `null` : hors ligne, c'est la norme. */
+    suspend fun address(coordinates: Coordinates): String? = lookUpAddress(coordinates)
 
     fun onStartTracking() {
         viewModelScope.launch { startTracking() }

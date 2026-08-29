@@ -2,25 +2,35 @@ package com.madhi.tracker.presentation.map
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,9 +70,14 @@ import com.madhi.tracker.domain.PlacedTile
 import com.madhi.tracker.domain.ScreenPoint
 import com.madhi.tracker.domain.TileGrid
 import com.madhi.tracker.domain.TileId
+import com.madhi.tracker.domain.TrackPicking
+import com.madhi.tracker.domain.model.Coordinates
 import com.madhi.tracker.domain.model.SyncState
 import com.madhi.tracker.domain.model.TrackPoint
 import com.madhi.tracker.presentation.common.TrackColors
+import com.madhi.tracker.presentation.common.pointTimeLabel
+import java.time.Instant
+import java.util.Locale
 
 /**
  * La carte de l'écran d'accueil : le tracé récent, sans fond de carte.
@@ -82,6 +97,8 @@ fun TrackMap(
     modifier: Modifier = Modifier,
     camera: MapCamera = rememberMapCamera(),
     loadTile: (suspend (TileId) -> ByteArray?)? = null,
+    loadAddress: (suspend (Coordinates) -> String?)? = null,
+    now: Instant = Instant.now(),
     attribution: String = "",
     maxTileZoom: Int = TileGrid.DEFAULT_MAX_TILE_ZOOM,
 ) {
@@ -109,6 +126,39 @@ fun TrackMap(
     // La projection ne dépend que des points : la refaire à chaque image de
     // glissement gaspillerait deux mille logarithmes pour rien.
     val projected = remember(points) { points.map { MapProjection.normalized(it.coordinates) } }
+
+    // Le point dont la bulle est ouverte. On retient le point et non son
+    // indice : changer de période remplace la liste entière, et un indice
+    // survivrait en désignant quelqu'un d'autre.
+    var selected by remember { mutableStateOf<TrackPoint?>(null) }
+    var address by remember { mutableStateOf<String?>(null) }
+    var lookingUpAddress by remember { mutableStateOf(false) }
+
+    // Le tracé a changé sous la bulle — nouvelle période, autre pas de temps.
+    // Un point qui n'est plus dessiné ne doit pas garder sa bulle ouverte.
+    LaunchedEffect(points, selected) {
+        if (selected != null && selected !in points) selected = null
+    }
+
+    // Indexé sur le seul point choisi. Prendre aussi `loadAddress` pour clé
+    // relancerait la recherche a chaque recomposition si l'appelant passe une
+    // lambda fabriquee sur place — une requete reseau par image de rendu.
+    val currentLoadAddress by rememberUpdatedState(loadAddress)
+    LaunchedEffect(selected) {
+        address = null
+        val point = selected ?: return@LaunchedEffect
+        val lookUp = currentLoadAddress ?: return@LaunchedEffect
+        lookingUpAddress = true
+        address = lookUp(point.coordinates)
+        lookingUpAddress = false
+    }
+
+    // Les gestes vivent dans une coroutine lancée une fois pour toutes, qui
+    // fige ce qu'elle capture. Ces deux copies-ci sont tenues à jour, faute de
+    // quoi un appui viserait le tracé d'il y a une heure — c'est exactement le
+    // défaut que MapCamera a corrigé pour le cadrage.
+    val currentPoints by rememberUpdatedState(points)
+    val currentProjected by rememberUpdatedState(projected)
 
     val insets = with(density) {
         val margin = FIT_MARGIN.toPx().toDouble()
@@ -174,6 +224,22 @@ fun TrackMap(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(camera) {
+                    detectTapGestures { tap ->
+                        val viewportNow = camera.viewport ?: return@detectTapGestures
+                        val index = TrackPicking.nearest(
+                            points = currentProjected,
+                            tap = ScreenPoint(tap.x.toDouble(), tap.y.toDouble()),
+                            viewport = viewportNow,
+                            widthPixels = size.width.toDouble(),
+                            heightPixels = size.height.toDouble(),
+                            tolerancePixels = TAP_TOLERANCE.toPx().toDouble(),
+                        )
+                        // Appuyer à côté ferme la bulle : c'est le geste que
+                        // tout le monde essaie en premier.
+                        selected = index?.let(currentPoints::getOrNull)
+                    }
+                }
+                .pointerInput(camera) {
                     detectTransformGestures { centroid, pan, zoom, _ ->
                         camera.onGesture(
                             panXPixels = pan.x.toDouble(),
@@ -235,6 +301,24 @@ fun TrackMap(
                 .padding(LEGEND_MARGIN),
         )
 
+        selected?.let { point ->
+            val anchor = viewport.toScreen(
+                coordinates = point.coordinates,
+                widthPixels = canvasSize.width.toDouble(),
+                heightPixels = canvasSize.height.toDouble(),
+            )
+            PointBubble(
+                point = point,
+                address = address,
+                lookingUpAddress = lookingUpAddress,
+                addressAvailable = loadAddress != null,
+                now = now,
+                anchor = anchor,
+                canvasSize = canvasSize,
+                onClose = { selected = null },
+            )
+        }
+
         if (camera.isManual) {
             FilledTonalButton(
                 onClick = camera::recenter,
@@ -254,6 +338,137 @@ fun TrackMap(
         }
     }
 }
+
+
+/**
+ * Ce qu'un point du tracé a à dire : quand, et où.
+ *
+ * L'heure et les coordonnées viennent de la base locale et s'affichent
+ * toujours. L'adresse, elle, demande le réseau et le serveur du voyage : son
+ * absence est le cas normal en route, et se dit sans dramatiser. Une bulle
+ * sans adresse reste une bulle utile.
+ *
+ * Elle se pose au-dessus du point, et passe en dessous quand il n'y a plus la
+ * place — un point en haut de l'écran ne doit pas pousser sa bulle hors du
+ * cadre.
+ */
+@Composable
+private fun BoxScope.PointBubble(
+    point: TrackPoint,
+    address: String?,
+    lookingUpAddress: Boolean,
+    addressAvailable: Boolean,
+    now: Instant,
+    anchor: ScreenPoint,
+    canvasSize: IntSize,
+    onClose: () -> Unit,
+) {
+    var bubbleSize by remember { mutableStateOf(IntSize.Zero) }
+    val margin = with(LocalDensity.current) { BUBBLE_MARGIN.toPx() }
+    val gap = with(LocalDensity.current) { BUBBLE_GAP.toPx() }
+
+    Card(
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .widthIn(max = BUBBLE_MAX_WIDTH)
+            .onSizeChanged { bubbleSize = it }
+            .offset {
+                IntOffset(
+                    x = horizontalPlacement(anchor.x, bubbleSize.width, canvasSize.width, margin),
+                    y = verticalPlacement(anchor.y, bubbleSize.height, canvasSize.height, margin, gap),
+                )
+            }
+            // Toucher la bulle la ferme, comme toucher la carte à côté. Sans
+            // cela l'appui traverserait jusqu'au tracé et sélectionnerait le
+            // point caché dessous.
+            .clickable(onClick = onClose),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                pointTimeLabel(point.recordedAt, now),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                addressLine(address, lookingUpAddress, addressAvailable),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (address == null) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+            )
+            Text(
+                formatCoordinates(point.coordinates),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Centrée sur le point, sans jamais déborder du cadre. */
+private fun horizontalPlacement(
+    anchorX: Double,
+    bubbleWidth: Int,
+    canvasWidth: Int,
+    margin: Float,
+): Int {
+    val centered = anchorX - bubbleWidth / 2.0
+    val maximum = canvasWidth - bubbleWidth - margin
+    // Une bulle plus large que la carte n'a pas d'intervalle où se ranger :
+    // on la colle à gauche plutôt que d'inverser les bornes.
+    if (maximum <= margin) return margin.toInt()
+    return centered.coerceIn(margin.toDouble(), maximum.toDouble()).toInt()
+}
+
+/** Au-dessus du point, ou en dessous s'il n'y a plus la place au-dessus. */
+private fun verticalPlacement(
+    anchorY: Double,
+    bubbleHeight: Int,
+    canvasHeight: Int,
+    margin: Float,
+    gap: Float,
+): Int {
+    val above = anchorY - bubbleHeight - gap
+    if (above >= margin) return above.toInt()
+
+    val below = anchorY + gap
+    val maximum = canvasHeight - bubbleHeight - margin
+    if (maximum <= margin) return margin.toInt()
+    return below.coerceIn(margin.toDouble(), maximum.toDouble()).toInt()
+}
+
+/**
+ * Dit ce qui se passe, jamais « erreur ». Hors réseau est le mode normal du
+ * voyage, pas une panne.
+ */
+private fun addressLine(address: String?, looking: Boolean, available: Boolean): String = when {
+    address != null -> address
+    looking -> "Recherche de l'adresse…"
+    !available -> "Adresse non configurée."
+    else -> "Adresse indisponible hors ligne."
+}
+
+/**
+ * Cinq décimales, soit environ un mètre : au-delà, le GPS n'en sait rien.
+ *
+ * Point décimal et non virgule, même en français : une virgule décimale et une
+ * virgule séparatrice dans la même ligne donneraient « 48,85660, 2,35220 »,
+ * que personne ne sait relire. Les coordonnées s'écrivent avec un point.
+ */
+private fun formatCoordinates(coordinates: Coordinates): String = String.format(
+    Locale.US,
+    "%.5f, %.5f",
+    coordinates.latitude,
+    coordinates.longitude,
+)
 
 /**
  * Le fond de carte, tuile par tuile.
@@ -464,7 +679,25 @@ private val LEGEND_MARGIN: Dp = 12.dp
  */
 private val SCALE_BAND: Dp = 48.dp
 private val TRACK_STROKE: Dp = 3.dp
-private val POINT_RADIUS: Dp = 2.dp
+/**
+ * Un point du tracé. Un peu plus gros qu'avant : ils sont désormais des cibles
+ * qu'on vise du doigt, et non plus seulement des marques de cadence.
+ */
+private val POINT_RADIUS: Dp = 3.dp
+
+/**
+ * De quel écart un appui peut manquer un point sans le manquer vraiment.
+ *
+ * Un point dessiné fait six pixels de large, un doigt en couvre une
+ * cinquantaine. Viser au pixel serait injouable — surtout sur un guidon.
+ */
+private val TAP_TOLERANCE: Dp = 22.dp
+
+private val BUBBLE_MAX_WIDTH: Dp = 260.dp
+private val BUBBLE_MARGIN: Dp = 12.dp
+
+/** L'écart entre le point visé et sa bulle : assez pour ne pas le masquer. */
+private val BUBBLE_GAP: Dp = 14.dp
 private val MARKER_RADIUS: Dp = 7.dp
 private val MARKER_RING: Dp = 3.dp
 /**

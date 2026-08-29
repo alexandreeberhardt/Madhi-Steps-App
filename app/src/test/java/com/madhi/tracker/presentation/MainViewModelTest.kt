@@ -1,6 +1,7 @@
 package com.madhi.tracker.presentation
 
 import com.madhi.tracker.application.usecase.LoadMapTile
+import com.madhi.tracker.application.usecase.LookUpAddress
 import com.madhi.tracker.application.usecase.ObserveTrack
 import com.madhi.tracker.application.usecase.ObserveTrackingStatus
 import com.madhi.tracker.application.usecase.StartTracking
@@ -8,6 +9,7 @@ import com.madhi.tracker.domain.model.CaptureInterval
 import com.madhi.tracker.domain.model.TrackingHealth
 import com.madhi.tracker.domain.model.TrackingIntent
 import com.madhi.tracker.domain.model.TrackingProblem
+import com.madhi.tracker.fakes.FakeAddressLookup
 import com.madhi.tracker.fakes.FakeCaptureScheduler
 import com.madhi.tracker.fakes.FakeClock
 import com.madhi.tracker.fakes.FakeDeviceCredentials
@@ -48,6 +50,7 @@ class MainViewModelTest {
     private val captureScheduler = FakeCaptureScheduler()
     private val syncScheduler = FakeSyncScheduler()
     private val eventLog = RecordingEventLog()
+    private val addressLookup = FakeAddressLookup()
 
     /**
      * L'état initial est nul le temps que le flux se calcule ; ce qui
@@ -67,6 +70,7 @@ class MainViewModelTest {
         ),
         observeTrack = ObserveTrack(locationStore, clock),
         loadMapTile = LoadMapTile(FakeTileStore()),
+        lookUpAddress = LookUpAddress(addressLookup),
         startTracking = StartTracking(intentStore, runtime, captureScheduler, syncScheduler, eventLog),
     )
 
