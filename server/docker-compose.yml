@@ -29,6 +29,15 @@ services:
       INITIAL_ACTIVATION_CODE: ${INITIAL_ACTIVATION_CODE:-XXXX-XXXX}
       PUBLIC_READ_TOKEN: ${PUBLIC_READ_TOKEN:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Le relais d'adresse. Sans ces trois lignes, les valeurs posees dans
+      # server/.env restent au niveau de compose -- qui s'en sert pour
+      # substituer des ${...}, pas pour transmettre -- et n'atteignent jamais
+      # le conteneur. L'option s'allumerait dans le fichier et nulle part
+      # ailleurs, ce qui est la panne la plus difficile a voir : la
+      # configuration a l'air juste et le serveur repond « eteint ».
+      REVERSE_GEOCODE_ENABLED: ${REVERSE_GEOCODE_ENABLED:-false}
+      REVERSE_GEOCODE_URL: ${REVERSE_GEOCODE_URL:-https://nominatim.openstreetmap.org/reverse}
+      REVERSE_GEOCODE_USER_AGENT: ${REVERSE_GEOCODE_USER_AGENT:-}
     command: ["python", "-m", "app.migrate"]
     depends_on:
       postgres:
