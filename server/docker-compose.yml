@@ -62,6 +62,9 @@ services:
       RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
       PUBLIC_READ_TOKEN: ${PUBLIC_READ_TOKEN:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      REVERSE_GEOCODE_ENABLED: ${REVERSE_GEOCODE_ENABLED:-false}
+      REVERSE_GEOCODE_URL: ${REVERSE_GEOCODE_URL:-https://nominatim.openstreetmap.org/reverse}
+      REVERSE_GEOCODE_USER_AGENT: ${REVERSE_GEOCODE_USER_AGENT:-}
     ports:
       - "${API_BIND:-127.0.0.1:8111}:8080"
     depends_on:
