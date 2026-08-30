@@ -41,7 +41,7 @@ from .models import (
     parse_recorded_at,
 )
 from .rate_limit import InMemoryRateLimiter
-from .security import activation_code_malformed, parse_bearer
+from .security import activation_code_malformed, matches_public_read_token, parse_bearer
 
 
 settings = load_settings()
@@ -183,16 +183,22 @@ async def reverse_geocode(
 ) -> ReverseGeocodeResponse:
     """L'adresse d'une position, pour la bulle d'un point de la carte.
 
-    Authentifie comme l'envoi de positions : ce n'est pas un service de
-    geocodage ouvert, c'est un relais pour les appareils du voyage. Sans cette
-    condition, l'adresse du serveur suffirait a faire tourner un geocodeur
-    gratuit sur le dos du VPS.
+    Deux appelants, et eux seuls : l'application avec son jeton d'appareil, le
+    site familial avec le jeton de lecture que nginx pose a sa place. Ce n'est
+    pas un service de geocodage ouvert -- sans cette condition, l'adresse du
+    serveur suffirait a faire tourner un geocodeur gratuit sur le dos du VPS.
+
+    Le site passe par ici pour la meme raison que le telephone : demander
+    l'adresse depuis le navigateur livrerait a un tiers la position exacte et
+    l'adresse IP de chaque personne de la famille qui regarde la carte. Relayee,
+    la question ne montre qu'une adresse IP fixe, deja publique.
 
     Aucune coordonnee n'entre dans les journaux, ici comme ailleurs.
     """
-    device = await authenticate_device(raw_request.app.state.pool, settings, token)
-    if device is None:
-        raise HTTPException(status_code=401, detail={"error": "unauthorized"})
+    if not matches_public_read_token(token, settings.public_read_token):
+        device = await authenticate_device(raw_request.app.state.pool, settings, token)
+        if device is None:
+            raise HTTPException(status_code=401, detail={"error": "unauthorized"})
 
     if geocoder is None:
         raise HTTPException(status_code=503, detail={"error": "reverse_geocode_disabled"})

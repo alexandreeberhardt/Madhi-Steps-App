@@ -29,5 +29,19 @@ def parse_bearer(authorization: Annotated[str | None, Header()] = None) -> str:
     return token
 
 
+def matches_public_read_token(token: str, public_read_token: str | None) -> bool:
+    """Le jeton de lecture est-il celui que nginx pose pour le site familial ?
+
+    Comparaison a temps constant : ce jeton ouvre l'historique complet du
+    voyage, et une comparaison naive se laisse deviner caractere par caractere.
+
+    Un jeton absent de la configuration n'autorise personne. Sans ce garde-fou,
+    un serveur mal configure ferait de la chaine vide un passe-partout.
+    """
+    if not public_read_token:
+        return False
+    return hmac.compare_digest(token, public_read_token)
+
+
 def activation_code_malformed(code: str) -> bool:
     return ACTIVATION_CODE_RE.match(code.strip()) is None

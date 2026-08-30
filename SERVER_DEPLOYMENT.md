@@ -81,10 +81,15 @@ Ce volume contient les positions serveur et doit etre sauvegarde.
 
 ## Adresse des points de la carte
 
-Toucher un point du trace dans l'application ouvre une bulle avec l'heure et
-l'adresse. L'adresse est demandee au serveur, jamais par le telephone : c'est
-le seul moyen qu'un tiers ne voie ni la position exacte ni l'adresse IP du
-reseau mobile traverse. Le VPS, lui, expose une adresse IP fixe deja publique.
+Toucher un point du trace, dans l'application comme sur le site familial, ouvre
+une bulle avec l'heure et l'adresse. L'adresse est demandee au serveur, jamais
+par le telephone ni par le navigateur : c'est le seul moyen qu'un tiers ne voie
+ni la position exacte ni l'adresse IP de qui regarde -- le reseau mobile
+traverse d'un cote, la connexion de la famille de l'autre. Le VPS, lui, expose
+une adresse IP fixe deja publique.
+
+Le site s'y presente avec le `PUBLIC_READ_TOKEN` que nginx pose pour lui,
+l'application avec son jeton d'appareil. Aucun autre appelant n'est accepte.
 
 **L'option est eteinte par defaut**, et un deploiement qui n'y touche pas ne
 change rien a ce qui sort du VPS. Pour l'allumer, dans le `.env` du serveur :
@@ -103,9 +108,15 @@ Verifier apres redeploiement, avec un jeton d'appareil valide :
     curl -s -H "Authorization: Bearer <deviceToken>" \
       "https://madhi-server.alexeber.fr/api/v1/reverse-geocode?lat=48.8566&lon=2.3522"
 
+Et avec le jeton de lecture, tel que le site interroge le serveur :
+
+    curl -s -H "Authorization: Bearer <PUBLIC_READ_TOKEN>" \
+      "https://madhi-server.alexeber.fr/api/v1/reverse-geocode?lat=48.8566&lon=2.3522"
+
 Un `503 reverse_geocode_disabled` signifie que l'option n'est pas allumee.
-Aucun de ces echecs n'est visible comme une panne dans l'application : la bulle
-affiche alors l'heure et les coordonnees, qui viennent de la base locale.
+Aucun de ces echecs n'est visible comme une panne : la bulle affiche alors
+l'heure et les coordonnees, qui viennent de la base locale dans l'application,
+et de la reponse deja recue sur le site.
 
 ## Sauvegarde
 

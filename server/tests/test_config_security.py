@@ -6,7 +6,7 @@ import pytest
 
 from app.config import Settings, validate_settings
 from app.rate_limit import real_client_ip
-from app.security import activation_code_malformed, hash_secret
+from app.security import activation_code_malformed, hash_secret, matches_public_read_token
 
 
 def production_settings(**overrides) -> Settings:
@@ -27,6 +27,24 @@ def production_settings(**overrides) -> Settings:
     }
     values.update(overrides)
     return Settings(**values)
+
+
+def test_le_site_familial_peut_demander_une_adresse():
+    # Le site passe par le relais du serveur pour la meme raison que le
+    # telephone : sans lui, chaque bulle ouverte livrerait a un tiers la
+    # position exacte et l'adresse IP de la personne qui regarde.
+    assert matches_public_read_token("z" * 48, "z" * 48) is True
+
+
+def test_un_autre_jeton_n_ouvre_pas_le_relais():
+    assert matches_public_read_token("z" * 47 + "a", "z" * 48) is False
+
+
+def test_sans_jeton_configure_personne_n_est_autorise():
+    # Un serveur mal configure ferait sinon de la chaine vide un passe-partout,
+    # et le relais de geocodage deviendrait un service ouvert.
+    assert matches_public_read_token("", None) is False
+    assert matches_public_read_token("", "") is False
 
 
 def test_le_geocodage_exige_une_identite_reelle():

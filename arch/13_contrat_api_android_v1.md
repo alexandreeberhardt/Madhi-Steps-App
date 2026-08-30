@@ -176,6 +176,12 @@ de géocodage ouvert. Il est **éteint par défaut** côté serveur
 (`REVERSE_GEOCODE_ENABLED`), parce qu'allumer une sortie vers un tiers est une
 décision qui se prend explicitement.
 
+Deux appelants l'utilisent, et eux seuls : l'application avec son `deviceToken`,
+et le site familial avec le `PUBLIC_READ_TOKEN` que nginx pose à sa place
+(`arch/17` §3.4). Le site touche les points de la même façon, et le raisonnement
+qui interdit au téléphone d'interroger le géocodeur vaut mot pour mot pour le
+navigateur de la famille.
+
 # 7. Endpoints non utilisés par l'application V1
 
 `GET /api/v1/trips/{tripId}/latest-location`,
