@@ -95,6 +95,7 @@ import java.util.Locale
 fun TrackMap(
     points: List<TrackPoint>,
     modifier: Modifier = Modifier,
+    backgroundTrack: List<Coordinates> = emptyList(),
     camera: MapCamera = rememberMapCamera(),
     loadTile: (suspend (TileId) -> ByteArray?)? = null,
     loadAddress: (suspend (Coordinates) -> String?)? = null,
@@ -126,6 +127,14 @@ fun TrackMap(
     // La projection ne dépend que des points : la refaire à chaque image de
     // glissement gaspillerait deux mille logarithmes pour rien.
     val projected = remember(points) { points.map { MapProjection.normalized(it.coordinates) } }
+
+    // Le fond suit le même chemin, et s'arrête là. Il n'entre ni dans
+    // `automaticViewport` — la carte ne doit pas reculer pour montrer un mois
+    // de trajet quand on demande la journée — ni dans le pointage, qui ne vise
+    // que les points de la période.
+    val backgroundProjected = remember(backgroundTrack) {
+        backgroundTrack.map(MapProjection::normalized)
+    }
 
     // Le point dont la bulle est ouverte. On retient le point et non son
     // indice : changer de période remplace la liste entière, et un indice
@@ -257,6 +266,12 @@ fun TrackMap(
         ) {
             drawTiles(visibleTiles, tile)
 
+            drawBackgroundTrack(
+                screen = backgroundProjected.map { it.toOffset(viewport, size.width, size.height) },
+                color = TrackColors.background,
+                strokeWidth = BACKGROUND_STROKE.toPx(),
+            )
+
             val screen = projected.map { it.toOffset(viewport, size.width, size.height) }
             drawTrack(points, screen, strokeWidth = TRACK_STROKE.toPx())
             drawPointDots(points, screen, radius = POINT_RADIUS.toPx())
@@ -295,6 +310,7 @@ fun TrackMap(
 
         Legend(
             hasPending = points.any { it.syncState == SyncState.PENDING },
+            hasBackground = backgroundTrack.isNotEmpty(),
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .onSizeChanged { legendHeight = it.height }
@@ -511,6 +527,32 @@ private fun Attribution(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
+ * Le reste du voyage, en fond.
+ *
+ * Un seul trait, plus fin et sans ses points : c'est un repère, pas une donnée
+ * qu'on interroge. Il se dessine avant le tracé de la période, qui doit rester
+ * le seul objet net de la carte. Il n'a pas non plus à être découpé par état de
+ * synchronisation : il ne dit rien de ce qui est parti ou non.
+ */
+private fun DrawScope.drawBackgroundTrack(
+    screen: List<Offset>,
+    color: Color,
+    strokeWidth: Float,
+) {
+    if (screen.size < 2) return
+
+    val path = Path().apply {
+        moveTo(screen[0].x, screen[0].y)
+        for (index in 1 until screen.size) lineTo(screen[index].x, screen[index].y)
+    }
+    drawPath(
+        path = path,
+        color = color,
+        style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round),
+    )
+}
+
+/**
  * Le tracé, découpé en tronçons d'un même état de synchronisation.
  *
  * Un tronçon par segment coûterait deux mille appels de dessin par image.
@@ -634,7 +676,7 @@ private fun formatDistance(meters: Int): String =
  * attente — au quotidien, la carte n'a donc qu'une ligne.
  */
 @Composable
-private fun Legend(hasPending: Boolean, modifier: Modifier = Modifier) {
+private fun Legend(hasPending: Boolean, hasBackground: Boolean, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
@@ -645,6 +687,9 @@ private fun Legend(hasPending: Boolean, modifier: Modifier = Modifier) {
     ) {
         LegendEntry(TrackColors.synced, "Envoyé")
         if (hasPending) LegendEntry(TrackColors.pending, "Sur le téléphone")
+        // Sans cette ligne, un trait gris apparaîtrait sur la carte sans que
+        // rien ne dise ce qu'il est.
+        if (hasBackground) LegendEntry(TrackColors.background, "Reste du voyage")
     }
 }
 
@@ -679,6 +724,13 @@ private val LEGEND_MARGIN: Dp = 12.dp
  */
 private val SCALE_BAND: Dp = 48.dp
 private val TRACK_STROKE: Dp = 3.dp
+
+/**
+ * Le trait du fond : plus fin que le tracé de la période, pour qu'un regard
+ * distingue les deux sans avoir à comparer les couleurs — en plein soleil sur
+ * un guidon, l'épaisseur se lit avant la teinte.
+ */
+private val BACKGROUND_STROKE: Dp = 2.dp
 /**
  * Un point du tracé. Un peu plus gros qu'avant : ils sont désormais des cibles
  * qu'on vise du doigt, et non plus seulement des marques de cadence.

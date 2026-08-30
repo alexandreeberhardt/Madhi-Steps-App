@@ -6,6 +6,10 @@ import com.madhi.tracker.application.usecase.ObserveTrack
 import com.madhi.tracker.application.usecase.ObserveTrackingStatus
 import com.madhi.tracker.application.usecase.StartTracking
 import com.madhi.tracker.domain.model.CaptureInterval
+import com.madhi.tracker.domain.model.Coordinates
+import com.madhi.tracker.domain.model.LocationId
+import com.madhi.tracker.domain.model.LocationPoint
+import com.madhi.tracker.domain.model.TrackPeriod
 import com.madhi.tracker.domain.model.TrackingHealth
 import com.madhi.tracker.domain.model.TrackingIntent
 import com.madhi.tracker.domain.model.TrackingProblem
@@ -25,12 +29,18 @@ import com.madhi.tracker.fakes.RecordingEventLog
 import com.madhi.tracker.domain.error.SyncFailure
 import com.madhi.tracker.domain.model.DeviceActivation
 import com.madhi.tracker.presentation.map.MainViewModel
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 class MainViewModelTest {
 
@@ -57,6 +67,30 @@ class MainViewModelTest {
      * intéresse le test est toujours la première valeur réelle.
      */
     private suspend fun firstStatus() = viewModel().status.filterNotNull().first()
+
+    /**
+     * La valeur d'un flux de la carte, une fois l'amont démarré.
+     *
+     * `first()` seul rendrait la valeur initiale du `stateIn` — une liste vide —
+     * avant même que la base ait été lue, et le test passerait sans rien
+     * prouver. Il faut un abonné : ces flux ne lisent la base que tant que
+     * quelqu'un les regarde, c'est tout leur intérêt.
+     */
+    private fun <T> TestScope.observed(flow: StateFlow<T>): T {
+        val job = launch { flow.collect {} }
+        runCurrent()
+        return flow.value.also { job.cancel() }
+    }
+
+    private suspend fun store(recordedAt: Instant, coordinates: Coordinates) {
+        locationStore.save(
+            LocationPoint(
+                id = LocationId.random(),
+                coordinates = coordinates,
+                recordedAt = recordedAt,
+            ),
+        )
+    }
 
     private fun viewModel() = MainViewModel(
         observeTrackingStatus = ObserveTrackingStatus(
@@ -116,6 +150,37 @@ class MainViewModelTest {
 
         assertEquals(TrackingHealth.ACTION_REQUIRED, status.health)
         assertEquals(TrackingProblem.AUTHENTICATION_FAILED, status.mostUrgentProblem)
+    }
+
+    @Test
+    fun `le fond montre tout le voyage, la periode ne montre que la periode`() = runTest {
+        // Une etape d'il y a trois jours, et une de ce matin. « Aujourd'hui »
+        // ne doit rien savoir de la premiere ; le fond doit connaitre les deux.
+        store(clock.instant.minus(3, ChronoUnit.DAYS), Coordinates(48.8566, 2.3522))
+        store(clock.instant, Coordinates(45.7640, 4.8357))
+        val viewModel = viewModel()
+        viewModel.onPeriodSelected(TrackPeriod.TODAY)
+
+        assertEquals(
+            listOf(Coordinates(45.7640, 4.8357)),
+            observed(viewModel.track).map { it.coordinates },
+        )
+        assertEquals(
+            listOf(Coordinates(48.8566, 2.3522), Coordinates(45.7640, 4.8357)),
+            observed(viewModel.backgroundTrack),
+        )
+    }
+
+    @Test
+    fun `sur tout le voyage, il n'y a pas de fond a dessiner`() = runTest {
+        // Le fond serait le trace lui-meme : le dessiner deux fois ne montrerait
+        // rien de plus et relirait la base pour rien.
+        store(clock.instant, Coordinates(45.7640, 4.8357))
+        val viewModel = viewModel()
+
+        viewModel.onPeriodSelected(TrackPeriod.EVERYTHING)
+
+        assertEquals(emptyList<Coordinates>(), observed(viewModel.backgroundTrack))
     }
 
     @Test

@@ -57,6 +57,7 @@
  * @property {TripStatusV1 | null} statut
  * @property {LocationPointV1 | null} dernierePosition
  * @property {LocationPointV1[]} points
+ * @property {LocationPointV1[]} pointsFond  le voyage entier, trace en gris derriere la periode
  * @property {FenetreTemporelle | null} fenetre
  * @property {boolean} historiqueCharge
  * @property {number} resolutionSecondes  pas d'echantillonnage annonce par le serveur

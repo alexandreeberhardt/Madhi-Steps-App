@@ -16,6 +16,12 @@ const RACINE_API = "./api";
 // trajet ampute, seulement d'un trajet resume.
 export const POINTS_VISES = 10000;
 
+// Nombre de positions demande pour le trace de fond, celui du voyage entier
+// dessine en gris derriere la periode choisie. Bien moins que le trace
+// principal : c'est un repere qu'on regarde de loin, jamais un trajet qu'on
+// examine, et il se redemande a chaque rafraichissement.
+export const POINTS_FOND = 1500;
+
 // Sans delai maximum, un serveur injoignable laisse le site en chargement
 // indefini, ce qui se lit comme un site casse.
 const DELAI_MAX_MS = 10000;
@@ -65,15 +71,17 @@ export async function getLatestLocation(tripId) {
  * @param {string} tripId
  * @param {Date} from
  * @param {Date} to
- * @returns {Promise<LocationPointV1[]>}
+ * @param {number} [limite]  positions visees ; le serveur espace pour couvrir
+ *   toute la periode, il ne coupe pas la fin.
+ * @returns {Promise<{points: LocationPointV1[], resolutionSecondes: number}>}
  */
-export async function getLocations(tripId, from, to) {
+export async function getLocations(tripId, from, to, limite = POINTS_VISES) {
   // toISOString produit exactement le format attendu : ISO-8601 UTC avec
   // suffixe Z. Le serveur rejette tout le reste par un 400.
   const parametres = new URLSearchParams({
     from: from.toISOString(),
     to: to.toISOString(),
-    limit: String(POINTS_VISES),
+    limit: String(limite),
   });
   const { corps, enTetes } = await demander(
     `${RACINE_API}/trips/${encodeURIComponent(tripId)}/locations?${parametres}`,

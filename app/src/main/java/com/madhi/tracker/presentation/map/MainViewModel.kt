@@ -18,6 +18,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -53,6 +55,32 @@ class MainViewModel @Inject constructor(
      */
     val track: StateFlow<List<TrackPoint>> = selectedPeriod
         .flatMapLatest { observeTrack(it) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+            initialValue = emptyList(),
+        )
+
+    /**
+     * Le reste du voyage, dessiné en fond derrière la période choisie.
+     *
+     * Des coordonnées et rien d'autre. Ce tracé-là ne se touche pas et ne code
+     * aucun état : lui donner le type du vrai tracé inviterait à s'en servir un
+     * jour pour le cadrage ou pour le pointage, ce qui est précisément ce qu'il
+     * ne doit jamais faire.
+     *
+     * Sur « Tout le voyage », il n'y a pas de fond : ce serait le tracé
+     * lui-même, dessiné deux fois et relu de la base pour rien.
+     */
+    val backgroundTrack: StateFlow<List<Coordinates>> = selectedPeriod
+        .flatMapLatest { period ->
+            if (period == TrackPeriod.EVERYTHING) {
+                flowOf(emptyList())
+            } else {
+                observeTrack(TrackPeriod.EVERYTHING)
+                    .map { points -> points.map(TrackPoint::coordinates) }
+            }
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),

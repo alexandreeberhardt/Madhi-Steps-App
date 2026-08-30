@@ -106,6 +106,39 @@ class TrackMapCameraTest {
         assertEquals(apresRecentrage.zoom, apresToucher.zoom, ZOOM_TOLERANCE)
     }
 
+    /**
+     * Le fond est décoratif, et rien d'autre.
+     *
+     * C'est la règle qui se casserait le plus discrètement : il suffirait qu'un
+     * jour le fond entre dans `MapViewport.fitting` pour que « Aujourd'hui »
+     * recule jusqu'à montrer tout le voyage — la carte serait juste, et la
+     * fonctionnalité perdue.
+     */
+    @Test
+    fun `le fond ne deplace pas le cadrage de la periode`() {
+        var fond by mutableStateOf(emptyList<Coordinates>())
+
+        compose.setContent {
+            MadhiTrackerTheme {
+                TrackMap(
+                    points = quartier,
+                    backgroundTrack = fond,
+                    modifier = Modifier.size(360.dp, 640.dp).testTag(MAP),
+                    camera = camera,
+                )
+            }
+        }
+        compose.waitForIdle()
+        val avantLeFond = requireViewport()
+
+        // Le voyage entier apparaît derrière le quartier. La carte ne doit pas
+        // reculer d'un pixel pour lui.
+        fond = voyage.map { it.coordinates }
+        compose.waitForIdle()
+
+        assertEquals(avantLeFond, requireViewport())
+    }
+
     @Test
     fun `le bouton recentrer n'apparait que quand la main a pris le controle`() {
         compose.setContent {

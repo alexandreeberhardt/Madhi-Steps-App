@@ -62,6 +62,7 @@ fun MainScreen(
 ) {
     val status by viewModel.status.collectAsStateWithLifecycle()
     val track by viewModel.track.collectAsStateWithLifecycle()
+    val backgroundTrack by viewModel.backgroundTrack.collectAsStateWithLifecycle()
     val period by viewModel.period.collectAsStateWithLifecycle()
 
     Scaffold(
@@ -89,6 +90,7 @@ fun MainScreen(
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             TrackMap(
                 points = track,
+                backgroundTrack = backgroundTrack,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 loadTile = if (viewModel.tilesEnabled) viewModel::tile else null,
                 loadAddress = viewModel::address,

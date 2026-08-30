@@ -29,13 +29,22 @@ const RAYON_JALON = 3;
 // L'appui, lui, continue de viser tous les points, dessines ou non.
 const MAXIMUM_JALONS_DESSINES = 2000;
 
+// Le voyage entier, dessine derriere la periode choisie. Gris et plus fin que
+// le trace : il n'est la que pour situer la periode dans le trajet, jamais pour
+// etre lu. Il ne porte pas de jalons — ce n'est pas une donnee qu'on interroge,
+// c'est un repere.
+const COULEUR_FOND = "#9aa4ae";
+const EPAISSEUR_FOND = 2;
+
 /**
  * @typedef {Object} Carte
  * @property {any} carte
  * @property {any} marqueur
  * @property {any} trace
+ * @property {any} fond
  * @property {any} jalons
  * @property {any} rendu
+ * @property {any} renduFond
  * @property {any} bulle
  * @property {string | null} bulleId
  * @property {((point: LocationPointV1 | null) => void) | null} surClicPoint
@@ -69,17 +78,25 @@ export function creerCarte(element, ecoutes = {}) {
     carte,
     marqueur: null,
     trace: null,
+    fond: null,
     jalons: L.layerGroup(),
     // Les jalons se dessinent sur un seul canvas plutot qu'en un millier
     // d'elements SVG : c'est la difference entre une carte qui glisse et une
     // carte qui saccade sur le telephone de la famille.
     rendu: L.canvas(),
+    // Un rendu a part pour le fond, ajoute a la carte avant tous les autres :
+    // Leaflet empile les couches dans l'ordre ou leurs conteneurs entrent dans
+    // le DOM, et c'est la seule facon d'etre certain que le gris reste sous le
+    // trace de la periode, quel que soit celui des deux qui est redessine en
+    // dernier.
+    renduFond: L.canvas(),
     bulle: null,
     bulleId: null,
     surClicPoint: ecoutes.surClicPoint ?? null,
     points: [],
     dernierePosition: null,
   };
+  handle.renduFond.addTo(carte);
   handle.rendu.addTo(carte);
   handle.jalons.addTo(carte);
 
@@ -123,6 +140,36 @@ export function afficherDernierePosition(handle, point, surClic) {
     return;
   }
   handle.marqueur.setLatLng(coordonnees);
+}
+
+/**
+ * Le voyage entier, en fond.
+ *
+ * Volontairement absent de [handle.points] et de [ajusterVue] : on le voit, on
+ * ne le touche pas, et la carte ne recule jamais pour le faire tenir. Toucher
+ * un de ses coudes revient a toucher la carte a cote, ce qui referme la bulle.
+ *
+ * @param {Carte} handle
+ * @param {LocationPointV1[]} points
+ */
+export function afficherFond(handle, points) {
+  if (handle.fond !== null) {
+    handle.carte.removeLayer(handle.fond);
+    handle.fond = null;
+  }
+  if (points.length < 2) return;
+
+  handle.fond = L.polyline(
+    points.map((point) => [point.latitude, point.longitude]),
+    {
+      renderer: handle.renduFond,
+      color: COULEUR_FOND,
+      weight: EPAISSEUR_FOND,
+      opacity: 0.75,
+      interactive: false,
+    },
+  );
+  handle.fond.addTo(handle.carte);
 }
 
 /**
@@ -231,6 +278,11 @@ export function fermerBulle(handle) {
 
 /**
  * Fait tenir le trajet et la derniere position dans la fenetre.
+ *
+ * Le trace de fond n'y entre pas : demander « aujourd'hui » et voir la carte
+ * reculer jusqu'a montrer trois pays serait exactement le contraire de ce qu'on
+ * demande. Le gris se voit s'il passe par la, et tant pis s'il sort du cadre.
+ *
  * @param {Carte} handle
  */
 export function ajusterVue(handle) {

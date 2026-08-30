@@ -13,6 +13,7 @@
 import { TITRE_PAR_DEFAUT, TRIP_ID } from "./config.js";
 import {
   ErreurApi,
+  POINTS_FOND,
   getAdresse,
   getLatestLocation,
   getLocations,
@@ -33,6 +34,7 @@ import {
 } from "./features/trip-state.js";
 import {
   afficherDernierePosition,
+  afficherFond,
   afficherTrajet,
   ajusterVue,
   creerCarte,
@@ -59,6 +61,7 @@ const donnees = {
   statut: null,
   dernierePosition: null,
   points: [],
+  pointsFond: [],
   fenetre: null,
   historiqueCharge: false,
   resolutionSecondes: 1,
@@ -91,6 +94,11 @@ let carte = null;
 // ajusterVue, qui annulerait le deplacement fait a la main par la personne qui
 // regarde.
 let cleTracee = null;
+// Ce qui est actuellement trace en gris, avec sa propre cle. Elle est separee
+// de `cleTracee` pour une raison precise : celle-la commande aussi `ajusterVue`,
+// et un fond qui change pendant que la periode ne bouge pas recadrerait la carte
+// sous les doigts de la personne qui regarde.
+let cleFond = null;
 // Numero de la demande en cours : une reponse plus lente qu'une demande plus
 // recente doit etre ignoree, sinon la periode affichee ne correspond plus au
 // bouton actif.
@@ -149,7 +157,7 @@ async function charger() {
 }
 
 /**
- * @returns {Promise<{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number}>}
+ * @returns {Promise<{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], pointsFond: import("./types.js").LocationPointV1[] | null, fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number}>}
  */
 async function recupererVoyage() {
   // Le statut vient en premier : `startedAt` commande tout le reste.
@@ -162,35 +170,69 @@ async function recupererVoyage() {
       statut,
       dernierePosition: null,
       points: [],
+      pointsFond: [],
       fenetre: null,
       resolutionSecondes: 1,
     };
   }
 
   const fenetre = bornesDePeriode(donnees.periode, statut.startedAt);
-  const [dernierePosition, historique] = await Promise.all([
+  const [dernierePosition, historique, pointsFond] = await Promise.all([
     // La derniere position ne vient toujours pas de l'historique. Celui-ci ne
     // coupe plus la fin, mais il l'echantillonne : sur un an, la position la
     // plus recente qu'il rende peut dater d'une demi-heure.
     getLatestLocation(TRIP_ID),
     getLocations(TRIP_ID, fenetre.from, fenetre.to),
+    recupererFond(statut.startedAt),
   ]);
   return {
     statut,
     dernierePosition,
     points: historique.points,
+    pointsFond,
     fenetre,
     resolutionSecondes: historique.resolutionSecondes,
   };
 }
 
 /**
- * @param {{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number}} resultat
+ * Le voyage entier, celui qui se dessine en gris derriere la periode choisie.
+ *
+ * Rend `[]` sur « tout le voyage » : le fond y serait le trace lui-meme,
+ * dessine deux fois et demande au serveur pour rien.
+ *
+ * Rend `null` — c'est-a-dire « ne change rien » — quand la demande echoue.
+ * Aucune erreur ne sort d'ici, et c'est delibere : un trace decoratif n'a pas
+ * le droit de faire dire au site que le serveur est en panne alors qu'il vient
+ * de repondre pour la periode et la derniere position. Un fond manquant se
+ * remarque a peine ; un bandeau rouge pose sur des donnees fraiches serait
+ * exactement la panne muette a l'envers.
+ *
+ * @param {string} debutVoyage
+ * @returns {Promise<import("./types.js").LocationPointV1[] | null>}
+ */
+async function recupererFond(debutVoyage) {
+  if (donnees.periode === "TOUT_LE_VOYAGE") return [];
+
+  const voyage = bornesDePeriode("TOUT_LE_VOYAGE", debutVoyage);
+  try {
+    const reponse = await getLocations(TRIP_ID, voyage.from, voyage.to, POINTS_FOND);
+    return reponse.points;
+  } catch (cause) {
+    return null;
+  }
+}
+
+/**
+ * @param {{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], pointsFond: import("./types.js").LocationPointV1[] | null, fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number}} resultat
  */
 function appliquer(resultat) {
   donnees.statut = resultat.statut;
   donnees.dernierePosition = resultat.dernierePosition;
   donnees.points = resultat.points;
+  // `null` veut dire que le fond n'a pas pu etre rafraichi. Celui d'il y a deux
+  // minutes reste juste : c'est le voyage passe, il ne change pas.
+  if (resultat.pointsFond !== null) donnees.pointsFond = resultat.pointsFond;
   donnees.fenetre = resultat.fenetre;
   donnees.historiqueCharge = resultat.fenetre !== null;
   // Le serveur ne tronque plus : il echantillonne et annonce son pas. Le site
@@ -319,6 +361,14 @@ function majCarte(maintenant) {
     // hauteur nulle et n'afficherait que du gris.
     rafraichirTaille(carte);
 
+    // Le fond a sa propre decision : il se redessine quand il change, et lui
+    // seul, sans jamais toucher au cadrage.
+    const empreinteFond = signature(donnees.pointsFond);
+    if (empreinteFond !== cleFond) {
+      afficherFond(carte, donnees.pointsFond);
+      cleFond = empreinteFond;
+    }
+
     const cle = cleDeTrace();
     if (cle !== cleTracee) {
       afficherDernierePosition(carte, donnees.dernierePosition, choisirPoint);
@@ -361,17 +411,29 @@ function majBulle(maintenant) {
 }
 
 /**
- * Identifie ce qui est trace. Les identifiants des points extremes distinguent
- * deux fenetres de meme taille : sur sept jours, un point qui sort par le debut
- * pendant qu'un autre entre par la fin laisse le compte inchange.
+ * Identifie ce que la carte montre de la periode choisie : le trace, la
+ * derniere position, et la periode elle-meme.
  *
  * @returns {string}
  */
 function cleDeTrace() {
-  const points = donnees.points;
+  return `${donnees.periode}|${donnees.dernierePosition.id}|${signature(donnees.points)}`;
+}
+
+/**
+ * Ce qui distingue deux listes de points sans les comparer une par une.
+ *
+ * Les identifiants des extremes comptent autant que l'effectif : sur sept
+ * jours, un point qui sort par le debut pendant qu'un autre entre par la fin
+ * laisse le compte inchange.
+ *
+ * @param {import("./types.js").LocationPointV1[]} points
+ * @returns {string}
+ */
+function signature(points) {
   const premier = points.length > 0 ? points[0].id : "-";
   const dernier = points.length > 0 ? points[points.length - 1].id : "-";
-  return `${donnees.periode}|${donnees.dernierePosition.id}|${points.length}|${premier}|${dernier}`;
+  return `${points.length}|${premier}|${dernier}`;
 }
 
 function construireSelecteur() {
@@ -393,6 +455,11 @@ function choisirPeriode(idPeriode) {
   if (donnees.periode === idPeriode) return;
   donnees.periode = idPeriode;
   donnees.points = [];
+  // Le fond ne depend pas de la periode : on le garde, sinon le gris
+  // disparaitrait puis reviendrait a chaque changement de bouton. Sauf sur
+  // « tout le voyage », ou le trace prend sa place et ou le laisser le
+  // doublerait.
+  if (idPeriode === "TOUT_LE_VOYAGE") donnees.pointsFond = [];
   donnees.historiqueCharge = false;
   donnees.resolutionSecondes = 1;
   // La bulle parlait d'un point de l'ancienne periode. La refermer plutot que
@@ -428,9 +495,13 @@ function majCouverture() {
     ? `depuis le départ, le ${formaterJourEtHeure(donnees.fenetre.from)}`
     : `du ${formaterJourEtHeure(donnees.fenetre.from)}`;
 
+  // Sans cette phrase, un trait gris apparaitrait sur la carte sans que rien
+  // ne dise ce qu'il est.
+  const fond = donnees.pointsFond.length > 0 ? " Le reste du voyage est tracé en gris." : "";
+
   elements.couverture.hidden = false;
   elements.couverture.textContent =
-    `Trajet affiché ${debut} au ${formaterJourEtHeure(donnees.fenetre.to)} — ${positions}.`;
+    `Trajet affiché ${debut} au ${formaterJourEtHeure(donnees.fenetre.to)} — ${positions}.${fond}`;
 }
 
 /**
