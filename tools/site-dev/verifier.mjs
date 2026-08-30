@@ -168,6 +168,27 @@ verifier("sans depart connu, la periode garde sa duree", () => {
   assert.equal(fenetre.borneAuDepart, false);
 });
 
+verifier("« 24 h » est propose a cote d'« aujourd'hui »", () => {
+  const libelles = PERIODES.map((periode) => periode.libelle);
+  assert.ok(libelles.includes("24 h"));
+});
+
+verifier("« 24 h » est une duree, pas une date", () => {
+  const fenetre = bornesDePeriode("VINGT_QUATRE_HEURES", null, MAINTENANT);
+  assert.equal(fenetre.to.getTime() - fenetre.from.getTime(), JOUR_MS);
+});
+
+verifier("a une heure du matin, « 24 h » montre ce qu'« aujourd'hui » cache", () => {
+  // C'est la raison d'etre de cette periode : « aujourd'hui » ne montre plus
+  // qu'une heure de trajet, et il faudrait passer a sept jours pour revoir
+  // l'etape de la veille.
+  const nuit = new Date(MAINTENANT.getTime());
+  nuit.setHours(1, 0, 0, 0);
+  const jourCivil = bornesDePeriode("AUJOURDHUI", null, nuit);
+  const duree = bornesDePeriode("VINGT_QUATRE_HEURES", null, nuit);
+  assert.ok(duree.from.getTime() < jourCivil.from.getTime());
+});
+
 verifier("aujourd'hui part de minuit, pas de vingt-quatre heures en arriere", () => {
   const fenetre = bornesDePeriode("AUJOURDHUI", null, MAINTENANT);
   assert.equal(fenetre.from.getHours(), 0);

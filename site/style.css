@@ -203,8 +203,14 @@ body {
   justify-content: space-between;
 }
 
+/* La rangee passe a la ligne plutot que d'etre ajustee au pixel : cinq
+   libelles ne tiennent pas sur un ecran de 360 points, et la premiere personne
+   qui agrandit la police du systeme verrait la mise en page se briser.
+   L'application, elle, fait defiler sa rangee -- sur une page, un bouton pousse
+   hors de l'ecran sans barre de defilement visible serait introuvable. */
 .periodes {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
 }
 

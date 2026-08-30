@@ -13,6 +13,7 @@ const JOUR_MS = 24 * 60 * 60 * 1000;
 // plus recentes, en silence (arch/17 §4.1, corrige).
 export const PERIODES = Object.freeze([
   Object.freeze({ id: "AUJOURDHUI", libelle: "Aujourd'hui", jours: null }),
+  Object.freeze({ id: "VINGT_QUATRE_HEURES", libelle: "24 h", jours: 1 }),
   Object.freeze({ id: "SEPT_JOURS", libelle: "7 jours", jours: 7 }),
   Object.freeze({ id: "TRENTE_JOURS", libelle: "30 jours", jours: 30 }),
   Object.freeze({ id: "TOUT_LE_VOYAGE", libelle: "Tout le voyage", jours: null }),
@@ -34,6 +35,12 @@ export function bornesDePeriode(idPeriode, debutVoyage, maintenant = new Date())
     case "AUJOURDHUI":
       from = new Date(maintenant.getTime());
       from.setHours(0, 0, 0, 0);
+      break;
+    case "VINGT_QUATRE_HEURES":
+      // Une duree, pas une date. A midi les deux se ressemblent ; a une heure
+      // du matin, « aujourd'hui » ne montre plus qu'une heure de trajet et il
+      // faut passer a sept jours pour revoir l'etape de la veille.
+      from = new Date(maintenant.getTime() - JOUR_MS);
       break;
     case "SEPT_JOURS":
       from = new Date(maintenant.getTime() - 7 * JOUR_MS);

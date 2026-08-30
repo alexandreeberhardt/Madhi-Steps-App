@@ -324,13 +324,19 @@ Règles :
 
 Les périodes de `arch/05` §3, chacune produisant `{ from: Date, to: Date }` :
 
-    AUJOURDHUI      minuit local -> maintenant
-    SEPT_JOURS      maintenant - 7 j -> maintenant
-    TRENTE_JOURS    maintenant - 30 j -> maintenant
+    AUJOURDHUI            minuit local -> maintenant
+    VINGT_QUATRE_HEURES   maintenant - 24 h -> maintenant
+    SEPT_JOURS            maintenant - 7 j -> maintenant
+    TRENTE_JOURS          maintenant - 30 j -> maintenant
 
 `TOUT_LE_VOYAGE` s'est ajouté le 26 août 2026, une fois l'échantillonnage
 serveur en place (§4.1) : il est désormais servable en un appel. `TRENTE_JOURS`
 reste, comme palier intermédiaire.
+
+`VINGT_QUATRE_HEURES` s'est ajouté le 30 août 2026, en même temps que dans
+l'application : à midi il ressemble à `AUJOURDHUI`, à une heure du matin il ne
+lui ressemble plus du tout. La période qui manquait est une **durée**, pas une
+date — sans elle, il faut passer à sept jours pour revoir l'étape de la veille.
 
 Le libellé doit toujours dire ce qu'il montre. Quand le pas d'échantillonnage
 dépasse la cadence de capture, l'interface annonce un **tracé résumé** — et non

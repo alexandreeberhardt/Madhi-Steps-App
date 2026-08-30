@@ -30,6 +30,10 @@ secondaires.
 
 - Aujourd’hui.
 
+- Les 24 dernières heures. *Ajouté le 30 août 2026, en même temps que dans
+  l’application : à une heure du matin, « aujourd’hui » ne montre plus qu’une
+  heure de trajet. La période qui manquait est une durée, pas une date.*
+
 - 7 derniers jours.
 
 - Tout le voyage si les performances restent acceptables ; sinon période
