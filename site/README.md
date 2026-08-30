@@ -1,8 +1,9 @@
 # Site familial
 
 Une page : où est-elle, de quand date la position, quel trajet sur la période
-choisie. Rien d'autre. Le plan d'exécution et les raisons de chaque choix sont
-dans `arch/17_plan_implementation_site_poc.md`, le cahier des charges dans
+choisie. Toucher un point du tracé dit quand on était là, et où. Rien d'autre.
+Le plan d'exécution et les raisons de chaque choix sont dans
+`arch/17_plan_implementation_site_poc.md`, le cahier des charges dans
 `arch/05_site_POC.md`.
 
 **En ligne depuis le 23 août 2026** sur `https://madhi.alexeber.fr`, derrière un
@@ -34,10 +35,11 @@ déployer :
     config.js             identifiant du voyage
     app.js                état, cycle charger -> état -> rendre
     types.js              miroir des modèles serveur
-    api-client.js         les trois appels de lecture, et eux seuls
-    features/trip-state.js   les huit états, calculés à un seul endroit
-    features/period.js       les périodes et leurs bornes
-    components/           carte, dernière position, bandeau d'état
+    api-client.js         les appels au serveur, et eux seuls
+    features/trip-state.js     les huit états, calculés à un seul endroit
+    features/period.js         les périodes et leurs bornes
+    features/track-picking.js  quel point du tracé un doigt vise
+    components/           carte, dernière position, bulle d'un point, bandeau
     utils/time.js         formatage français, absolu et relatif
     vendor/               Leaflet 1.9.4
 
@@ -57,6 +59,7 @@ des états sans toucher à une base :
 
     python3 tools/site-dev/serve.py --scenario hors-ligne
     python3 tools/site-dev/serve.py --scenario aucune-position
+    python3 tools/site-dev/serve.py --scenario sans-adresse
     python3 tools/site-dev/serve.py --scenario panne
 
 Contre le vrai serveur, avec le token en ligne de commande — c'est ce mode qui
@@ -180,7 +183,10 @@ extérieur, ou un pixel de mesure d'audience portant des coordonnées, est refus
 par le navigateur même si une ligne de code s'y essayait un jour.
 
 Vérifiable dans la console : `connect-src` et `img-src` refusent tout hôte
-extérieur, tuiles exceptées.
+extérieur, tuiles exceptées. L'adresse affichée dans la bulle d'un point ne
+fait pas exception : elle est demandée au serveur du voyage, qui relaie la
+question au géocodeur. Le navigateur de la famille ne parle jamais à ce
+dernier — il ne le pourrait pas, la CSP le lui interdit.
 
 Deux choix explicites, à relire avant de les changer :
 
@@ -212,6 +218,7 @@ besoin de changer, et inversement — c'est la raison d'avoir les deux.
 | 500 à la demande de mot de passe | `madhi.htpasswd` illisible par le worker nginx ; `chmod 644` |
 | Page d'accueil nginx au lieu du site | le gabarit n'a pas remplacé `conf.d/default.conf` |
 | Carte grise, reste affiché | tuiles injoignables ; la dernière position reste juste |
+| « Adresse non configurée. » dans la bulle | `REVERSE_GEOCODE_ENABLED` est à `false`, l'état par défaut ; voir `SERVER_DEPLOYMENT.md` |
 | « Le voyage n'a pas encore commencé » | `trips.started_at` est nul, voir `SERVER_DEPLOYMENT.md` |
 
 ## Hors périmètre

@@ -60,6 +60,10 @@
  * @property {FenetreTemporelle | null} fenetre
  * @property {boolean} historiqueCharge
  * @property {number} resolutionSecondes  pas d'echantillonnage annonce par le serveur
+ * @property {string | null} idPointChoisi  le point dont la bulle est ouverte
+ * @property {string | null} adresse        adresse de ce point, quand le serveur la donne
+ * @property {boolean} rechercheAdresse
+ * @property {boolean} adresseDesactivee    vrai quand le serveur a l'option eteinte
  * @property {boolean} chargement
  * @property {import("./api-client.js").ErreurApi | null} erreur
  * @property {Date | null} derniereMajReussie

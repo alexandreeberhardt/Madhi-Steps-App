@@ -33,6 +33,7 @@ base ni à arrêter un serveur :
 | `termine` | `endedAt` non nul |
 | `historique-vide` | une position récente, aucun point sur la période |
 | `tronque` | une réponse de la taille exacte du plafond |
+| `sans-adresse` | `reverse-geocode` répond 503 : l'option est éteinte sur le VPS, l'état par défaut |
 | `panne` | 502 |
 | `interdit` | 403, comme un token périmé |
 | `voyage-inconnu` | 404 |
@@ -61,4 +62,5 @@ ce mode, c'est qu'il n'a besoin d'aucun secret.
 
 Porte sur ce qui se voit mal à l'œil nu : l'ordre d'évaluation des huit états,
 les bornes de période et leur écrêtage au départ, la détection de troncature,
-et l'absence de toute formulation suggérant du temps réel.
+le point du tracé que désigne un appui, et l'absence de toute formulation
+suggérant du temps réel — y compris quand une adresse manque.

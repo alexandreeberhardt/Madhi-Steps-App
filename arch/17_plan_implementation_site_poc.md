@@ -96,7 +96,9 @@ deviennent deux `location` nginx partageant les mêmes fichiers statiques.
 
 Vérifié dans `server/app/main.py` et `server/app/db.py`. Les trois endpoints de
 lecture exigent tous `Authorization: Bearer <PUBLIC_READ_TOKEN>`, sans quoi ils
-répondent `403 {"error": "forbidden"}`.
+répondent `403 {"error": "forbidden"}`. Le relais d'adresse (§3.4) attend le
+même jeton, mais répond `401` : il est partagé avec l'application, qui s'y
+présente avec son jeton d'appareil.
 
 ## 3.1 `GET /api/v1/trips/{tripId}/status`
 
@@ -132,7 +134,24 @@ Paramètres : `from`, `to`, `limit`.
   points visé : le serveur échantillonne pour couvrir toute la période (§4.1).
 - Le tri est `recorded_at asc`.
 
-## 3.4 Forme d'un point
+## 3.4 `GET /api/v1/reverse-geocode`
+
+Paramètres `lat` et `lon`, réponse `{"address": "..."}`. C'est le seul appel du
+site qui ne lit pas la base du voyage : il relaie une question à un géocodeur
+tiers, et le contrat complet est dans `arch/13` §6 — l'application l'utilise
+pour la même bulle, avec son jeton d'appareil.
+
+Le site le traverse pour la même raison que le téléphone : demandée depuis le
+navigateur, l'adresse livrerait au tiers la position exacte et l'adresse IP de
+chaque personne de la famille qui regarde la carte. Relayée par le VPS, la
+question ne montre qu'une adresse IP fixe, déjà publique.
+
+**Aucune de ses erreurs n'est une panne.** `503` quand l'option est éteinte sur
+le serveur — c'est l'état par défaut —, `404` quand personne ne sait nommer
+l'endroit, et un réseau coupé comme le reste. Dans les trois cas la bulle
+affiche l'heure et les coordonnées, qui viennent de la réponse déjà reçue.
+
+## 3.5 Forme d'un point
 
 Recopiée de `LocationResponse` dans `server/app/models.py` :
 
@@ -235,9 +254,11 @@ C'est la raison d'être du `Referrer-Policy: no-referrer` exigé par `arch/05`
       features/
         trip-state.js       machine d'etat, calcul du statut
         period.js           definition des periodes, bornes UTC
+        track-picking.js    quel point du trace un doigt vise
       components/
         map.js              MapProvider encapsule, marker et polyline
         latest-location.js  bloc derniere position
+        point-bubble.js     ce que dit un point du trace : quand, et ou
         status-banner.js    bandeau d'etat et messages d'erreur
       utils/
         time.js             formatage absolu et relatif, en francais
@@ -409,6 +430,29 @@ le téléphone n'envoie fabrique une illusion de temps réel.
 
 Mobile d'abord : `arch/05` §9 exige que ça marche sur un smartphone familial.
 Carte lisible sans zoom manuel, sélecteur de période atteignable au pouce.
+
+## 8.1 Toucher un point du tracé
+
+Un appui sur le tracé — ou sur le marqueur de la dernière position — ouvre une
+bulle : l'heure du point, son adresse, ses coordonnées. Appuyer à côté de tout,
+ou sur la bulle, la referme.
+
+La tolérance d'appui est de vingt-deux pixels, bien plus large qu'un point
+dessiné : viser au pixel serait injouable au doigt. Le choix du point visé vit
+dans `features/track-picking.js`, hors de Leaflet, pour la même raison que les
+périodes vivent hors de la carte — une sélection fausse se voit mal à l'œil et
+très bien en test.
+
+Deux écarts assumés avec l'application, qui fait la même chose :
+
+- **La carte se déplace** quand la bulle ne tient pas dans le cadre
+  (`autoPan` de Leaflet), là où l'application fait passer la bulle sous le
+  point sans toucher au cadrage. Même but, et « Recentrer » remet le trajet en
+  place.
+- **Les points ne sont dessinés qu'en deçà de 2 000**. Au-delà, le tracé reste
+  une ligne : quelques milliers de cercles, un canvas encaisse ; dix mille, le
+  téléphone de la famille saccade. L'appui, lui, continue de viser tous les
+  points.
 
 # 9. nginx
 

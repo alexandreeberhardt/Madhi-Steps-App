@@ -13,6 +13,7 @@
 import { TITRE_PAR_DEFAUT, TRIP_ID } from "./config.js";
 import {
   ErreurApi,
+  getAdresse,
   getLatestLocation,
   getLocations,
   getTripStatus,
@@ -35,8 +36,11 @@ import {
   afficherTrajet,
   ajusterVue,
   creerCarte,
+  fermerBulle,
+  montrerBulle,
   rafraichirTaille,
 } from "./components/map.js";
+import { contenuBulle } from "./components/point-bubble.js";
 import { rendreDernierePosition } from "./components/latest-location.js";
 import { messagesPour, rendreBandeau, rendreMessageCentral } from "./components/status-banner.js";
 import { formaterJourEtHeure } from "./utils/time.js";
@@ -58,6 +62,10 @@ const donnees = {
   fenetre: null,
   historiqueCharge: false,
   resolutionSecondes: 1,
+  idPointChoisi: null,
+  adresse: null,
+  rechercheAdresse: false,
+  adresseDesactivee: false,
   chargement: false,
   erreur: null,
   derniereMajReussie: null,
@@ -87,6 +95,9 @@ let cleTracee = null;
 // recente doit etre ignoree, sinon la periode affichee ne correspond plus au
 // bouton actif.
 let sequence = 0;
+// Le meme garde-fou pour la recherche d'adresse : deux points touches coup sur
+// coup, et c'est l'adresse du premier qui pourrait s'afficher sous le second.
+let sequenceAdresse = 0;
 
 demarrer();
 
@@ -186,6 +197,71 @@ function appliquer(resultat) {
   // n'a donc plus a deviner si le trajet est ampute, seulement a dire s'il est
   // resume.
   donnees.resolutionSecondes = resultat.resolutionSecondes;
+
+  // Le trace a change sous la bulle : un point qui n'est plus dessine ne doit
+  // pas garder la sienne ouverte. On retient un identifiant et non un indice,
+  // justement pour pouvoir poser cette question.
+  if (donnees.idPointChoisi !== null && pointChoisi() === null) oublierPointChoisi();
+}
+
+/**
+ * Le point dont la bulle est ouverte, tel qu'il existe dans les donnees du
+ * moment. Chaque rafraichissement remplace les objets recus : les comparer par
+ * identifiant est la seule facon de reconnaitre le meme point d'un appel a
+ * l'autre.
+ *
+ * @returns {import("./types.js").LocationPointV1 | null}
+ */
+function pointChoisi() {
+  if (donnees.idPointChoisi === null) return null;
+  const duTrace = donnees.points.find((point) => point.id === donnees.idPointChoisi);
+  if (duTrace !== undefined) return duTrace;
+  const derniere = donnees.dernierePosition;
+  return derniere !== null && derniere.id === donnees.idPointChoisi ? derniere : null;
+}
+
+/**
+ * Toucher un point du trace, ou la carte a cote de tout.
+ *
+ * @param {import("./types.js").LocationPointV1 | null} point
+ */
+function choisirPoint(point) {
+  const identifiant = point === null ? null : point.id;
+  if (donnees.idPointChoisi === identifiant) return;
+
+  oublierPointChoisi();
+  donnees.idPointChoisi = identifiant;
+  donnees.rechercheAdresse = point !== null;
+
+  rendre();
+  if (point !== null) chargerAdresse(point, sequenceAdresse);
+}
+
+/**
+ * Referme la bulle et abandonne ce qui s'y rapportait, sans redessiner :
+ * l'appelant sait mieux quand le faire.
+ */
+function oublierPointChoisi() {
+  donnees.idPointChoisi = null;
+  donnees.adresse = null;
+  donnees.adresseDesactivee = false;
+  donnees.rechercheAdresse = false;
+  // Une recherche en cours designe le point precedent : son resultat n'a rien
+  // a faire dans la bulle du suivant.
+  sequenceAdresse += 1;
+}
+
+/**
+ * @param {import("./types.js").LocationPointV1} point
+ * @param {number} numero
+ */
+async function chargerAdresse(point, numero) {
+  const resultat = await getAdresse(point.latitude, point.longitude);
+  if (numero !== sequenceAdresse) return;
+  donnees.adresse = resultat.adresse;
+  donnees.adresseDesactivee = resultat.desactivee;
+  donnees.rechercheAdresse = false;
+  rendre();
 }
 
 function rendre() {
@@ -212,7 +288,7 @@ function rendre() {
     elements.carte.hidden = false;
     rendreMessageCentral(elements.messageCentral, []);
     rendreBandeau(elements.bandeau, avis);
-    majCarte();
+    majCarte(maintenant);
   } else {
     elements.carte.hidden = true;
     rendreBandeau(elements.bandeau, []);
@@ -233,26 +309,55 @@ function rendre() {
   document.body.dataset.etat = etat;
 }
 
-function majCarte() {
+/**
+ * @param {Date} maintenant
+ */
+function majCarte(maintenant) {
   try {
-    if (carte === null) carte = creerCarte(elements.carte);
+    if (carte === null) carte = creerCarte(elements.carte, { surClicPoint: choisirPoint });
     // Le conteneur vient peut-etre d'etre demasque : Leaflet aurait mesure une
     // hauteur nulle et n'afficherait que du gris.
     rafraichirTaille(carte);
 
     const cle = cleDeTrace();
-    if (cle === cleTracee) return;
+    if (cle !== cleTracee) {
+      afficherDernierePosition(carte, donnees.dernierePosition, choisirPoint);
+      afficherTrajet(carte, donnees.points);
+      ajusterVue(carte);
+      cleTracee = cle;
+    }
 
-    afficherDernierePosition(carte, donnees.dernierePosition);
-    afficherTrajet(carte, donnees.points);
-    ajusterVue(carte);
-    cleTracee = cle;
+    // Hors du test de cle : l'adresse arrive apres coup, et l'heure du point
+    // vieillit toute seule entre deux redessins.
+    majBulle(maintenant);
   } catch (cause) {
     // Une carte cassee ne doit pas emporter le reste : la derniere position en
     // texte vaut mieux qu'une page blanche.
     console.error("carte indisponible", cause);
     elements.carte.hidden = true;
   }
+}
+
+/**
+ * @param {Date} maintenant
+ */
+function majBulle(maintenant) {
+  const point = pointChoisi();
+  if (point === null) {
+    fermerBulle(carte);
+    return;
+  }
+  montrerBulle(
+    carte,
+    point,
+    contenuBulle({
+      point,
+      maintenant,
+      adresse: donnees.adresse,
+      rechercheEnCours: donnees.rechercheAdresse,
+      adresseDesactivee: donnees.adresseDesactivee,
+    }),
+  );
 }
 
 /**
@@ -290,6 +395,9 @@ function choisirPeriode(idPeriode) {
   donnees.points = [];
   donnees.historiqueCharge = false;
   donnees.resolutionSecondes = 1;
+  // La bulle parlait d'un point de l'ancienne periode. La refermer plutot que
+  // de la laisser flotter au-dessus d'un trace qui n'est plus le sien.
+  oublierPointChoisi();
   rendre();
   charger();
 }

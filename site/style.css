@@ -251,6 +251,50 @@ body {
   font-size: 0.85rem;
 }
 
+/* La bulle d'un point du trace : quand on etait la, et ou. Les trois lignes
+   sont hierarchisees, l'heure d'abord -- c'est la question posee. */
+.bulle .leaflet-popup-content-wrapper {
+  background: var(--fond-panneau);
+  color: var(--texte);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+}
+
+.bulle .leaflet-popup-tip {
+  background: var(--fond-panneau);
+  box-shadow: none;
+}
+
+.bulle .leaflet-popup-content {
+  margin: 0.6rem 0.75rem;
+  /* Assez large pour une adresse, assez etroit pour ne pas couvrir le trace. */
+  max-width: 16rem;
+}
+
+.bulle-heure {
+  margin: 0;
+  font-weight: 600;
+}
+
+.bulle-adresse {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+}
+
+/* Une adresse absente est le cas normal en voyage, pas une panne : elle se dit
+   en gris, jamais en rouge. */
+.bulle-adresse-absente {
+  color: var(--texte-doux);
+  font-style: italic;
+}
+
+.bulle-coordonnees {
+  margin: 0.25rem 0 0;
+  color: var(--texte-doux);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .sans-javascript {
   margin: 0;
   padding: 1rem;

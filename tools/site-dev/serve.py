@@ -66,6 +66,7 @@ SCENARIOS = (
     "termine",
     "historique-vide",
     "tronque",
+    "sans-adresse",
     "panne",
     "interdit",
     "voyage-inconnu",
@@ -100,7 +101,7 @@ def fabriquer_points(fin: datetime, nombre: int, retard_reception: timedelta) ->
 
 
 class Scenario:
-    """Les trois reponses de lecture, pour un etat donne du voyage."""
+    """Les reponses de lecture, pour un etat donne du voyage."""
 
     def __init__(self, nom: str) -> None:
         self.nom = nom
@@ -141,6 +142,17 @@ class Scenario:
         # afficher sans saccade.
         retard = timedelta(hours=2) if self.nom == "hors-ligne" else timedelta(seconds=25)
         return fabriquer_points(self.maintenant - decalage, 288, retard)
+
+    def adresse(self, latitude: float, longitude: float) -> str:
+        """Une adresse plausible, qui change quand on remonte le trace.
+
+        Une valeur fixe cacherait ce qui compte : la bulle doit dire l'endroit
+        du point touche, et non celui du dernier point recu.
+        """
+        communes = ("Senlis", "Compiegne", "Noyon", "Saint-Quentin", "Cambrai")
+        commune = communes[int(abs(latitude) * 100) % len(communes)]
+        numero = 1 + int(abs(longitude) * 1000) % 90
+        return f"{numero} Rue des Essais, {commune}, France"
 
     def derniere_position(self) -> dict | None:
         points = self.points_du_voyage()
@@ -229,6 +241,18 @@ class Handler(BaseHTTPRequestHandler):
         parametres = dict(
             paire.split("=", 1) for paire in requete.split("&") if "=" in paire
         )
+
+        if reste.startswith("reverse-geocode"):
+            if scenario.nom == "sans-adresse":
+                # L'option est eteinte par defaut sur le VPS : c'est l'etat que
+                # la famille verra le plus souvent, et la bulle doit rester
+                # utile sans adresse.
+                self.envoyer_json(503, {"error": "reverse_geocode_disabled"})
+                return
+            latitude = float(parametres.get("lat", "0"))
+            longitude = float(parametres.get("lon", "0"))
+            self.envoyer_json(200, {"address": scenario.adresse(latitude, longitude)})
+            return
 
         if reste.endswith("/status"):
             self.envoyer_json(200, scenario.statut())

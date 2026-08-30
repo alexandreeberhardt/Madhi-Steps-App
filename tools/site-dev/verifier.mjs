@@ -15,8 +15,14 @@ const { calculerEtat, historiqueEstVide, doitAfficherPosition, Etat } = await im
   new URL("features/trip-state.js", RACINE)
 );
 const { bornesDePeriode, PERIODES } = await import(new URL("features/period.js", RACINE));
-const { formaterAbsolu, formaterDuree, formaterRelatif } = await import(
+const { formaterAbsolu, formaterDuree, formaterInstantDuPoint, formaterRelatif } = await import(
   new URL("utils/time.js", RACINE)
+);
+const { indiceDuPointVise, TOLERANCE_PIXELS } = await import(
+  new URL("features/track-picking.js", RACINE)
+);
+const { formaterCoordonnees, ligneAdresse } = await import(
+  new URL("components/point-bubble.js", RACINE)
 );
 const { messagesPour } = await import(new URL("components/status-banner.js", RACINE));
 const { POINTS_VISES, ErreurApi } = await import(new URL("api-client.js", RACINE));
@@ -63,9 +69,9 @@ function donnees(surcharges = {}) {
   };
 }
 
-function position(recordedAt) {
+function position(recordedAt, id = "p1") {
   return {
-    id: "p1",
+    id,
     deviceId: "d1",
     latitude: 48.85,
     longitude: 2.35,
@@ -206,6 +212,93 @@ verifier("une annee de captures depasse ce qu'un appel peut rendre point par poi
   // « tout le voyage » ne serait pas servable.
   const pointsParJour = (24 * 60) / 5;
   assert.ok(365 * pointsParJour > POINTS_VISES);
+});
+
+// --- le point qu'un doigt vise ----------------------------------------------
+
+/**
+ * Des points ranges sur une ligne horizontale, dix pixels entre chacun. La
+ * projection est fournie a la fonction : elle n'a jamais besoin de Leaflet.
+ */
+function pointsEnLigne(nombre) {
+  return Array.from({ length: nombre }, (_, index) => position("2026-09-15T11:00:00Z", `p${index}`));
+}
+
+const projeterEnLigne = (point) => ({ x: Number(point.id.slice(1)) * 10, y: 0 });
+
+verifier("l'appui designe le point le plus proche", () => {
+  const points = pointsEnLigne(5);
+  assert.equal(indiceDuPointVise(points, { x: 31, y: 0 }, projeterEnLigne), 3);
+});
+
+verifier("un appui loin de tout ne designe rien", () => {
+  // Le geste doit pouvoir rater : c'est ce qui referme la bulle.
+  const points = pointsEnLigne(5);
+  const loin = { x: 0, y: TOLERANCE_PIXELS + 1 };
+  assert.equal(indiceDuPointVise(points, loin, projeterEnLigne), null);
+});
+
+verifier("a distance egale, c'est le plus recent qui gagne", () => {
+  // C'est la fin du trace qu'on regarde, et c'est elle qui est dessinee
+  // par-dessus.
+  const points = pointsEnLigne(5);
+  const projeterSuperposes = () => ({ x: 0, y: 0 });
+  assert.equal(indiceDuPointVise(points, { x: 0, y: 0 }, projeterSuperposes), 4);
+});
+
+verifier("la tolerance est plus large qu'un point dessine", () => {
+  // Un point fait six pixels, un doigt en couvre une cinquantaine : viser au
+  // pixel serait injouable.
+  assert.ok(TOLERANCE_PIXELS >= 20);
+});
+
+verifier("un trace vide ne designe rien", () => {
+  assert.equal(indiceDuPointVise([], { x: 0, y: 0 }, projeterEnLigne), null);
+});
+
+// --- ce que dit la bulle ----------------------------------------------------
+
+verifier("l'heure d'un point se lit sans calcul", () => {
+  const veille = new Date(MAINTENANT.getTime() - JOUR_MS);
+  assert.match(formaterInstantDuPoint(MAINTENANT, MAINTENANT), /^aujourd'hui à \d{2}:\d{2}$/);
+  assert.match(formaterInstantDuPoint(veille, MAINTENANT), /^hier à \d{2}:\d{2}$/);
+});
+
+verifier("l'annee n'apparait que lorsqu'elle change", () => {
+  // Un voyage d'un an finira par traverser deux annees, et « 3 janvier »
+  // serait alors ambigu.
+  const memeAnnee = new Date("2026-01-03T09:05:00Z");
+  const autreAnnee = new Date("2027-01-03T09:05:00Z");
+  assert.doesNotMatch(formaterInstantDuPoint(memeAnnee, MAINTENANT), /2026/);
+  assert.match(formaterInstantDuPoint(autreAnnee, MAINTENANT), /2027/);
+});
+
+verifier("une adresse absente ne se dit jamais comme une panne", () => {
+  const interdits = /erreur|échec|impossible|panne/i;
+  const cas = [
+    { adresse: null, rechercheEnCours: true, adresseDesactivee: false },
+    { adresse: null, rechercheEnCours: false, adresseDesactivee: true },
+    { adresse: null, rechercheEnCours: false, adresseDesactivee: false },
+  ];
+  const lignes = cas.map((vue) => ligneAdresse(vue));
+  for (const ligne of lignes) assert.doesNotMatch(ligne, interdits);
+  // Les trois cas se distinguent : chercher, non configure, indisponible.
+  assert.equal(new Set(lignes).size, 3);
+});
+
+verifier("une adresse trouvee passe avant tout le reste", () => {
+  const ligne = ligneAdresse({
+    adresse: "12 Rue de la Paix, Paris, France",
+    rechercheEnCours: true,
+    adresseDesactivee: true,
+  });
+  assert.equal(ligne, "12 Rue de la Paix, Paris, France");
+});
+
+verifier("les coordonnees s'ecrivent avec un point decimal", () => {
+  // Une virgule decimale et une virgule separatrice dans la meme ligne
+  // donneraient « 48,85660, 2,35220 », que personne ne sait relire.
+  assert.equal(formaterCoordonnees({ latitude: 48.8566, longitude: 2.3522 }), "48.85660, 2.35220");
 });
 
 // --- messages ---------------------------------------------------------------

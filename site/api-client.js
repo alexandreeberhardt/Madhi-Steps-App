@@ -20,6 +20,12 @@ export const POINTS_VISES = 10000;
 // indefini, ce qui se lit comme un site casse.
 const DELAI_MAX_MS = 10000;
 
+// Revenir trois fois sur le meme point ne doit pas faire trois requetes, et
+// surtout pas trois appels sortants du VPS vers un tiers. Le cache vit le
+// temps de l'onglet : la carte ne merite pas un stockage de plus.
+/** @type {Map<string, {adresse: string | null, desactivee: boolean}>} */
+const cacheAdresses = new Map();
+
 export class ErreurApi extends Error {
   /**
    * @param {string} message
@@ -79,6 +85,59 @@ export async function getLocations(tripId, from, to) {
     // seconde signifie « rien n'a ete regroupe », ce qui etait vrai de lui.
     resolutionSecondes: Number.isFinite(annonce) && annonce > 0 ? annonce : 1,
   };
+}
+
+/**
+ * L'adresse d'une position, relayee par le serveur du voyage et jamais
+ * demandee au geocodeur depuis le navigateur (`arch/13` §6). Un tiers ne voit
+ * ainsi que l'adresse IP fixe du VPS, deja publique, et non celle de chaque
+ * personne de la famille qui regarde la carte.
+ *
+ * Aucune erreur ne sort d'ici. Une adresse introuvable, un serveur qui a
+ * l'option eteinte, un reseau coupe : trois fois le meme affichage, l'heure et
+ * les coordonnees, qui n'ont besoin de rien.
+ *
+ * @param {number} latitude
+ * @param {number} longitude
+ * @returns {Promise<{adresse: string | null, desactivee: boolean}>}
+ */
+export async function getAdresse(latitude, longitude) {
+  const cle = `${format(latitude)},${format(longitude)}`;
+  const connu = cacheAdresses.get(cle);
+  if (connu !== undefined) return connu;
+
+  try {
+    const corps = await demanderJson(
+      `${RACINE_API}/reverse-geocode?lat=${format(latitude)}&lon=${format(longitude)}`,
+    );
+    const trouvee = typeof corps?.address === "string" && corps.address !== "";
+    const adresse = trouvee ? corps.address : null;
+    // Seules les reussites sont retenues. D'ici, un reseau coupe et un point
+    // en pleine mer rendent le meme `null` : mettre le second en cache
+    // mettrait le premier avec lui, et la bulle resterait vide jusqu'a la fin
+    // du voyage. C'est le serveur, lui, qui sait faire la difference et qui
+    // garde les reponses vides.
+    if (adresse !== null) cacheAdresses.set(cle, { adresse, desactivee: false });
+    return { adresse, desactivee: false };
+  } catch (cause) {
+    // 503 est le seul cas qui ne se resoudra pas tout seul : l'option est
+    // eteinte sur le VPS, et la bulle a le droit de le dire autrement qu'une
+    // coupure de reseau.
+    const desactivee = cause instanceof ErreurApi && cause.codeHttp === 503;
+    return { adresse: null, desactivee };
+  }
+}
+
+/**
+ * Toujours le point decimal, quelle que soit la langue du navigateur : le
+ * serveur lirait « 48,8566 » comme deux parametres. Cinq decimales, soit
+ * environ un metre, ce qui fait aussi la cle de cache.
+ *
+ * @param {number} valeur
+ * @returns {string}
+ */
+function format(valeur) {
+  return valeur.toFixed(5);
 }
 
 /**

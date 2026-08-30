@@ -46,6 +46,37 @@ export function formaterJourEtHeure(instant) {
 }
 
 /**
+ * « aujourd'hui a 14:32 », « hier a 09:05 », « le 3 janvier a 09:05 ».
+ *
+ * C'est l'heure d'un point du trace, et non celle du suivi : la question posee
+ * est « on etait ou a ce moment-la ? », et elle appelle une date. Le suivi,
+ * lui, continue de se juger a son anciennete (arch/09 §2).
+ *
+ * L'annee n'apparait que si elle differe de l'annee courante : un voyage d'un
+ * an finira par en traverser deux, et « 3 janvier » serait alors ambigu.
+ *
+ * @param {string | Date | null | undefined} instant
+ * @param {Date} [maintenant]
+ * @returns {string}
+ */
+export function formaterInstantDuPoint(instant, maintenant = new Date()) {
+  const date = versDate(instant);
+  if (date === null) return "date inconnue";
+
+  const heure = FORMAT_HEURE.format(date);
+  const jour = debutDeJournee(date);
+  const aujourdHui = debutDeJournee(maintenant);
+  const veille = new Date(aujourdHui.getTime());
+  veille.setDate(veille.getDate() - 1);
+
+  if (jour.getTime() === aujourdHui.getTime()) return `aujourd'hui à ${heure}`;
+  if (jour.getTime() === veille.getTime()) return `hier à ${heure}`;
+
+  const annee = date.getFullYear() === maintenant.getFullYear() ? "" : ` ${date.getFullYear()}`;
+  return `le ${FORMAT_JOUR.format(date)}${annee} à ${heure}`;
+}
+
+/**
  * « il y a 8 min »
  * @param {string | Date | null | undefined} instant
  * @param {Date} [maintenant]
@@ -95,6 +126,19 @@ export function ancienneteMs(instant, maintenant = new Date()) {
   const date = versDate(instant);
   if (date === null) return null;
   return maintenant.getTime() - date.getTime();
+}
+
+/**
+ * Minuit du jour de [date], dans le fuseau du navigateur. C'est ce fuseau qui
+ * est le bon : ce qui compte est l'heure qu'il faisait sur place.
+ *
+ * @param {Date} date
+ * @returns {Date}
+ */
+function debutDeJournee(date) {
+  const jour = new Date(date.getTime());
+  jour.setHours(0, 0, 0, 0);
+  return jour;
 }
 
 /**
