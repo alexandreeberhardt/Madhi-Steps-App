@@ -73,8 +73,12 @@ android {
         // voyage. Voir arch/adr/007-contraintes-miui-redmi-note-11.md §3.5.
         targetSdk = 34
 
-        versionCode = 1
-        versionName = "0.1.0"
+        // Version du depart. Le versionCode monte a chaque APK reellement
+        // installe sur le telephone du voyage : sans lui, deux binaires
+        // differents portent le meme nom et le mapping.txt conserve ne se
+        // rattache plus a rien.
+        versionCode = 2
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
