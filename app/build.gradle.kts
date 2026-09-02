@@ -77,8 +77,8 @@ android {
         // installe sur le telephone du voyage : sans lui, deux binaires
         // differents portent le meme nom et le mapping.txt conserve ne se
         // rattache plus a rien.
-        versionCode = 2
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

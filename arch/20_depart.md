@@ -107,7 +107,7 @@ dans le dépôt :
     ./gradlew check assembleRelease
 
 L'APK sort dans `app/build/outputs/apk/release/app-release.apk`. Il porte
-`versionCode 2` / `versionName 1.0.0` — la première version dont on sache
+`versionCode 3` / `versionName 1.0.1` — la première version dont on sache
 qu'elle est celle du voyage.
 
 **Conserver `app/build/outputs/mapping/release/mapping.txt`** hors du répertoire
