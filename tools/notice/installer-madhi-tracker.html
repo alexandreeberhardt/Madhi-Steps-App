@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Installer Madhi Tracker</title>
+
+<!--
+  Notice d'installation, destinee a Madhi, lue sur le telephone.
+
+  Un seul fichier, sans dependance et sans requete sortante : ni police
+  distante, ni script, ni image. Une page hebergee sur le VPS qui irait
+  chercher ses polices chez Google enverrait l'adresse IP du lecteur a
+  Google, ce que le projet refuse partout ailleurs. Les polices sont donc
+  celles du systeme.
+
+  Aucun secret ici : le code d'activation se transmet par un autre canal.
+-->
+
+<style>
+  :root {
+    --ground:   #F1F4F3;
+    --surface:  #FFFFFF;
+    --sunk:     #E7ECEA;
+    --ink:      #16212B;
+    --muted:    #5B6A76;
+    --line:     #D3DAD8;
+    --sent:     #1E5F9E;
+    --pending:  #B8551A;
+    --focus:    #1E5F9E;
+
+    /* Pas de police distante : ce qui est deja sur l'appareil. Sur le Redmi,
+       c'est Roboto et Noto Serif. */
+    --display: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --body: Georgia, "Noto Serif", "Times New Roman", serif;
+    --mono: ui-monospace, "Roboto Mono", "SF Mono", Menlo, Consolas, monospace;
+
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:  #10171C;
+      --surface: #18222A;
+      --sunk:    #1E2A33;
+      --ink:     #E3EAE8;
+      --muted:   #94A3AD;
+      --line:    #27343D;
+      --sent:    #74AEE2;
+      --pending: #E9884E;
+      --focus:   #74AEE2;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:  #10171C;
+    --surface: #18222A;
+    --sunk:    #1E2A33;
+    --ink:     #E3EAE8;
+    --muted:   #94A3AD;
+    --line:    #27343D;
+    --sent:    #74AEE2;
+    --pending: #E9884E;
+    --focus:   #74AEE2;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.6;
+  }
+
+  img { max-width: 100%; }
+
+  .sheet {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 2.25rem 1.25rem 4rem;
+  }
+
+  /* ---- en-tete ---- */
+
+  .masthead { display: flex; flex-direction: column; gap: .75rem; }
+
+  .eyebrow {
+    font-family: var(--display);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(2rem, 8vw, 2.85rem);
+    line-height: 1.05;
+    letter-spacing: -.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    margin: 0;
+    font-size: 1.06rem;
+    color: var(--muted);
+    max-width: 34rem;
+  }
+
+  /* ---- telechargement ---- */
+
+  .download {
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+    margin-top: 1.5rem;
+    padding: 1.15rem 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+  }
+
+  .download-label {
+    font-family: var(--display);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .download-btn {
+    display: block;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.05rem;
+    text-align: center;
+    text-decoration: none;
+    color: var(--surface);
+    background: var(--sent);
+    padding: .85rem 1rem;
+    border-radius: 3px;
+  }
+
+  .download-btn:hover { filter: brightness(1.08); }
+
+  .download-meta {
+    font-family: var(--mono);
+    font-size: .78rem;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+
+  .rule {
+    height: 2px;
+    background: var(--ink);
+    margin: 1.75rem 0 0;
+  }
+
+  /* ---- etapes ---- */
+
+  .legs { display: flex; flex-direction: column; }
+
+  .leg {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    column-gap: 1rem;
+    row-gap: .5rem;
+    padding: 1.75rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .leg-num {
+    font-family: var(--mono);
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--sent);
+    padding-top: .35rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .leg-body { display: flex; flex-direction: column; gap: .7rem; min-width: 0; }
+
+  .leg h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.32rem;
+    line-height: 1.2;
+    letter-spacing: -.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .leg p { margin: 0; }
+
+  .leg ul { margin: 0; padding-left: 1.15rem; display: flex; flex-direction: column; gap: .45rem; }
+
+  strong { font-weight: 700; }
+
+  .aside {
+    font-size: .93rem;
+    color: var(--muted);
+    border-left: 2px solid var(--line);
+    padding-left: .85rem;
+  }
+
+  /* ---- les six ecrans de l'app ---- */
+
+  .screens {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .screen {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .2rem;
+    padding: .8rem .95rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .screen:last-child { border-bottom: 0; }
+
+  .screen-name {
+    font-family: var(--display);
+    font-size: .78rem;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .screen-do { font-size: .97rem; }
+
+  .screen.critical { background: var(--sunk); }
+  .screen.critical .screen-name { color: var(--pending); }
+
+  /* ---- encarts ---- */
+
+  .note {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    padding: .95rem 1.05rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--pending);
+    border-radius: 3px;
+  }
+
+  .note-label {
+    font-family: var(--display);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--pending);
+  }
+
+  .note p { margin: 0; font-size: .97rem; }
+
+  code, .file {
+    font-family: var(--mono);
+    font-size: .86em;
+    background: var(--sunk);
+    padding: .12em .38em;
+    border-radius: 2px;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---- reglages MIUI ---- */
+
+  .settings { display: flex; flex-direction: column; gap: .8rem; }
+
+  .setting {
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+    padding-left: .9rem;
+    border-left: 2px solid var(--pending);
+  }
+
+  .setting-title { font-family: var(--display); font-weight: 600; font-size: 1rem; }
+  .setting-path { font-family: var(--mono); font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
+  .setting-why { font-size: .93rem; color: var(--muted); }
+
+  /* ---- depannage ---- */
+
+  .trouble { display: flex; flex-direction: column; gap: 1.1rem; margin-top: 1.5rem; }
+
+  .fix { display: flex; flex-direction: column; gap: .25rem; }
+  .fix dt { font-family: var(--display); font-weight: 600; font-size: 1rem; }
+  .fix dd { margin: 0; font-size: .97rem; color: var(--muted); }
+
+  h3.section {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: .78rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 2.75rem 0 0;
+    padding-bottom: .5rem;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+    font-size: .88rem;
+    color: var(--muted);
+  }
+
+  footer p { margin: 0 0 .5rem; }
+
+  a { color: var(--sent); }
+  a:focus-visible, :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  @media (max-width: 26rem) {
+    .leg { grid-template-columns: 1fr; row-gap: .35rem; }
+    .leg-num { padding-top: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <div class="eyebrow">Carnet de route &middot; avant le kilom&egrave;tre z&eacute;ro</div>
+    <h1>Installer Madhi&nbsp;Tracker</h1>
+    <p class="standfirst">
+      Une demi-heure, sur le Redmi, avec du r&eacute;seau. &Agrave; faire une fois, tranquillement,
+      avant le d&eacute;part&nbsp;&mdash; pas sur un parking &agrave; 7&nbsp;h du matin.
+    </p>
+  </header>
+
+  <div class="download">
+    <div class="download-label">L'application</div>
+    <a class="download-btn"
+       href="https://github.com/alexandreeberhardt/Madhi-Steps-App/releases/tag/v1.0.1">
+      T&eacute;l&eacute;charger l'APK &middot; version 1.0.1
+    </a>
+    <div class="download-meta">
+      github.com/alexandreeberhardt/Madhi-Steps-App &middot; releases &middot; v1.0.1
+    </div>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="legs">
+
+    <section class="leg">
+      <div class="leg-num">01</div>
+      <div class="leg-body">
+        <h2>T&eacute;l&eacute;charger le fichier</h2>
+        <p>
+          Depuis le t&eacute;l&eacute;phone, ouvre le lien ci-dessus et prends le fichier qui se
+          termine par <span class="file">.apk</span>, d'environ <strong>3,4&nbsp;Mo</strong>.
+          C'est l'application elle-m&ecirc;me&nbsp;: il n'y a rien &agrave; chercher sur le Play Store,
+          elle n'y est pas et n'y sera pas.
+        </p>
+        <p class="aside">
+          Version 1.0.1. Si Alexandre en publie une autre plus tard, le num&eacute;ro changera&nbsp;&mdash;
+          c'est comme &ccedil;a qu'on saura de quelle version on parle.
+        </p>
+      </div>
+    </section>
+
+    <section class="leg">
+      <div class="leg-num">02</div>
+      <div class="leg-body">
+        <h2>Autoriser l'installation</h2>
+        <p>
+          Ouvre le fichier t&eacute;l&eacute;charg&eacute;. Android va refuser une premi&egrave;re fois et proposer un
+          r&eacute;glage du type <em>&laquo;&nbsp;Autoriser depuis cette source&nbsp;&raquo;</em>. Accepte,
+          reviens en arri&egrave;re, rouvre le fichier.
+        </p>
+        <p class="aside">
+          C'est le message normal pour une application install&eacute;e &agrave; la main. Il appara&icirc;t
+          une fois et ne revient plus.
+        </p>
+      </div>
+    </section>
+
+    <section class="leg">
+      <div class="leg-num">03</div>
+      <div class="leg-body">
+        <h2>Installer, puis ouvrir</h2>
+        <p>
+          Installe, puis <strong>ouvre l'application</strong> tout de suite. Une application
+          install&eacute;e mais jamais ouverte ne fait rien du tout&nbsp;: Android ne la d&eacute;marre pas
+          de lui-m&ecirc;me.
+        </p>
+      </div>
+    </section>
+
+    <section class="leg">
+      <div class="leg-num">04</div>
+      <div class="leg-body">
+        <h2>Les six &eacute;crans de configuration</h2>
+        <p>
+          L'application se pr&eacute;sente et demande ce dont elle a besoin, un &eacute;cran &agrave; la fois,
+          en expliquant pourquoi. Suis-les dans l'ordre&nbsp;:
+        </p>
+
+        <div class="screens">
+          <div class="screen">
+            <div class="screen-name">1 &middot; Bienvenue</div>
+            <div class="screen-do">Lire, continuer.</div>
+          </div>
+          <div class="screen">
+            <div class="screen-name">2 &middot; Localisation</div>
+            <div class="screen-do">Autoriser la position <strong>pr&eacute;cise</strong>. Une position approximative ne dessine pas une route.</div>
+          </div>
+          <div class="screen">
+            <div class="screen-name">3 &middot; En arri&egrave;re-plan</div>
+            <div class="screen-do">Android ouvre ses propres r&eacute;glages&nbsp;: choisir <strong>&laquo;&nbsp;Toujours autoriser&nbsp;&raquo;</strong>. Sans &ccedil;a, le suivi s'arr&ecirc;te d&egrave;s que l'&eacute;cran s'&eacute;teint.</div>
+          </div>
+          <div class="screen">
+            <div class="screen-name">4 &middot; Activation</div>
+            <div class="screen-do">Saisir le code qu'Alexandre t'envoie s&eacute;par&eacute;ment. Voir ci-dessous.</div>
+          </div>
+          <div class="screen critical">
+            <div class="screen-name">5 &middot; &Eacute;conomie d'&eacute;nergie</div>
+            <div class="screen-do">L'&eacute;cran le plus important, et le seul dont l'oubli ne se voit pas le jour m&ecirc;me. D&eacute;tail plus bas.</div>
+          </div>
+          <div class="screen">
+            <div class="screen-name">6 &middot; V&eacute;rification</div>
+            <div class="screen-do">L'application prend une position et l'envoie pour de vrai. <strong>Deux lignes vertes</strong>&nbsp;: c'est bon.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="leg">
+      <div class="leg-num">05</div>
+      <div class="leg-body">
+        <h2>Le code d'activation</h2>
+        <p>
+          Huit caract&egrave;res et un tiret, de la forme <code>A3F7-K29M</code>. Il ne sert
+          qu'une fois, et il arrive par un autre canal que l'application.
+        </p>
+        <div class="note">
+          <div class="note-label">&Agrave; taper exactement</div>
+          <p>
+            <strong>Tout en majuscules</strong>, tiret compris, sans espace avant ni apr&egrave;s.
+            Le serveur distingue les majuscules des minuscules&nbsp;: <code>a3f7-k29m</code>
+            sera refus&eacute; alors qu'il a l'air identique.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="leg">
+      <div class="leg-num">06</div>
+      <div class="leg-body">
+        <h2>Les trois r&eacute;glages Xiaomi</h2>
+        <p>
+          Android met les applications en veille pour &eacute;conomiser la batterie, et MIUI en
+          rajoute une couche par-dessus. L'&eacute;cran&nbsp;5 affiche ces trois chemins et un
+          bouton pour y aller directement. Aucun ne peut &ecirc;tre accord&eacute; par l'application
+          elle-m&ecirc;me&nbsp;&mdash; c'est &agrave; faire &agrave; la main.
+        </p>
+
+        <div class="settings">
+          <div class="setting">
+            <div class="setting-title">D&eacute;marrage auto en arri&egrave;re-plan</div>
+            <div class="setting-path">Param&egrave;tres &rsaquo; Applications &rsaquo; Madhi Tracker &rsaquo; Autorisations &rsaquo; D&eacute;marrage auto</div>
+            <div class="setting-why">Sans lui, le suivi ne repart pas apr&egrave;s un red&eacute;marrage du t&eacute;l&eacute;phone. C'est le r&eacute;glage qui a d&eacute;j&agrave; co&ucirc;t&eacute; vingt-quatre heures de trajet en test.</div>
+          </div>
+          <div class="setting">
+            <div class="setting-title">&Eacute;conomiseur de batterie&nbsp;: aucune restriction</div>
+            <div class="setting-path">Param&egrave;tres &rsaquo; Applications &rsaquo; Madhi Tracker &rsaquo; &Eacute;conomiseur de batterie &rsaquo; Aucune restriction</div>
+            <div class="setting-why">Sans lui, le suivi est coup&eacute; pendant la nuit, sans pr&eacute;venir.</div>
+          </div>
+          <div class="setting">
+            <div class="setting-title">Verrouiller dans les applications r&eacute;centes</div>
+            <div class="setting-path">Applications r&eacute;centes &rsaquo; tirer la vignette vers le bas &rsaquo; cadenas</div>
+            <div class="setting-why">Sans le cadenas, balayer l'application l'arr&ecirc;te pour de bon.</div>
+          </div>
+        </div>
+
+        <p>
+          Il y a aussi un bouton <strong>&laquo;&nbsp;Exemption Android&nbsp;&raquo;</strong> sur ce m&ecirc;me
+          &eacute;cran. Celui-l&agrave;, l'application peut le demander&nbsp;: accepte.
+        </p>
+      </div>
+    </section>
+
+    <section class="leg">
+      <div class="leg-num">07</div>
+      <div class="leg-body">
+        <h2>V&eacute;rifier que &ccedil;a tourne</h2>
+        <ul>
+          <li>Une <strong>notification permanente</strong> reste affich&eacute;e. Elle ne se ferme pas&nbsp;: c'est ce qui emp&ecirc;che Android de tuer le suivi.</li>
+          <li>L'&eacute;cran d'accueil affiche <strong>&laquo;&nbsp;Suivi actif&nbsp;&raquo;</strong> et une carte.</li>
+          <li>Au bout de quelques minutes, un point appara&icirc;t sur la carte. En <strong>bleu</strong> quand le serveur l'a re&ccedil;u, en <strong>orange</strong> tant qu'il n'est encore que sur le t&eacute;l&eacute;phone.</li>
+        </ul>
+        <p class="aside">
+          Puis pr&eacute;viens Alexandre&nbsp;: il v&eacute;rifie de son c&ocirc;t&eacute; que les points arrivent bien.
+        </p>
+      </div>
+    </section>
+
+  </div>
+
+  <h3 class="section">Les deux r&eacute;flexes du voyage</h3>
+
+  <div class="trouble">
+    <div class="note">
+      <div class="note-label">Apr&egrave;s chaque red&eacute;marrage</div>
+      <p>
+        <strong>Ouvre l'application une fois.</strong> Le t&eacute;l&eacute;phone qui red&eacute;marre ne relance
+        pas forc&eacute;ment le suivi tout seul&nbsp;&mdash; c'est le d&eacute;faut connu de l'application, et
+        c'est aussi vrai apr&egrave;s une mise &agrave; jour. Tant que tu ne l'ouvres pas, la trace
+        s'arr&ecirc;te et personne ne le voit.
+      </p>
+    </div>
+
+    <div class="note">
+      <div class="note-label">Ne pas balayer l'application</div>
+      <p>
+        La fermer depuis les applications r&eacute;centes arr&ecirc;te le suivi. Le cadenas de
+        l'&eacute;tape&nbsp;6 est l&agrave; pour &eacute;viter le geste r&eacute;flexe.
+      </p>
+    </div>
+  </div>
+
+  <h3 class="section">Si &ccedil;a coince</h3>
+
+  <dl class="trouble">
+    <div class="fix">
+      <dt>&laquo;&nbsp;Code d'activation invalide&nbsp;&raquo;</dt>
+      <dd>Neuf fois sur dix, c'est la casse ou un espace coll&eacute; au bout. Retaper en majuscules, sans rien avant ni apr&egrave;s le code. Si &ccedil;a persiste, demande un nouveau code &agrave; Alexandre&nbsp;: un code a une dur&eacute;e de vie et ne sert qu'une fois.</dd>
+    </div>
+    <div class="fix">
+      <dt>L'envoi au serveur &eacute;choue &agrave; l'&eacute;cran 6</dt>
+      <dd>Ce n'est pas grave et ce n'est pas une perte. Les positions sont &eacute;crites sur le t&eacute;l&eacute;phone avant toute tentative d'envoi, et repartent toutes seules d&egrave;s qu'il y a du r&eacute;seau. Continue&nbsp;; c'est m&ecirc;me le fonctionnement normal du voyage.</dd>
+    </div>
+    <div class="fix">
+      <dt>Plus de points depuis un moment</dt>
+      <dd>Ouvre l'application, puis l'&eacute;cran <strong>Diagnostic</strong> depuis les r&eacute;glages. Il dit ce qui est enregistr&eacute;, ce qui est en attente, et ce qui bloque. Une capture de cet &eacute;cran suffit &agrave; Alexandre pour comprendre.</dd>
+    </div>
+    <div class="fix">
+      <dt>Le t&eacute;l&eacute;phone est perdu, cass&eacute;, remplac&eacute;</dt>
+      <dd>Tout ce qui a &eacute;t&eacute; envoy&eacute; est sur le serveur et n'est pas perdu. Sur un nouveau t&eacute;l&eacute;phone&nbsp;: r&eacute;installer, demander un nouveau code, r&eacute;activer. Le formulaire d'activation existe aussi dans les r&eacute;glages, sans refaire toute la configuration.</dd>
+    </div>
+  </dl>
+
+  <footer>
+    <p>
+      Ce que l'application fait, et rien d'autre&nbsp;: elle note une position toutes les
+      cinq minutes, la garde sur le t&eacute;l&eacute;phone, et l'envoie au serveur priv&eacute; d'Alexandre
+      d&egrave;s qu'il y a du r&eacute;seau. Pas de Google, pas de statistiques, pas de compte.
+      La famille voit la trace sur un site priv&eacute;.
+    </p>
+    <p>Madhi Tracker 1.0.1 &middot; France &rarr; Cap Nord</p>
+  </footer>
+
+</div>
+
+</body>
+</html>
