@@ -31,6 +31,7 @@ déployer :
 ## Organisation
 
     index.html            un seul écran
+    installer.html        la notice d'installation de Madhi, page autonome
     style.css             mobile d'abord
     config.js             identifiant du voyage
     app.js                état, cycle charger -> état -> rendre
