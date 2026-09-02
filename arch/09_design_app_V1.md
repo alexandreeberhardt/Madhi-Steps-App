@@ -23,24 +23,22 @@ presque entièrement occupé par la carte.
 # 2. Écran principal
 
 > ┌─────────────────────────────┐\
-> │ Voyage ⚙ │\
+> │ Voyage ⚙ Réglages │\
 > ├─────────────────────────────┤\
-> │ │\
+> │ légende │\
 > │ │\
 > │ CARTE │\
 > │ trajet + ● │\
-> │ │\
-> │ │\
-> │ │\
+> │ \[Recentrer\] │\
+> │ échelle mention │\
 > ├─────────────────────────────┤\
+> │ Aujourd’hui 24 h 7 j Tout │\
 > │ ● Suivi actif │\
 > │ Dernière position : 3 min │\
-> │ │\
-> │ \[ Recentrer \] │\
 > └─────────────────────────────┘
 
 La carte occupe idéalement 75 à 85 % de la hauteur. Le bandeau inférieur
-reste compact et ne montre que l’état du suivi et l’ancienneté de la
+reste compact : le choix de la période, l’état du suivi, l’ancienneté de la
 dernière position.
 
 | **Élément visible** | **Pourquoi il reste** |
@@ -50,8 +48,16 @@ dernière position.
 | Polyline du trajet récent | Donne immédiatement le contexte. |
 | Statut “Suivi actif / problème” | Indique si la fonction critique fonctionne. |
 | Dernière position reçue | Évite de confondre dernière position connue et temps réel. |
-| Recentrer | Action cartographique essentielle. |
+| Sélecteur de période | Un tracé sans étendue connue ne veut rien dire. Quatre valeurs, mêmes libellés que le site familial. |
+| Échelle graphique | La seule chose qui dise si le tracé visible fait deux rues ou deux cents kilomètres. |
+| Légende du code couleur | Bleu là où le serveur détient les points, orange là où ils ne sont que sur le téléphone. Se réduit à une ligne quand rien n’est en attente. |
+| Mention légale des tuiles | Imposée par la licence du fournisseur de fond. |
+| Recentrer | Action cartographique essentielle. Flottant sur la carte, et visible **uniquement** après un déplacement manuel. |
 | Réglages | Accès discret aux fonctions secondaires. |
+
+Les quatre lignes ajoutées après la première rédaction — période, échelle,
+légende, mention légale — sont arrivées avec la carte (ADR-006). Le détail de
+leur rendu est dans `arch/18_carte_embarquee_v1.md`.
 
 # 3. Ce qui est retiré de l’accueil
 
@@ -77,6 +83,14 @@ dernière position.
 
 Ces informations restent disponibles dans Réglages \> Diagnostic si
 elles sont réellement utiles au dépannage.
+
+Trois éléments de la carte échappent volontairement à cette règle, et il faut
+dire pourquoi, sinon la prochaine relecture les retirera. L’échelle, la légende
+et le sélecteur de période ne décrivent pas le voyage : ils décrivent **ce que
+l’image montre**. Sans échelle, un tracé ne dit pas s’il fait deux rues ou deux
+cents kilomètres ; sans légende, le code couleur ne se devine pas ; sans
+période, on ne sait pas de quelle étendue on parle. Une statistique décorative
+s’ajoute à la carte ; ces trois-là la rendent lisible.
 
 # 4. États de l’écran principal
 
@@ -114,9 +128,15 @@ Les Réglages sont volontairement utilitaires. Pas de personnalisation
 esthétique, pas de préférences qui ne changent rien au fonctionnement
 réel.
 
-La fréquence de localisation se règle ici, pas sur l’écran principal.
-Utiliser une liste courte de valeurs compréhensibles : 2, 5, 10, 15 ou
-30 minutes. La valeur par défaut reste 5 minutes.
+La fréquence de localisation se règle ici, pas sur l’écran principal. Trois
+paliers se choisissent d’un geste — 5, 30 et 60 minutes — et tout le reste
+passe par « Autre », c’est-à-dire par une saisie délibérée, bornée à 1–1440
+minutes. La valeur par défaut reste 5 minutes.
+
+La liste fermée d’origine — 2, 5, 10, 15 ou 30 — visait à empêcher une erreur
+de frappe qu’on ne pourrait pas corriger à distance pendant le voyage. La
+saisie a été ouverte à la demande ; le garde-fou n’a pas disparu, ce sont les
+bornes qui le portent désormais.
 
 Le bouton “Désactiver le tracking” doit être explicite : il arrête la
 collecte GPS, mais ne supprime pas les positions déjà enregistrées ni les
@@ -124,15 +144,25 @@ points en attente de synchronisation.
 
 # 6. Onboarding
 
+Six écrans, et non cinq : l’activation de l’appareil s’est intercalée en
+quatrième position (ADR-004). Elle ne pouvait pas rester une note technique —
+sans elle l’application n’a pas de token et n’envoie rien.
+
 - Écran 1 : expliquer le suivi en une phrase.
 
 - Écran 2 : demander la localisation.
 
 - Écran 3 : demander l’autorisation arrière-plan.
 
-- Écran 4 : vérifier les restrictions batterie.
+- Écran 4 : saisir le code d’activation, et l’échanger contre le token
+  appareil. L’erreur doit distinguer « code invalide » de « pas de réseau ».
 
-- Écran 5 : test de position + test serveur, puis ouverture de la carte.
+- Écran 5 : vérifier les restrictions batterie. C’est l’écran le plus important
+  de l’application (ADR-007 §3.4) : il liste les réglages constructeur avec
+  leur chemin exact, l’appareil détecté. C’est le seul dont l’omission ne se
+  voit pas le jour même.
+
+- Écran 6 : test de position + test serveur, puis ouverture de la carte.
 
 # 7. Installation par APK
 

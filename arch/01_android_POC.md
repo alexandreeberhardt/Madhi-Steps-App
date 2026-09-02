@@ -16,7 +16,12 @@ arrière-plan, conservation hors ligne et synchronisation fiable.
 
 - Kotlin natif Android.
 
-- Écran unique de statut.
+- Écran unique de statut. *Dépassé : l’application en compte six —
+  onboarding, activation, carte, réglages, diagnostic, et l’écran de
+  vérification qui clôt l’onboarding. La carte est devenue l’accueil
+  (ADR-006), et l’activation a imposé son propre écran (ADR-004). Le principe
+  qui portait cette ligne n’a pas bougé : un seul écran est vu pendant le
+  voyage, les autres se traversent une fois ou se consultent en panne.*
 
 - APK release signé, installable hors Play Store sur le téléphone de la
   voyageuse.
@@ -44,8 +49,10 @@ arrière-plan, conservation hors ligne et synchronisation fiable.
   locaux pending ni empêcher leur synchronisation.
 
 - Réglage permettant de modifier la fréquence de localisation dans des
-  bornes raisonnables, par exemple 2, 5, 10, 15 ou 30 minutes. Éviter la
-  saisie libre au POC pour limiter les erreurs et préserver la batterie.
+  bornes raisonnables. *Livré autrement : trois paliers d’un geste — 5, 30 et
+  60 minutes — et une saisie libre bornée à 1–1440 minutes, ouverte à la
+  demande. Le garde-fou n’a pas disparu, il a changé de nature : ce sont les
+  bornes qui le portent, plus la liste fermée. Le défaut reste 5 minutes.*
 
 - Fonctionnement critique sans Firebase, Crashlytics, Google Analytics
   ni service Play Store obligatoire.
@@ -174,35 +181,60 @@ de la connexion, mais où les positions ne sont plus envoyées.
 
 # 9. Base locale
 
-| **Champ**  | **Type**    | **Rôle**                 |
-|------------|-------------|--------------------------|
-| id         | UUID/String | Idempotence              |
-| latitude   | Double      | GPS                      |
-| longitude  | Double      | GPS                      |
-| recordedAt | Instant     | Heure réelle du point    |
-| accuracy   | Float?      | Qualité GPS              |
-| syncState  | enum        | PENDING / SYNCED / ERROR |
-| retryCount | Int         | Diagnostic               |
+Table telle qu’elle existe. Les noms sont ceux des colonnes SQLite ; le schéma
+qui fait foi est `app/schemas/…/1.json`, commité (ADR-005).
+
+| **Champ**       | **Type**  | **Rôle**                              |
+|-----------------|-----------|---------------------------------------|
+| id              | TEXT      | UUID généré à la capture, idempotence |
+| latitude        | REAL      | GPS                                   |
+| longitude       | REAL      | GPS                                   |
+| recorded_at     | INTEGER   | Heure réelle du point, epoch millis   |
+| accuracy_m      | REAL?     | Qualité GPS                           |
+| altitude_m      | REAL?     | Contrat `LocationPointV1`             |
+| speed_mps       | REAL?     | Contrat `LocationPointV1`             |
+| battery_percent | INTEGER?  | Contrat `LocationPointV1`             |
+| sync_state      | TEXT      | PENDING / SYNCED                      |
+| attempt_count   | INTEGER   | Diagnostic et backoff                 |
+| last_attempt_at | INTEGER?  | Diagnostic                            |
+| last_error_code | TEXT?     | Diagnostic                            |
+
+Deux écarts avec la première rédaction, tous deux tranchés par ADR-003.
+
+**Il n’y a pas d’état `ERROR`.** Un point non confirmé reste `PENDING`, sans
+exception et sans limite de temps. Un troisième état est un état dont il faut
+penser à sortir, et un point oublié dedans est un point perdu — ce que le
+projet interdit.
+
+**`retryCount` s’appelle `attempt_count` et n’a aucune conséquence
+destructrice.** Il sert au diagnostic et au calcul du backoff, jamais à
+abandonner un point.
 
 # 10. Écran POC
 
-- Tracking : actif / arrêté
+Cette liste décrivait l’écran de statut unique du §2. Elle reste juste sur ce
+qu’il faut pouvoir lire ; elle a cessé de l’être sur l’endroit où on le lit.
+`arch/09_design_app_V1.md` fait foi sur l’accueil, et il tranche autrement : la
+carte l’occupe, le reste descend dans les réglages et le diagnostic.
 
-- Dernière position locale
+| Information | Où elle est |
+|---|---|
+| Tracking : actif / arrêté | Accueil, bandeau bas |
+| Dernière position locale | Accueil, marqueur et ancienneté |
+| Dernière synchronisation réussie | Réglages, et Diagnostic |
+| Nombre de points en attente | Réglages, et Diagnostic |
+| État permission localisation | Diagnostic |
+| État réseau | Diagnostic |
+| Fréquence actuelle du tracking | Réglages |
+| Bouton démarrer / arrêter | Accueil si le suivi est arrêté, Réglages sinon |
+| Bouton synchroniser maintenant | **N’existe pas** |
 
-- Dernière synchronisation réussie
-
-- Nombre de points en attente
-
-- État permission localisation
-
-- État réseau
-
-- Fréquence actuelle du tracking
-
-- Bouton démarrer / arrêter
-
-- Bouton synchroniser maintenant
+Le bouton de synchronisation manuelle a été retiré par `arch/09` §3, et rien ne
+l’a fait revenir. La synchronisation part après chaque capture, toutes les
+quinze minutes par WorkManager, au lancement de l’application, après un
+redémarrage et après une mise à jour d’APK (ADR-003). Un bouton n’aurait rien
+déclenché que ces quatre entrées ne déclenchent déjà, et aurait laissé croire
+qu’appuyer sert à quelque chose les jours où rien ne part.
 
 # 11. Ce qui est volontairement hors POC
 
@@ -214,7 +246,11 @@ de la connexion, mais où les positions ne sont plus envoyées.
 
 - Notifications riches
 
-- Carte embarquée
+- ~~Carte embarquée~~ *Réintégrée. Reportée le 18 août 2026 parce que le
+  risque du projet était la perte de points, pas l’absence de carte ; écrite le
+  23 août une fois le noyau éprouvé. Elle est aujourd’hui l’écran d’accueil.
+  L’histoire de cette décision et ses raisons sont dans ADR-006, son état
+  courant dans `arch/18_carte_embarquee_v1.md`.*
 
 - Comptes multiples
 
