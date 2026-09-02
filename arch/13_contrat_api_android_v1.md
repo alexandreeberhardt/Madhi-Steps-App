@@ -188,11 +188,22 @@ navigateur de la famille.
 `GET /api/v1/trips/{tripId}/locations?from=&to=` et
 `GET /api/v1/trips/{tripId}/status` existent au contrat (`arch/00` §6) mais sont
 consommés par le site familial, pas par l'application. L'écran principal de
-l'application lit exclusivement la base locale : le seul `GET` qu'elle émette
-est celui du §6, sur geste explicite, et son échec ne change rien à l'affichage.
+l'application lit exclusivement la base locale : le seul `GET` qu'elle adresse à
+**l'API** est celui du §6, sur geste explicite, et son échec ne change rien à
+l'affichage.
 
 C'est un choix délibéré : l'application reste utile sans réseau, et le serveur ne
 devient jamais un prérequis d'affichage.
+
+L'application émet un second flux de `GET`, qui ne relève pas de ce contrat :
+une requête par tuile de fond de carte, vers un serveur de tuiles dont l'URL est
+une configuration hors du dépôt (`arch/18` §3.2). Il n'y passe aucune donnée du
+voyage — une tuile est désignée par ses coordonnées de grille, pas par une
+position — mais le fournisseur voit où l'on regarde, et c'est une fuite dont
+ADR-006 assume le coût. Ces requêtes ne portent pas le `deviceToken`, passent
+par un client HTTP distinct de celui de l'API, et celui de l'API ne doit
+**jamais** porter de cache : une réponse de synchronisation servie depuis un
+cache serait un bug de correction.
 
 # 8. Réseau côté client
 

@@ -95,10 +95,23 @@ si la compatibilité ascendante devient impossible.
 
 # 6. Endpoints stables
 
+> POST /api/v1/devices/activate\
 > POST /api/v1/locations/batch\
 > GET /api/v1/trips/{tripId}/latest-location\
 > GET /api/v1/trips/{tripId}/locations?from=&to=\
-> GET /api/v1/trips/{tripId}/status
+> GET /api/v1/trips/{tripId}/status\
+> GET /api/v1/reverse-geocode?lat=&lon=
+
+Les deux endpoints encadrants ont été ajoutés après la rédaction initiale, et
+cette liste corrigée en conséquence. L’activation vient d’ADR-004 le 18 août
+2026 : elle est la conséquence directe de §9, qui interdit de coder un token
+appareil dans l’APK. Le relais de géocodage inverse vient du 29 août 2026 ; il
+sert la bulle d’un point du trajet, dans l’application comme sur le site, et il
+existe pour que ni le téléphone ni le navigateur de la famille n’aille parler
+directement à un géocodeur tiers. Il est éteint par défaut côté serveur :
+allumer une sortie vers un tiers est une décision qui se prend explicitement.
+
+Le détail des payloads est dans `arch/13_contrat_api_android_v1.md` §4 et §6.
 
 # 7. Modèle de données minimal
 
