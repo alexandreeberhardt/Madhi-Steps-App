@@ -2,9 +2,12 @@
 
 Suivi GPS d'un voyage à vélo de la France au Cap Nord, sur un an.
 
+![Le site familial : le trajet des dernières 24 h en bleu, le reste du voyage en gris](screen_site.jpeg)
+
 Un téléphone Android enregistre une position toutes les cinq minutes, la
 garde en local, et l'envoie à un serveur privé dès qu'il y a du réseau. La
-famille suit le trajet depuis un site web.
+famille suit le trajet depuis un site web, derrière un lien secret et un mot
+de passe.
 
 Le critère de réussite du projet n'est pas technique :
 
@@ -16,22 +19,52 @@ Le critère de réussite du projet n'est pas technique :
 
 | Brique | État |
 |---|---|
-| Application Android | V1 fonctionnellement complète, carte comprise, en attente de validation terrain |
-| Serveur | POC déployé sur `madhi-server.alexeber.fr`, en HTTPS, avec sauvegarde quotidienne et surveillance |
-| Site familial | POC en ligne sur `madhi.alexeber.fr`, en HTTPS, derrière un lien secret et un mot de passe |
+| Application Android | 1.0.1 (`versionCode 3`), fonctionnellement complète, carte comprise, en attente de validation terrain |
+| Serveur | Déployé sur `madhi-server.alexeber.fr`, en HTTPS, avec sauvegarde quotidienne et surveillance |
+| Site familial | En ligne sur `madhi.alexeber.fr` depuis le 23 août 2026, derrière un segment d'URL secret et un mot de passe |
+| Notice d'installation | `site/installer.html`, servie avec le site, autonome et sans requête sortante |
 
-Les trois briques sont en place et la chaîne est complète, du téléphone au
-site. Cela ne veut pas dire que le projet est prêt : l'application n'a **pas
-encore** été validée en conditions réelles. Tant que le protocole de
-`arch/14_protocole_test_terrain.md` n'est pas passé sur l'appareil cible — le
-Redmi Note 11, pas le OnePlus de pré-validation — elle repose sur une
-hypothèse. C'est le seul point bloquant du projet.
+La chaîne est complète, du téléphone au site, et la procédure de départ est
+écrite (`arch/20_depart.md`). Cela ne veut pas dire que le projet est prêt :
+l'application n'a **pas encore** été validée en conditions réelles. Tant que
+le protocole de `arch/14_protocole_test_terrain.md` n'est pas passé sur
+l'appareil cible — le Redmi Note 11, pas le OnePlus de pré-validation — elle
+repose sur une hypothèse. C'est le seul point bloquant du projet.
 
 Un défaut précis est déjà connu et n'est pas corrigé : **l'application ne
 repart pas toute seule après un redémarrage du téléphone.** Observé le 23 août
-sur OxygenOS, il a coûté vingt-quatre heures de suivi
-(`arch/15_journal_tests_terrain.md`, session 5). C'est le critère bloquant de
-T1, et MIUI est plus hostile qu'OxygenOS sur ce point.
+2026 sur OxygenOS, il a coûté vingt-quatre heures de suivi
+(`arch/15_journal_tests_terrain.md`, session 5), et MIUI est plus hostile
+encore. La consigne donnée en clair remplace le correctif : **après chaque
+redémarrage, et après chaque mise à jour de l'APK, ouvrir l'application une
+fois.** La piste ouverte depuis le 26 août est que le réglage « Démarrage auto
+en arrière-plan » n'a jamais été appliqué au paquet `com.madhi.tracker` — le
+défaut est peut-être une case à cocher plutôt qu'un bug.
+
+## Ce que ça fait
+
+**Sur le téléphone.** Une carte à l'ouverture, le trajet dessiné dessus, et
+l'âge de la dernière position. Le tracé est bleu là où le serveur détient les
+points, orange là où ils ne sont encore que sur le téléphone. Quatre périodes
+— aujourd'hui, 24 h, 7 jours, tout le voyage — et le voyage entier reste
+visible en gris sous la période choisie, pour qu'un jour de vélo ne paraisse
+jamais flotter dans le vide. Toucher un point du tracé dit quand on était là,
+et où. Les réglages tiennent en deux choses, la cadence de capture (trois
+valeurs courantes, plus « Autre ») et l'arrêt du suivi ; le diagnostic, qui
+sera lu à voix haute au téléphone, est derrière un bouton.
+
+La période « 24 h » existe parce qu'« aujourd'hui » ment la nuit : à une heure
+du matin, la journée civile ne montre qu'une heure de trajet.
+
+**Sur le site familial.** Le même écran, en plus court : la dernière position,
+son ancienneté, le trajet de la période choisie — aujourd'hui, 24 h, 7 jours,
+30 jours, tout le voyage — et une bulle au toucher d'un point. Le site
+s'arrête à trente jours là où l'application va jusqu'au voyage entier : la
+base est locale sur le téléphone, alors que le site dépend d'une réponse du
+serveur.
+
+**Ce que ni l'un ni l'autre ne fait.** Pas de temps réel, pas de statistiques,
+pas de niveau de batterie, pas de vue publique. C'est `arch/06_site_V2.md`.
 
 ## Principes
 
@@ -50,18 +83,26 @@ rejeu, sans créer de doublon.
 Firebase, ni analytics, ni crash reporting externe. La localisation passe par
 l'API système `LocationManager`, pas par Fused Location Provider. Aucune
 coordonnée n'atteint les journaux techniques — la signature du port de
-journalisation l'interdit par construction.
+journalisation l'interdit par construction. Côté site, ce n'est plus une
+discipline d'écriture mais une `Content-Security-Policy` : le navigateur
+refuse tout hôte extérieur, tuiles exceptées.
+
+**Personne ne parle au géocodeur à notre place.** L'adresse affichée dans la
+bulle d'un point est demandée au serveur du voyage, qui relaie la question à
+Nominatim, espace ses appels d'au moins une seconde et met les réponses en
+cache. Ni le téléphone ni le navigateur de la famille ne contacte le
+géocodeur. Le relais est désactivé par défaut, et le serveur refuse de
+démarrer si on l'allume sans donner d'identité `User-Agent` joignable :
+Nominatim est un bien commun.
 
 **Réparable par une seule personne.** Un module Gradle, peu de dépendances,
-aucune magie d'infrastructure.
+aucune magie d'infrastructure. Le site n'a aucune étape de build : le fichier
+du dépôt est exactement le fichier servi.
 
 **Une carte qui marche sans réseau.** L'écran d'accueil dessine le trajet sur
 un fond de tuiles raster, sans aucune bibliothèque cartographique. Le cache
 disque est interrogé **avant** le réseau : une zone consultée une fois reste
-lisible hors ligne, ce qui est le mode normal du voyage. Le tracé est bleu là
-où le serveur détient les points, orange là où ils ne sont encore que sur le
-téléphone, et trois boutons choisissent la période — aujourd'hui, sept jours,
-tout le voyage.
+lisible hors ligne, ce qui est le mode normal du voyage.
 
 La source des tuiles est une configuration hors du dépôt, jamais du code : sans
 elle la carte reste sur fond uni et n'émet aucune requête. Un fond
@@ -103,8 +144,6 @@ clé de debug.
 
 C'est le build release qui part en voyage (`arch/01` §2), donc c'est lui qui
 doit passer les tests terrain : R8 supprime du code que le build debug conserve.
-Conserver `app/build/outputs/mapping/release/mapping.txt` de chaque version
-installée — sans lui, une pile d'appel remontée du voyage est illisible.
 
 ## Configuration
 
@@ -115,6 +154,35 @@ Aucune valeur réelle n'est versionnée. Copier les exemples :
 
 Les variables d'environnement `MADHI_API_BASE_URL_*` et `ANDROID_SIGNING_*`
 ont la priorité sur ces fichiers, ce qui évite d'avoir à les créer en CI.
+
+## Publier une version
+
+Le `versionCode` monte à chaque APK réellement installé : deux binaires
+différents ne doivent jamais porter le même nom, sans quoi le `mapping.txt`
+conservé ne se rattache plus à rien.
+
+Chaque version publiée laisse trois fichiers, gardés hors du dépôt
+(`dist/` est ignoré par git) :
+
+    dist/1.0.1/madhi-tracker-1.0.1.apk    l'APK envoyé
+    dist/1.0.1/mapping-1.0.1.txt          la table de renommage R8
+    dist/1.0.1/SHA256SUMS                 l'empreinte de l'APK publié
+
+**Conserver le `mapping.txt`** sous un nom qui porte la version, hors du
+répertoire de build : R8 renomme tout, une pile d'appel remontée du voyage
+sans lui est illisible, et un `./gradlew clean` l'efface sans prévenir.
+
+L'APK est publié en *release* GitHub, et `site/installer.html` pointe droit
+sur le fichier `.apk` — sur Android le téléchargement part tout seul. L'empreinte
+affichée par la notice est celle de l'APK **téléchargé puis recalculé**, pas
+celle d'une reconstruction locale : deux builds du même code ne sont pas
+identiques octet pour octet, et une empreinte qui ne correspond pas serait pire
+que pas d'empreinte du tout.
+
+L'icône du lanceur est engendrée depuis `art/icone-source.jpeg` — une gravure
+de Madhi — en trois calques (premier plan, fond, monochrome d'Android 13+) et
+cinq densités. Le JPEG source est versionné parce que sans lui les densités ne
+sont pas reconstructibles.
 
 ## Site familial
 
@@ -128,8 +196,25 @@ répertoire `site/` du dépôt est monté tel quel, sans copie intermédiaire.
     python3 tools/site-dev/serve.py            # le site seul, donnees fabriquees
     node tools/site-dev/verifier.mjs           # les verifications sans navigateur
 
+`site/installer.html` y est déposée pour la même raison : le répertoire est
+déjà monté, la notice sort donc sous le segment secret et derrière le mot de
+passe familial — à savoir avant d'envoyer le lien à Madhi, qui n'a pas
+forcément ce mot de passe.
+
 Le déploiement sur `madhi.alexeber.fr` et les vérifications à faire ensuite
 sont dans `site/README.md`.
+
+## Serveur
+
+FastAPI et PostgreSQL, en conteneurs, sur un VPS. Il reçoit les positions,
+sert l'historique au site, et relaie le géocodage inverse. L'installation, les
+variables d'environnement, la sauvegarde et le resserrement des droits sont
+dans `SERVER_DEPLOYMENT.md`.
+
+Une limite corrigée mérite d'être connue : l'historique n'est plus tronqué mais
+**échantillonné**. La réponse plafonnait à dix mille points en coupant les plus
+récents, donc au bout de trente-cinq jours de voyage le site aurait affiché une
+dernière position figée, avec un statut vert (`arch/17` §4.1).
 
 ## Surveillance
 
@@ -143,6 +228,12 @@ Aucune alerte ne porte de coordonnée. La sonde de position lit `/status`, qui
 ne renvoie que des horodatages, jamais `/latest-location`.
 
     sudo tools/monitoring/madhi-check.sh --dry-run
+    sudo tools/monitoring/madhi-check.sh --test-alert
+
+Deux certificats expirent pendant le voyage — `madhi-server.alexeber.fr` le
+17 novembre 2026, `madhi.alexeber.fr` le 21 novembre. La surveillance ne
+prévient pas à l'avance : elle passe au rouge le jour même. Le renouvellement
+est donc à prouver avant novembre (`arch/20` §7).
 
 Voir `tools/monitoring/README.md`, et `SERVER_DEPLOYMENT.md` pour la place de
 cette surveillance dans l'exploitation.
@@ -171,11 +262,17 @@ Les plus utiles pour comprendre le projet :
   premier plan ne suffit pas, et ce qui le complète
 - `arch/adr/007-contraintes-miui-redmi-note-11.md` — ce que la surcouche du
   téléphone cible impose
+- `arch/adr/008-cadence-par-le-flux-de-localisation.md` — pourquoi la cadence
+  est confiée au fournisseur de localisation
 - `arch/14_protocole_test_terrain.md` — comment on prouve que ça marche
+- `arch/15_journal_tests_terrain.md` — ce que chaque session sur l'appareil a
+  montré, y compris ce qui a été perdu
 - `arch/17_plan_implementation_site_poc.md` — plan d'exécution du site, et les
   pièges du serveur qu'il faut connaître avant de le construire
-- `arch/18_carte_embarquee_v1.md` — comment la carte est faite, pourquoi elle
-  n'a pas de fond de tuiles, et comment lui en ajouter un plus tard
+- `arch/18_carte_embarquee_v1.md` — comment la carte est faite, et comment on
+  lui change son fond de tuiles
+- `arch/20_depart.md` — la procédure du départ, dans l'ordre : serveur, APK,
+  installation par Madhi, vérification, puis la date qui ouvre le voyage
 - `site/README.md` — comment développer, déployer et vérifier le site familial
 - `tools/monitoring/README.md` — ce qui est surveillé, ce qui ne l'est pas, et
   comment prouver que l'alerte arrive
