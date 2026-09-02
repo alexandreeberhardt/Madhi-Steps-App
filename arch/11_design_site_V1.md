@@ -11,7 +11,7 @@ de cela.
 # 2. Page principale
 
 > ┌──────────────────────────────────────────────┐\
-> │ Voyage de \[Prénom\] ⚙ │\
+> │ Voyage de \[Prénom\] │\
 > ├──────────────────────────────────────────────┤\
 > │ │\
 > │ │\
@@ -22,7 +22,7 @@ de cela.
 > │ │\
 > ├──────────────────────────────────────────────┤\
 > │ Dernière position : il y a 7 min │\
-> │ \[ Recentrer \] │\
+> │ \[Auj.\]\[24 h\]\[7 j\]\[30 j\]\[Tout\] \[ Recentrer \] │\
 > └──────────────────────────────────────────────┘
 
 Sur desktop, la carte peut prendre toute la fenêtre moins un bandeau
@@ -43,7 +43,12 @@ panneau flottant en bas.
 
 - Bouton recentrer
 
-- Accès réglages
+- Sélecteur de période. *`arch/12` §7 le rangeait en V2. Il est arrivé en V1 :
+  une carte sans étendue connue ne répond pas à « où est-elle ? », elle y
+  répond à moitié. Cinq valeurs, cinq boutons, aucun panneau.*
+
+- Une ligne de couverture, quand la période affichée n'est pas celle demandée
+  — bornée au départ du voyage, ou échantillonnée par le serveur.
 
 # 4. Ce qui doit rester hors de la page d’accueil
 
@@ -73,6 +78,10 @@ panneau flottant en bas.
 
 # 5. Réglages / zone secondaire
 
+**Cet écran n'existe pas, et c'est volontaire.** La règle de sobriété
+ci-dessous s'est appliquée à lui-même : chacune de ses lignes s'est révélée
+inutile ou déplacée, et il ne restait rien à afficher.
+
 > Réglages\
 > \
 > Affichage\
@@ -89,8 +98,18 @@ panneau flottant en bas.
 > État du téléphone\
 > État du serveur
 
-Même dans les réglages, supprimer tout élément qui ne sera pas
-réellement utilisé par la famille.
+Ligne par ligne, ce qu'elles sont devenues :
+
+| Ligne prévue | Ce qui s'est passé |
+|---|---|
+| Fond de carte | Un seul fond, encapsulé dans `site/components/map.js`. Choisir entre deux fournisseurs n'est pas une décision de la famille. |
+| Se déconnecter | Il n'y a pas de session à fermer : l'accès tient au segment secret de l'URL et au mot de passe familial posés par nginx. Se déconnecter serait fermer l'onglet. |
+| Dernière réception serveur | Remontée sur l'accueil, dans le bloc « dernière position » : c'est l'écart entre capture et réception qui distingue « elle n'enregistre plus » de « elle n'arrive plus à envoyer ». Cachée, elle ne servait à personne. |
+| Confidentialité | Rien à régler : aucune requête ne sort du domaine du projet sauf les tuiles. Un écran qui l'aurait dit aurait été un texte, pas un réglage. |
+| État du téléphone / du serveur | `arch/12` §5 les range en V2, derrière un accès administrateur. L'accueil dit déjà ce que la famille doit savoir : position ancienne, appareil silencieux, serveur injoignable. |
+
+Si un réglage devait revenir un jour, la règle reste celle-ci : supprimer tout
+élément qui ne sera pas réellement utilisé par la famille.
 
 # 6. Responsive
 

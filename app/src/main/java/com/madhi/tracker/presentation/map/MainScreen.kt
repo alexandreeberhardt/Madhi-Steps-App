@@ -120,12 +120,11 @@ fun MainScreen(
  * Le choix de ce que la carte montre.
  *
  * Posé sous la carte plutôt que par-dessus : `arch/09` §2 veut une carte qui
- * occupe l'écran, et trois boutons flottants lui mangeraient un coin. Il est
+ * occupe l'écran, et quatre boutons flottants lui mangeraient un coin. Il est
  * en tête du bandeau parce qu'il gouverne la carte, pas l'état du suivi.
  *
  * Les libellés sont ceux du site familial (`site/features/period.js`), à une
- * exception près : le site s'arrête à trente jours faute de pouvoir en servir
- * davantage en un appel. Ici la base est locale.
+ * exception près : le site propose en plus trente jours. Voir [TrackPeriod].
  */
 @Composable
 private fun PeriodSelector(
@@ -135,8 +134,8 @@ private fun PeriodSelector(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            // Défilante plutôt qu'ajustée au pixel : les trois libellés tiennent
-            // tout juste sur un écran de 360 points, et la première personne
+            // Défilante plutôt qu'ajustée au pixel : les quatre libellés
+            // débordent déjà d'un écran de 360 points, et la première personne
             // qui agrandit la police du système verrait la rangée se briser.
             .horizontalScroll(rememberScrollState())
             .padding(start = 20.dp, end = 20.dp, top = 12.dp),

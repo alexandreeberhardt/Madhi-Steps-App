@@ -36,6 +36,9 @@ secondaires.
 
 - 7 derniers jours.
 
+- 30 derniers jours. *`arch/06` §2 la range en V2 ; elle est arrivée en V1 avec
+  l'échantillonnage, qui l'a rendue gratuite.*
+
 - Tout le voyage si les performances restent acceptables ; sinon période
   limitée. *Servable depuis le 26 août 2026 : le serveur échantillonne au lieu
   de tronquer (`arch/17` §4.1).*
@@ -64,9 +67,13 @@ secondaires.
   départ »). L'historique se demande donc avec `from=startedAt`, lu depuis
   `/trips/{id}/status`.
 
-- À corriger côté serveur en même temps : `latest_location` ignore `started_at`
-  et renvoie le point le plus récent quel qu'il soit. Avant le départ, la
-  « dernière position » serait donc une position prise à la maison.
+- **Fait côté serveur.** `latest_location` ignorait `started_at` et renvoyait le
+  point le plus récent quel qu'il soit : avant le départ, la « dernière
+  position » aurait été une position prise à la maison. La requête filtre
+  désormais sur `started_at` quand il est non nul (`server/app/db.py`), et deux
+  tests d'intégration le couvrent. La règle de `arch/17` §6 reste appliquée :
+  tant que `startedAt` est nul, le site n'affiche aucune position précise,
+  parce que le filtre ne peut alors s'appuyer sur rien.
 
 # 6. Carte
 

@@ -24,7 +24,7 @@ centrale, le bandeau bas reste compact.
 | Tracé | Les positions de la base locale, reliées dans l'ordre du voyage |
 | Couleur du tracé | Bleu là où le serveur détient les points, orange là où ils ne sont encore que sur le téléphone |
 | Position actuelle | Disque cerclé sur le point le plus récent |
-| Période | Trois boutons sous la carte : aujourd'hui, 7 jours, tout le voyage |
+| Période | Quatre boutons sous la carte : aujourd'hui, 24 h, 7 jours, tout le voyage |
 | Échelle graphique | En bas à gauche, une distance ronde et sa longueur en pixels |
 | Légende | En haut à gauche ; la ligne « Sur le téléphone » n'apparaît que s'il y a des points en attente |
 | Mention légale | En bas à droite, imposée par la licence des tuiles |
@@ -125,12 +125,14 @@ tracé sans qu'une ligne de géométrie change.
 
 ## 3.6 Chaque période porte un pas de temps
 
-Aujourd'hui, sept jours, tout le voyage. Ce ne sont pas trois étendues mais
-trois couples étendue/finesse, et SQL ne rend qu'une position par tranche :
+Aujourd'hui, vingt-quatre heures, sept jours, tout le voyage. Ce ne sont pas
+quatre étendues mais quatre couples étendue/finesse, et SQL ne rend qu'une
+position par tranche :
 
 | Période | Pas | Plafond |
 |---|---|---|
 | Aujourd'hui | une minute | 1 440 points |
+| 24 h | une minute | 1 440 points |
 | 7 jours | cinq minutes | 2 016 points |
 | Tout le voyage | une heure | 8 760 points par an |
 
@@ -148,6 +150,13 @@ porterait l'heure d'une position et les coordonnées d'une autre.
 « Aujourd'hui » est une date, pas une durée : minuit dans le fuseau de la
 voyageuse. Au Cap Nord en été l'écart à UTC est de deux heures, et la journée
 affichée serait décalée d'autant.
+
+**« 24 h » est la durée**, et c'est pour cela qu'elle a été ajoutée le 30 août
+2026, ici et sur le site en même temps. Les deux périodes se ressemblent à
+midi ; à une heure du matin, « aujourd'hui » ne montre plus qu'une heure de
+trajet, et il fallait passer à sept jours pour revoir l'étape de la veille. Son
+pas est celui d'« aujourd'hui » : la période ne peut pas excéder un jour, donc
+le même plafond la borne.
 
 Le vocabulaire est celui du site familial (`site/features/period.js`), et le
 serveur applique désormais le même principe d'échantillonnage (`arch/17` §4.1).

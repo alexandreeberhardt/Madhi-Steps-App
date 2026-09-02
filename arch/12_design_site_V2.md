@@ -117,7 +117,8 @@ concurrencer visuellement la carte.
 |----|----|----|
 | Carte | Plein écran | Plein écran, inchangée |
 | Statut dernière position | Oui | Oui |
-| Sélecteur de date | Non | Oui, compact |
+| Sélecteur de période | **Oui, arrivé en V1** | Oui |
+| Sélecteur de date (une journée précise) | Non | Oui, compact |
 | Historique | Non | Panneau temporaire |
 | Stats | Aucune | 1–2 chiffres max |
 | Réglages | Minimal | Un peu enrichis |
