@@ -15,6 +15,23 @@ statistiques, les alertes et l’exploitation à distance.
 Elle durcit le déploiement sur VPS et domaine personnel sans migrer par
 défaut vers une plateforme GAFAM managée.
 
+# 1 bis. Ce qui est déjà là, et ce qui ne l’est pas
+
+*Ajouté le 2 septembre 2026. Rien du découpage en domaines du §2 n’existe : le
+serveur est resté le monolithe du POC. Mais trois besoins de ce document ont
+été couverts ailleurs, et les chercher ici ferait conclure à tort qu’ils
+manquent.*
+
+| Besoin | État |
+|---|---|
+| §3 Comptes et partage | **Non fait, et remplacé.** L’accès familial tient à un segment secret dans l’URL et à un mot de passe partagé, posés par nginx (`arch/17` §2.4). Ni comptes, ni rôles, ni sessions. Révocable en changeant les deux valeurs. |
+| §4 Device health | **Non fait.** `devices.last_seen_at` et `devices.app_version` sont écrits — le premier à chaque requête authentifiée, le second à l’activation — mais aucun endpoint ne les expose et il n’y a pas de heartbeat (`arch/02` §2). |
+| §5 Agrégations | **Non fait.** Aucune distance n’est calculée nulle part, ni serveur ni client. |
+| §6 Routes simplifiées pour les grandes périodes | **Fait, en avance.** C’est l’échantillonnage par pas de temps de `GET /locations`, ajouté le 26 août 2026 pour corriger une troncature silencieuse (`arch/17` §4.1). Les points bruts restent tous en base, comme ce paragraphe l’exigeait. |
+| §7 Alertes | **Fait hors du serveur.** `tools/monitoring/madhi-check.sh` couvre l’absence de position, l’API et le site injoignables, le disque et l’âge du dernier backup. La batterie faible manque, faute de heartbeat. Aucune alerte ne contient de coordonnée : la sonde interroge `/status`, jamais `/latest-location`. |
+| §8 Observabilité | **En partie.** Logs JSON structurés avec `request_id`, `device_id` et `trip_id` : fait. Healthcheck API et base : fait, `/health` touche la base. Alerting externe d’indisponibilité : fait par sonde externe (`MADHI_HEARTBEAT_URL`), parce qu’un VPS éteint n’alerte pas lui-même. Métriques de taux d’erreur, de latence et de points par minute : non faites. |
+| §9 Évolution de base | **Non fait**, à une table près : `activation_codes`, qui appartient au POC (`arch/03` §4). |
+
 # 2. Nouveaux domaines
 
 > auth-family\

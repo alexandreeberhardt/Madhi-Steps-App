@@ -12,6 +12,31 @@ La V2 transforme le POC fiable en application de voyage durable :
 meilleure gestion d’énergie, diagnostic, auto-récupération et
 observabilité côté appareil.
 
+# 1 bis. Ce qui est déjà là, et ce qui ne l’est pas
+
+*Ajouté le 2 septembre 2026. Ce document est un plan, pas un état — mais une
+partie de son contenu est arrivée en V1, souvent parce que le terrain l’a
+exigé plus tôt que prévu. Sans ce repère, il se lit comme un inventaire de
+choses à faire dont la moitié est faite.*
+
+| §2 — Amélioration | État |
+|---|---|
+| Écran diagnostic complet | **Fait en V1.** ADR-007 l’a rendu nécessaire : c’est par lui que la voyageuse apprend, seule, que son suivi s’est arrêté. |
+| Persistance de la configuration utilisateur | **Fait en V1.** |
+| Fréquence modifiable depuis les réglages | **Fait en V1**, avec des bornes plutôt qu’une liste fermée (`arch/01` §2). |
+| Désactivation complète du tracking sans perte locale | **Fait en V1.** |
+| Gestion explicite des états de permissions | **Fait en V1.** |
+| Détection des synchronisations bloquées | **Fait en V1.** Le watchdog d’ADR-003 et d’ADR-007 §3.2. |
+| Optimisation progressive de `LocationManager` | **Fait autrement.** ADR-008 a confié la cadence au flux de localisation après l’échec de T1, ce qui n’était pas le réglage progressif prévu ici mais un changement de mécanisme. |
+| Rotation du token appareil | **Fait en V1**, par réactivation (ADR-004, `arch/20` §2.2). |
+| Diagnostic de confidentialité | **Fait en V1.** Aucun SDK tiers, `EventLog` incapable de recevoir une coordonnée, tâche `checkCoreIsFrameworkFree`. |
+| Migrations Room versionnées | **À moitié.** `exportSchema` est actif et le schéma v1 est commité ; aucune migration n’a encore été écrite, faute de v2. |
+| Stratégie adaptée au mouvement et à la batterie | **Non fait.** Aucune `SamplingPolicy` n’existe. |
+| Heartbeat périodique indépendant des points GPS | **Non fait.** Il n’existe pas d’endpoint serveur pour le recevoir (`arch/04` §4). |
+| Rétention locale configurable | **Non fait, et délibérément.** ADR-005 interdit toute suppression en V1 ; le DAO n’expose même pas de `DELETE`. |
+| Journal technique local limité et exportable | **Non fait.** `EventLog` écrit dans le journal Android, rien ne le persiste ni ne l’exporte. |
+| Mécanisme de mise à jour testé avant le départ | **Non fait sur l’appareil du voyage.** `PackageReplacedReceiver` existe, mais `arch/20` §1 rappelle qu’aucun test T1-T4 n’a été passé sur le Redmi. |
+
 # 2. Améliorations principales
 
 - Stratégie de tracking adaptée au mouvement et à l’état batterie.

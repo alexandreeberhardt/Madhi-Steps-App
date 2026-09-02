@@ -51,6 +51,18 @@ sophistication cloud.
 
 - Test de restauration avant le départ.
 
+**État réel au 2 septembre 2026.** Cette section est une cible, et deux de ses
+quatre lignes ne sont pas atteintes. Le dire ici plutôt que le laisser
+découvrir le jour où la machine est perdue.
+
+| Ligne | État |
+|---|---|
+| Backup quotidien | **Fait.** `tools/backup/madhi-backup.sh`, timer systemd, dump vérifié relisible avant rotation. |
+| Rétention | **Fait.** 30 copies, rotation triée par nom, jamais avant qu'une sauvegarde valide soit écrite. |
+| Copie hors du serveur principal | **Non fait.** Les dumps ne quittent pas le VPS. Perdre la machine, c'est aujourd'hui perdre la base **et** ses sauvegardes du même coup. Un `rsync` manuel est documenté dans `tools/backup/README.md`, et `arch/20` §7 le porte comme tâche avant le départ. |
+| Chiffrement | **Non fait.** Les dumps sont en clair, protégés par les droits du système seuls : répertoire en 0700, fichiers en 0600, posés par le script. Un dump est la trace complète des déplacements d'une personne pendant un an ; ces droits suffisent sur le VPS, ils ne suffiront pas le jour où une copie en sortira. |
+| Test de restauration | **Non fait.** La procédure est écrite et vérifiable en une commande (`tools/backup/README.md`, « Restaurer »), mais elle n'a jamais été exécutée. Une sauvegarde non restaurée n'est pas une sauvegarde, c'est une hypothèse. |
+
 # 6. Monitoring minimum
 
 - Healthcheck API.
@@ -85,7 +97,8 @@ sophistication cloud.
   keystores, certificats privés et artefacts de build sensibles, sans
   ignorer les migrations SQL versionnées.
 
-- Restauration DB testée.
+- Restauration DB testée. *Non atteint : procédure écrite, jamais exécutée
+  (§5).*
 
 - HTTPS valide.
 
