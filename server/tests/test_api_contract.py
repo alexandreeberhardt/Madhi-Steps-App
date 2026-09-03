@@ -17,6 +17,7 @@ DATABASE_URL = os.getenv(
     "postgresql://madhi:madhi_dev_password@127.0.0.1:5432/madhi_tracker",
 )
 ACTIVATION_SECRET = os.getenv("ACTIVATION_CODE_HASH_SECRET", "dev-secret-change-me")
+PUBLIC_READ_TOKEN = os.getenv("PUBLIC_READ_TOKEN")
 
 
 pytestmark = pytest.mark.asyncio
@@ -53,6 +54,12 @@ async def activate(client: httpx.AsyncClient, code: str) -> dict:
     )
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def read_headers() -> dict[str, str]:
+    if not PUBLIC_READ_TOKEN:
+        return {}
+    return {"Authorization": f"Bearer {PUBLIC_READ_TOKEN}"}
 
 
 def point(index: int, device_id: str, recorded_at: datetime | None = None) -> dict:
@@ -307,3 +314,29 @@ async def test_history_of_a_short_range_loses_nothing():
         assert response.status_code == 200, response.text
         assert len(response.json()) == 288
 
+
+async def test_history_hides_very_imprecise_points_without_rejecting_them():
+    """Un fix imprecis est utile au diagnostic, mais pas au dessin du trajet."""
+    code = f"ABCD-{uuid4().hex[:4].upper()}"
+    await seed_activation(code)
+    async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=30) as client:
+        activation = await activate(client, code)
+        headers = {"Authorization": f"Bearer {activation['deviceToken']}"}
+        depart = datetime(2026, 6, 1, 8, 0, tzinfo=timezone.utc)
+        first = point(1, activation["deviceId"], depart)
+        spike = point(2, activation["deviceId"], depart + timedelta(minutes=5))
+        spike["latitude"] = 45.0
+        spike["longitude"] = 4.0
+        spike["accuracyMeters"] = 600.0
+        last = point(3, activation["deviceId"], depart + timedelta(minutes=10))
+
+        response = await client.post(
+            "/locations/batch", headers=headers, json={"points": [first, spike, last]}
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["accepted"] == [first["id"], spike["id"], last["id"]]
+
+        history = await client.get(f"/trips/{activation['tripId']}/locations", headers=read_headers())
+
+        assert history.status_code == 200, history.text
+        assert [item["id"] for item in history.json()] == [first["id"], last["id"]]

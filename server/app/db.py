@@ -198,6 +198,7 @@ async def history_bounds(
              where trip_id = $1
                and ($2::timestamptz is null or recorded_at >= $2)
                and ($3::timestamptz is null or recorded_at <= $3)
+               and (accuracy_meters is null or accuracy_meters <= 250)
             """,
             trip_id,
             from_instant,
@@ -212,7 +213,7 @@ async def location_history(
     to_instant: datetime | None,
     bucket_seconds: int,
 ) -> list[asyncpg.Record]:
-    """L'historique, une position par tranche de `bucket_seconds`.
+    """L'historique affichable, une position par tranche de `bucket_seconds`.
 
     Il n'y a volontairement **aucun LIMIT**. Un plafond en nombre de points
     coupe la fin du tableau, donc les positions les plus recentes, et sans
@@ -224,6 +225,11 @@ async def location_history(
     `distinct on` retient la premiere ligne de chaque tranche selon le `order
     by` -- donc la plus ancienne, a egalite l'identifiant le plus petit, ce qui
     rend le resultat stable d'un appel a l'autre.
+
+    Les points tres imprecis restent en base, mais ils ne dessinent pas le
+    trajet familial. Un fix a plusieurs centaines de metres ou quelques
+    kilometres de precision cree deux longs traits parasites: l'aller vers le
+    mauvais point, puis le retour au trajet reel.
     """
     async with pool.acquire() as conn:
         return await conn.fetch(
@@ -234,6 +240,7 @@ async def location_history(
                  where trip_id = $1
                    and ($2::timestamptz is null or recorded_at >= $2)
                    and ($3::timestamptz is null or recorded_at <= $3)
+                   and (accuracy_meters is null or accuracy_meters <= 250)
             ),
             echantillon as (
                 select distinct on (floor(extract(epoch from recorded_at) / $4::bigint))
