@@ -78,4 +78,5 @@ data class SettingsState(
     val syncJournal: SyncJournal = SyncJournal.EMPTY,
     val deviceActivated: Boolean = false,
     val appVersion: String = AppConfig.appVersion,
+    val updatePageUrl: String = AppConfig.updatePageUrl,
 )

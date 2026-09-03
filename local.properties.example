@@ -12,3 +12,10 @@ sdk.dir=/Users/<vous>/Library/Android/sdk
 # `http://localhost:8080/api/v1` avec `adb reverse`) pour les essais hors ligne.
 madhi.api.baseUrl.debug=https://madhi-server.alexeber.fr/api/v1
 madhi.api.baseUrl.release=https://madhi-server.alexeber.fr/api/v1
+
+# Page ouverte par Réglages > Autres réglages > Installer la mise à jour.
+# En production, utiliser l'URL complète du site familial avec son segment.
+# Peut aussi venir des variables d'environnement MADHI_UPDATE_PAGE_URL_DEBUG
+# et MADHI_UPDATE_PAGE_URL_RELEASE.
+madhi.updatePageUrl.debug=https://madhi.alexeber.fr/f/dev/mise_a_jour.html
+madhi.updatePageUrl.release=https://madhi.alexeber.fr/f/<segment>/mise_a_jour.html

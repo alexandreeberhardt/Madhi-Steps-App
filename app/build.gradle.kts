@@ -39,6 +39,14 @@ val releaseApiBaseUrl =
     secret("MADHI_API_BASE_URL_RELEASE", "madhi.api.baseUrl.release", localProperties)
         ?: "https://example.invalid/api/v1"
 
+val debugUpdatePageUrl =
+    secret("MADHI_UPDATE_PAGE_URL_DEBUG", "madhi.updatePageUrl.debug", localProperties)
+        ?: "https://madhi.alexeber.fr/f/dev/mise_a_jour.html"
+
+val releaseUpdatePageUrl =
+    secret("MADHI_UPDATE_PAGE_URL_RELEASE", "madhi.updatePageUrl.release", localProperties)
+        ?: "https://example.invalid/mise_a_jour.html"
+
 // Le fond de carte est optionnel et n'a pas de valeur par défaut : aucun
 // serveur de tuiles n'est choisi dans le dépôt, parce que ce choix engage une
 // licence et parfois un compte. Vide, la carte reste sur fond uni.
@@ -77,8 +85,8 @@ android {
         // installe sur le telephone du voyage : sans lui, deux binaires
         // differents portent le meme nom et le mapping.txt conserve ne se
         // rattache plus a rien.
-        versionCode = 3
-        versionName = "1.0.1"
+        versionCode = 4
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -107,6 +115,7 @@ android {
                 "API_BASE_URL",
                 "\"$debugApiBaseUrl\"",
             )
+            buildConfigField("String", "UPDATE_PAGE_URL", "\"$debugUpdatePageUrl\"")
             buildConfigField("String", "TILE_URL_TEMPLATE", "\"$tileUrlTemplate\"")
             buildConfigField("String", "TILE_ATTRIBUTION", "\"$tileAttribution\"")
             buildConfigField("int", "TILE_MAX_ZOOM", "$tileMaxZoom")
@@ -121,6 +130,7 @@ android {
                 "API_BASE_URL",
                 "\"$releaseApiBaseUrl\"",
             )
+            buildConfigField("String", "UPDATE_PAGE_URL", "\"$releaseUpdatePageUrl\"")
             buildConfigField("String", "TILE_URL_TEMPLATE", "\"$tileUrlTemplate\"")
             buildConfigField("String", "TILE_ATTRIBUTION", "\"$tileAttribution\"")
             buildConfigField("int", "TILE_MAX_ZOOM", "$tileMaxZoom")
@@ -168,10 +178,15 @@ val validateReleaseConfig = tasks.register("validateReleaseConfig") {
     // le script de build lui-même, que le cache de configuration ne sait pas
     // sérialiser — et le build release échouait pour cette seule raison.
     val apiBaseUrl = releaseApiBaseUrl
+    val updatePageUrl = releaseUpdatePageUrl
     doLast {
         check(!apiBaseUrl.contains("example.invalid")) {
             "Build release sans API_BASE_URL. Renseignez MADHI_API_BASE_URL_RELEASE " +
                 "ou madhi.api.baseUrl.release dans local.properties."
+        }
+        check(!updatePageUrl.contains("example.invalid")) {
+            "Build release sans UPDATE_PAGE_URL. Renseignez MADHI_UPDATE_PAGE_URL_RELEASE " +
+                "ou madhi.updatePageUrl.release dans local.properties."
         }
     }
 }

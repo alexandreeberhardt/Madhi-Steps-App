@@ -10,6 +10,7 @@ import com.madhi.tracker.BuildConfig
 object AppConfig {
     val apiBaseUrl: String = BuildConfig.API_BASE_URL.trimEnd('/')
     val appVersion: String = BuildConfig.VERSION_NAME
+    val updatePageUrl: String = BuildConfig.UPDATE_PAGE_URL.trim()
 
     /**
      * Gabarit d'URL des tuiles, au format `{z}/{x}/{y}`. Vide par défaut, et
@@ -27,5 +28,4 @@ object AppConfig {
      * agrandit ce niveau au lieu de demander des tuiles inexistantes.
      */
     val tileMaxZoom: Int = BuildConfig.TILE_MAX_ZOOM
-
 }

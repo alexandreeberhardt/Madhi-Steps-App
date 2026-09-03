@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,6 +50,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val uriHandler = LocalUriHandler.current
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
 
@@ -115,6 +117,12 @@ fun SettingsScreen(
 
                 Section("Application") {
                     Line("Version", state.appVersion)
+                    OutlinedButton(
+                        onClick = { uriHandler.openUri(state.updatePageUrl) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Installer la mise à jour")
+                    }
                     Text(
                         "Les positions sont envoyées uniquement au serveur du voyage. " +
                             "Aucun service tiers ne les reçoit, et aucune coordonnée n'est " +

@@ -19,7 +19,7 @@ Le critère de réussite du projet n'est pas technique :
 
 | Brique | État |
 |---|---|
-| Application Android | 1.0.1 (`versionCode 3`), fonctionnellement complète, carte comprise, en attente de validation terrain |
+| Application Android | 1.0.2 (`versionCode 4`), fonctionnellement complète, carte comprise, en attente de validation terrain |
 | Serveur | Déployé sur `madhi-server.alexeber.fr`, en HTTPS, avec sauvegarde quotidienne et surveillance |
 | Site familial | En ligne sur `madhi.alexeber.fr` depuis le 23 août 2026, derrière un segment d'URL secret et un mot de passe |
 | Notice d'installation | `site/installer.html`, servie avec le site, autonome et sans requête sortante |
@@ -152,8 +152,9 @@ Aucune valeur réelle n'est versionnée. Copier les exemples :
     cp local.properties.example local.properties
     cp keystore.properties.example keystore.properties
 
-Les variables d'environnement `MADHI_API_BASE_URL_*` et `ANDROID_SIGNING_*`
-ont la priorité sur ces fichiers, ce qui évite d'avoir à les créer en CI.
+Les variables d'environnement `MADHI_API_BASE_URL_*`,
+`MADHI_UPDATE_PAGE_URL_*` et `ANDROID_SIGNING_*` ont la priorité sur ces
+fichiers, ce qui évite d'avoir à les créer en CI.
 
 ## Publier une version
 
@@ -164,20 +165,21 @@ conservé ne se rattache plus à rien.
 Chaque version publiée laisse trois fichiers, gardés hors du dépôt
 (`dist/` est ignoré par git) :
 
-    dist/1.0.1/madhi-tracker-1.0.1.apk    l'APK envoyé
-    dist/1.0.1/mapping-1.0.1.txt          la table de renommage R8
-    dist/1.0.1/SHA256SUMS                 l'empreinte de l'APK publié
+    dist/<version>/madhi-tracker-<version>.apk    l'APK envoyé
+    dist/<version>/mapping-<version>.txt          la table de renommage R8
+    dist/<version>/SHA256SUMS                     l'empreinte de l'APK publié
 
 **Conserver le `mapping.txt`** sous un nom qui porte la version, hors du
 répertoire de build : R8 renomme tout, une pile d'appel remontée du voyage
 sans lui est illisible, et un `./gradlew clean` l'efface sans prévenir.
 
-L'APK est publié en *release* GitHub, et `site/installer.html` pointe droit
-sur le fichier `.apk` — sur Android le téléchargement part tout seul. L'empreinte
-affichée par la notice est celle de l'APK **téléchargé puis recalculé**, pas
-celle d'une reconstruction locale : deux builds du même code ne sont pas
-identiques octet pour octet, et une empreinte qui ne correspond pas serait pire
-que pas d'empreinte du tout.
+L'APK est publié en *release* GitHub, sous son nom versionné et sous le nom
+stable `madhi-tracker-latest.apk`, utilisé par `site/mise_a_jour.html`. La
+notice d'installation peut pointer droit sur un fichier `.apk` précis — sur
+Android le téléchargement part tout seul. L'empreinte affichée par la notice est
+celle de l'APK **téléchargé puis recalculé**, pas celle d'une reconstruction
+locale : deux builds du même code ne sont pas identiques octet pour octet, et
+une empreinte qui ne correspond pas serait pire que pas d'empreinte du tout.
 
 L'icône du lanceur est engendrée depuis `art/icone-source.jpeg` — une gravure
 de Madhi — en trois calques (premier plan, fond, monochrome d'Android 13+) et
