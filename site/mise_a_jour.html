@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Mise a jour Madhi Tracker</title>
+
+<style>
+  :root {
+    --ground: #F1F4F3;
+    --surface: #FFFFFF;
+    --ink: #16212B;
+    --muted: #5B6A76;
+    --line: #D3DAD8;
+    --action: #1E5F9E;
+    --focus: #1E5F9E;
+
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #10171C;
+      --surface: #18222A;
+      --ink: #E3EAE8;
+      --muted: #94A3AD;
+      --line: #27343D;
+      --action: #74AEE2;
+      --focus: #74AEE2;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
+  }
+
+  .sheet {
+    width: min(100%, 42rem);
+    margin: 0 auto;
+    padding: 2.25rem 1.25rem 4rem;
+  }
+
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .eyebrow {
+    color: var(--muted);
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(2rem, 8vw, 2.8rem);
+    line-height: 1.06;
+    letter-spacing: 0;
+  }
+
+  p { margin: 0; }
+
+  .intro {
+    max-width: 34rem;
+    color: var(--muted);
+  }
+
+  .download {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    padding: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+
+  .button {
+    display: block;
+    padding: .9rem 1rem;
+    border-radius: 4px;
+    background: var(--action);
+    color: var(--surface);
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  .button:active { transform: translateY(1px); }
+
+  .meta {
+    color: var(--muted);
+    font-family: ui-monospace, "Roboto Mono", "SF Mono", Menlo, Consolas, monospace;
+    font-size: .82rem;
+    overflow-wrap: anywhere;
+  }
+
+  ol {
+    margin: 1.75rem 0 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+  }
+
+  li {
+    display: grid;
+    grid-template-columns: 2.25rem 1fr;
+    gap: 1rem;
+    padding: 1.15rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .num {
+    color: var(--action);
+    font-family: ui-monospace, "Roboto Mono", "SF Mono", Menlo, Consolas, monospace;
+    font-weight: 700;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+  }
+
+  .step strong { line-height: 1.25; }
+  .step span { color: var(--muted); }
+
+  a { color: var(--action); }
+  a:focus-visible, :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  @media (max-width: 26rem) {
+    li { grid-template-columns: 1fr; gap: .35rem; }
+  }
+</style>
+</head>
+<body>
+<main class="sheet">
+  <header>
+    <div class="eyebrow">Madhi Tracker</div>
+    <h1>Mise &agrave; jour de l'application</h1>
+    <p class="intro">
+      T&eacute;l&eacute;charge le nouvel APK, installe-le par-dessus l'application existante,
+      puis ouvre Madhi Tracker une fois l'installation termin&eacute;e.
+    </p>
+  </header>
+
+  <section class="download" aria-label="Telechargement">
+    <a class="button"
+       href="https://github.com/alexandreeberhardt/Madhi-Steps-App/releases/latest/download/madhi-tracker-latest.apk">
+      T&eacute;l&eacute;charger la derni&egrave;re version
+    </a>
+    <p class="meta">madhi-tracker-latest.apk</p>
+  </section>
+
+  <ol>
+    <li>
+      <div class="num">01</div>
+      <div class="step">
+        <strong>Ouvre le fichier t&eacute;l&eacute;charg&eacute;.</strong>
+        <span>Android peut demander l'autorisation d'installer depuis le navigateur.</span>
+      </div>
+    </li>
+    <li>
+      <div class="num">02</div>
+      <div class="step">
+        <strong>Choisis Mettre &agrave; jour.</strong>
+        <span>Ne d&eacute;sinstalle pas l'application: les positions locales doivent rester en place.</span>
+      </div>
+    </li>
+    <li>
+      <div class="num">03</div>
+      <div class="step">
+        <strong>Relance Madhi Tracker.</strong>
+        <span>Android arr&ecirc;te l'app apr&egrave;s une mise &agrave; jour; l'ouvrir relance le suivi.</span>
+      </div>
+    </li>
+  </ol>
+</main>
+</body>
+</html>
