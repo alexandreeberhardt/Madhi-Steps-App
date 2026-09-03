@@ -370,6 +370,20 @@ class RoomLocationStoreTest {
     }
 
     @Test
+    fun le_trace_cache_les_points_tres_imprecis_sans_les_sortir_du_backlog() = runTest {
+        val first = pointAt(0)
+        val imprecise = pointAt(5).copy(accuracyMeters = 600f)
+        val last = pointAt(10)
+        listOf(first, imprecise, last).forEach { store.save(it) }
+
+        val track = store.observeTrack(Instant.EPOCH, bucketMillis = 1).first()
+
+        assertEquals(listOf(first.recordedAt, last.recordedAt), track.map { it.recordedAt })
+        assertEquals(3, store.pendingCount())
+        assertEquals(listOf(first.id, imprecise.id, last.id), store.oldestPending(limit = 10).map { it.id })
+    }
+
+    @Test
     fun le_trace_d_une_base_vide_est_vide() = runTest {
         assertTrue(store.observeTrack(Instant.EPOCH, bucketMillis = 1).first().isEmpty())
     }

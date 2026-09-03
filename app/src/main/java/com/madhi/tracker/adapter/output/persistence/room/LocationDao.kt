@@ -98,6 +98,7 @@ interface LocationDao {
         SELECT latitude, longitude, MIN(locations.recorded_at) AS recorded_at, sync_state
         FROM locations
         WHERE locations.recorded_at >= :sinceEpochMillis
+          AND (accuracy_m IS NULL OR accuracy_m <= 250)
         GROUP BY locations.recorded_at / :bucketMillis
         ORDER BY MIN(locations.recorded_at) ASC
         """,
