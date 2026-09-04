@@ -77,6 +77,10 @@ body {
   padding-top: max(0.6rem, env(safe-area-inset-top));
   border-bottom: 1px solid var(--bordure);
   background: var(--fond-panneau);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .entete h1 {
@@ -84,6 +88,36 @@ body {
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: 0.01em;
+}
+
+.resume-voyage {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(5.2rem, auto));
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.resume-voyage div {
+  min-width: 0;
+  border-left: 1px solid var(--bordure);
+  padding-left: 0.75rem;
+}
+
+.resume-libelle {
+  display: block;
+  color: var(--texte-doux);
+  font-size: 0.72rem;
+  line-height: 1.1;
+}
+
+.resume-voyage strong {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 1rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* La carte occupe tout ce qui reste ; le panneau du bas garde sa taille. */
@@ -320,6 +354,24 @@ body {
 
   .commandes {
     justify-content: flex-end;
+  }
+}
+
+@media (max-width: 30rem) {
+  .entete {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .resume-voyage {
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .resume-voyage div {
+    border-left: 0;
+    border-top: 1px solid var(--bordure);
+    padding: 0.45rem 0 0;
   }
 }
 

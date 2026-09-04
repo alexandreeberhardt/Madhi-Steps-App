@@ -89,6 +89,17 @@ class LocationResponse(BaseModel):
     batteryPercent: int | None = None
 
 
+class LocationDiagnosticResponse(BaseModel):
+    id: str
+    deviceId: str
+    recordedAt: str
+    receivedAt: str
+    accuracyMeters: float | None = None
+    altitudeMeters: float | None = None
+    speedMps: float | None = None
+    batteryPercent: int | None = None
+
+
 class TripStatusResponse(BaseModel):
     tripId: str
     name: str

@@ -27,6 +27,21 @@
  */
 
 /**
+ * Une position brute pour le diagnostic. Les coordonnees n'y sont pas
+ * exposees : cette page regarde la qualite des points, pas leur emplacement.
+ *
+ * @typedef {Object} LocationDiagnosticV1
+ * @property {string} id
+ * @property {string} deviceId
+ * @property {string} recordedAt
+ * @property {string} receivedAt
+ * @property {number | null} [accuracyMeters]
+ * @property {number | null} [altitudeMeters]
+ * @property {number | null} [speedMps]
+ * @property {number | null} [batteryPercent]
+ */
+
+/**
  * L'etat d'un voyage. C'est l'appel a faire en premier : `startedAt` commande
  * tout le reste, y compris la borne basse de l'historique.
  *
@@ -68,6 +83,7 @@
  * @property {boolean} chargement
  * @property {import("./api-client.js").ErreurApi | null} erreur
  * @property {Date | null} derniereMajReussie
+ * @property {{distanceMetres: number | null, jours: number | null}} resumeVoyage
  */
 
 export {};

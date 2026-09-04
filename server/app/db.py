@@ -264,6 +264,33 @@ async def location_history(
         )
 
 
+async def recent_location_diagnostics(
+    pool: asyncpg.Pool,
+    trip_id: UUID,
+    limit: int,
+) -> list[asyncpg.Record]:
+    """Derniers points bruts, sans coordonnees, pour juger la qualite GPS."""
+    async with pool.acquire() as conn:
+        return await conn.fetch(
+            """
+            with derniers as (
+                select l.id, l.device_id, l.recorded_at, l.received_at,
+                       l.accuracy_meters, l.altitude_meters, l.speed_mps,
+                       l.battery_percent
+                  from locations l
+                  join trips t on t.id = l.trip_id
+                 where l.trip_id = $1
+                   and (t.started_at is null or l.recorded_at >= t.started_at)
+                 order by l.recorded_at desc, l.received_at desc
+                 limit $2
+            )
+            select * from derniers order by recorded_at asc, received_at asc
+            """,
+            trip_id,
+            limit,
+        )
+
+
 async def trip_status(pool: asyncpg.Pool, trip_id: UUID) -> asyncpg.Record | None:
     async with pool.acquire() as conn:
         return await conn.fetchrow(

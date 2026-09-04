@@ -96,6 +96,19 @@ export async function getLocations(tripId, from, to, limite = POINTS_VISES) {
 }
 
 /**
+ * @param {string} tripId
+ * @param {number} [limite]
+ * @returns {Promise<import("./types.js").LocationDiagnosticV1[]>}
+ */
+export async function getRecentLocationDiagnostics(tripId, limite = 200) {
+  const parametres = new URLSearchParams({ limit: String(limite) });
+  const corps = await demanderJson(
+    `${RACINE_API}/trips/${encodeURIComponent(tripId)}/diagnostics/recent-locations?${parametres}`,
+  );
+  return Array.isArray(corps) ? corps : [];
+}
+
+/**
  * L'adresse d'une position, relayee par le serveur du voyage et jamais
  * demandee au geocodeur depuis le navigateur (`arch/13` §6). Un tiers ne voit
  * ainsi que l'adresse IP fixe du VPS, deja publique, et non celle de chaque

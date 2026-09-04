@@ -284,19 +284,24 @@ export function fermerBulle(handle) {
  * demande. Le bleu clair se voit s'il passe par la, et tant pis s'il sort du cadre.
  *
  * @param {Carte} handle
+ * @param {{bas?: number}} [marges]
  */
-export function ajusterVue(handle) {
+export function ajusterVue(handle, marges = {}) {
   const limites = L.latLngBounds([]);
   if (handle.trace !== null) limites.extend(handle.trace.getBounds());
   if (handle.marqueur !== null) limites.extend(handle.marqueur.getLatLng());
 
   if (!limites.isValid()) return;
 
+  const margeBasse = Math.max(0, marges.bas ?? 0);
+  const paddingTopLeft = MARGE_VUE;
+  const paddingBottomRight = [MARGE_VUE[0], MARGE_VUE[1] + margeBasse];
+
   if (limites.getNorthEast().equals(limites.getSouthWest())) {
     handle.carte.setView(limites.getCenter(), ZOOM_POINT_SEUL);
     return;
   }
-  handle.carte.fitBounds(limites, { padding: MARGE_VUE, maxZoom: ZOOM_MAX });
+  handle.carte.fitBounds(limites, { paddingTopLeft, paddingBottomRight, maxZoom: ZOOM_MAX });
 }
 
 /**

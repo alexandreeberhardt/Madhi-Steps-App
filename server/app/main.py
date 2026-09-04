@@ -21,6 +21,7 @@ from .db import (
     history_bounds,
     latest_location,
     location_history,
+    recent_location_diagnostics,
     seed_configured_trip_and_activation_code,
     trip_status,
     utc_iso,
@@ -33,6 +34,7 @@ from .models import (
     ActivationResponse,
     LocationBatchRequest,
     LocationBatchResponse,
+    LocationDiagnosticResponse,
     LocationPoint,
     LocationResponse,
     RejectedPoint,
@@ -261,6 +263,20 @@ async def get_locations(
     return [row_to_location(row) for row in rows]
 
 
+@app.get("/api/v1/trips/{trip_id}/diagnostics/recent-locations", response_model=list[LocationDiagnosticResponse])
+async def get_recent_location_diagnostics(
+    trip_id: UUID,
+    raw_request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+    limit: int = 200,
+):
+    enforce_read_auth(authorization)
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail={"error": "invalid_limit"})
+    rows = await recent_location_diagnostics(raw_request.app.state.pool, trip_id, limit)
+    return [row_to_location_diagnostic(row) for row in rows]
+
+
 @app.get("/api/v1/trips/{trip_id}/status", response_model=TripStatusResponse)
 async def get_trip_status(
     trip_id: UUID,
@@ -296,6 +312,19 @@ def row_to_location(row) -> LocationResponse:
         deviceId=str(row["device_id"]),
         latitude=float(row["latitude"]),
         longitude=float(row["longitude"]),
+        accuracyMeters=float(row["accuracy_meters"]) if row["accuracy_meters"] is not None else None,
+        altitudeMeters=float(row["altitude_meters"]) if row["altitude_meters"] is not None else None,
+        speedMps=float(row["speed_mps"]) if row["speed_mps"] is not None else None,
+        batteryPercent=row["battery_percent"],
+        recordedAt=utc_iso(row["recorded_at"]),
+        receivedAt=utc_iso(row["received_at"]),
+    )
+
+
+def row_to_location_diagnostic(row) -> LocationDiagnosticResponse:
+    return LocationDiagnosticResponse(
+        id=str(row["id"]),
+        deviceId=str(row["device_id"]),
         accuracyMeters=float(row["accuracy_meters"]) if row["accuracy_meters"] is not None else None,
         altitudeMeters=float(row["altitude_meters"]) if row["altitude_meters"] is not None else None,
         speedMps=float(row["speed_mps"]) if row["speed_mps"] is not None else None,

@@ -340,3 +340,15 @@ async def test_history_hides_very_imprecise_points_without_rejecting_them():
 
         assert history.status_code == 200, history.text
         assert [item["id"] for item in history.json()] == [first["id"], last["id"]]
+
+        diagnostics = await client.get(
+            f"/trips/{activation['tripId']}/diagnostics/recent-locations",
+            headers=read_headers(),
+        )
+
+        assert diagnostics.status_code == 200, diagnostics.text
+        payload = diagnostics.json()
+        assert [item["id"] for item in payload] == [first["id"], spike["id"], last["id"]]
+        assert payload[1]["accuracyMeters"] == 200.0
+        assert "latitude" not in payload[1]
+        assert "longitude" not in payload[1]

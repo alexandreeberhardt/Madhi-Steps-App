@@ -14,6 +14,7 @@ import { TITRE_PAR_DEFAUT, TRIP_ID } from "./config.js";
 import {
   ErreurApi,
   POINTS_FOND,
+  POINTS_VISES,
   getAdresse,
   getLatestLocation,
   getLocations,
@@ -54,6 +55,8 @@ import { formaterJourEtHeure } from "./utils/time.js";
 const INTERVALLE_RAFRAICHISSEMENT_MS = 120 * 1000;
 // Redessin sans reseau, pour que « il y a 8 min » ne reste pas fige.
 const INTERVALLE_REDESSIN_MS = 30 * 1000;
+const JOUR_MS = 24 * 60 * 60 * 1000;
+const RAYON_TERRE_METRES = 6371000;
 
 /** @type {DonneesVoyage} */
 const donnees = {
@@ -72,10 +75,15 @@ const donnees = {
   chargement: false,
   erreur: null,
   derniereMajReussie: null,
+  resumeVoyage: { distanceMetres: null, jours: null },
 };
 
 const elements = {
   titre: document.getElementById("titre-voyage"),
+  resumeVoyage: document.getElementById("resume-voyage"),
+  resumeDistance: document.getElementById("resume-distance"),
+  resumeJours: document.getElementById("resume-jours"),
+  resumeDepart: document.getElementById("resume-depart"),
   carte: document.getElementById("carte"),
   panneau: document.getElementById("panneau"),
   bandeau: document.getElementById("bandeau-etat"),
@@ -112,7 +120,7 @@ demarrer();
 function demarrer() {
   construireSelecteur();
   elements.recentrer.addEventListener("click", () => {
-    if (carte !== null) ajusterVue(carte);
+    if (carte !== null) ajusterVue(carte, margeDeVue());
   });
 
   setInterval(() => {
@@ -157,7 +165,7 @@ async function charger() {
 }
 
 /**
- * @returns {Promise<{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], pointsFond: import("./types.js").LocationPointV1[] | null, fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number}>}
+ * @returns {Promise<{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], pointsFond: import("./types.js").LocationPointV1[] | null, fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number, resumeVoyage: {distanceMetres: number | null, jours: number | null}}>}
  */
 async function recupererVoyage() {
   // Le statut vient en premier : `startedAt` commande tout le reste.
@@ -173,17 +181,25 @@ async function recupererVoyage() {
       pointsFond: [],
       fenetre: null,
       resolutionSecondes: 1,
+      resumeVoyage: { distanceMetres: null, jours: null },
     };
   }
 
   const fenetre = bornesDePeriode(donnees.periode, statut.startedAt);
-  const [dernierePosition, historique, pointsFond] = await Promise.all([
+  const voyage = bornesDePeriode("TOUT_LE_VOYAGE", statut.startedAt);
+  const historiquePromesse = getLocations(TRIP_ID, fenetre.from, fenetre.to);
+  const voyagePromesse =
+    donnees.periode === "TOUT_LE_VOYAGE"
+      ? historiquePromesse
+      : getLocations(TRIP_ID, voyage.from, voyage.to, POINTS_VISES);
+  const [dernierePosition, historique, pointsFond, voyageComplet] = await Promise.all([
     // La derniere position ne vient toujours pas de l'historique. Celui-ci ne
     // coupe plus la fin, mais il l'echantillonne : sur un an, la position la
     // plus recente qu'il rende peut dater d'une demi-heure.
     getLatestLocation(TRIP_ID),
-    getLocations(TRIP_ID, fenetre.from, fenetre.to),
+    historiquePromesse,
     recupererFond(statut.startedAt),
+    voyagePromesse,
   ]);
   return {
     statut,
@@ -192,6 +208,10 @@ async function recupererVoyage() {
     pointsFond,
     fenetre,
     resolutionSecondes: historique.resolutionSecondes,
+    resumeVoyage: {
+      distanceMetres: distanceTotale(voyageComplet.points),
+      jours: nombreDeJoursVoyage(statut.startedAt, statut.endedAt),
+    },
   };
 }
 
@@ -224,7 +244,7 @@ async function recupererFond(debutVoyage) {
 }
 
 /**
- * @param {{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], pointsFond: import("./types.js").LocationPointV1[] | null, fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number}} resultat
+ * @param {{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], pointsFond: import("./types.js").LocationPointV1[] | null, fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number, resumeVoyage: {distanceMetres: number | null, jours: number | null}}} resultat
  */
 function appliquer(resultat) {
   donnees.statut = resultat.statut;
@@ -239,6 +259,7 @@ function appliquer(resultat) {
   // n'a donc plus a deviner si le trajet est ampute, seulement a dire s'il est
   // resume.
   donnees.resolutionSecondes = resultat.resolutionSecondes;
+  donnees.resumeVoyage = resultat.resumeVoyage;
 
   // Le trace a change sous la bulle : un point qui n'est plus dessine ne doit
   // pas garder la sienne ouverte. On retient un identifiant et non un indice,
@@ -347,6 +368,7 @@ function rendre() {
 
   majSelecteur(etat);
   majCouverture();
+  majResumeVoyage(etat);
   elements.recentrer.hidden = !aUnePosition;
   document.body.dataset.etat = etat;
 }
@@ -373,7 +395,7 @@ function majCarte(maintenant) {
     if (cle !== cleTracee) {
       afficherDernierePosition(carte, donnees.dernierePosition, choisirPoint);
       afficherTrajet(carte, donnees.points);
-      ajusterVue(carte);
+      ajusterVue(carte, margeDeVue());
       cleTracee = cle;
     }
 
@@ -408,6 +430,15 @@ function majBulle(maintenant) {
       adresseDesactivee: donnees.adresseDesactivee,
     }),
   );
+}
+
+/**
+ * @returns {{bas: number}}
+ */
+function margeDeVue() {
+  const panneau = elements.panneau;
+  if (panneau.hidden) return { bas: 0 };
+  return { bas: Math.ceil(panneau.getBoundingClientRect().height) };
 }
 
 /**
@@ -502,6 +533,80 @@ function majCouverture() {
   elements.couverture.hidden = false;
   elements.couverture.textContent =
     `Trajet affiché ${debut} au ${formaterJourEtHeure(donnees.fenetre.to)} — ${positions}.${fond}`;
+}
+
+function majResumeVoyage(etat) {
+  const jours = donnees.statut === null
+    ? null
+    : nombreDeJoursVoyage(donnees.statut.startedAt, donnees.statut.endedAt);
+
+  if (etat === Etat.AVANT_DEPART || jours === null) {
+    elements.resumeVoyage.hidden = true;
+    return;
+  }
+
+  elements.resumeVoyage.hidden = false;
+  elements.resumeDistance.textContent = formaterDistance(donnees.resumeVoyage.distanceMetres);
+  elements.resumeJours.textContent = `${jours.toLocaleString("fr-FR")}ème jour`;
+  elements.resumeDepart.textContent = formaterDateDepart(donnees.statut.startedAt);
+}
+
+/**
+ * @param {import("./types.js").LocationPointV1[]} points
+ * @returns {number}
+ */
+function distanceTotale(points) {
+  let total = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    total += distanceEntre(points[index - 1], points[index]);
+  }
+  return total;
+}
+
+function distanceEntre(a, b) {
+  const lat1 = radians(a.latitude);
+  const lat2 = radians(b.latitude);
+  const deltaLat = radians(b.latitude - a.latitude);
+  const deltaLon = radians(b.longitude - a.longitude);
+  const haversine =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+  return 2 * RAYON_TERRE_METRES * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function radians(degres) {
+  return degres * Math.PI / 180;
+}
+
+function nombreDeJoursVoyage(debutTexte, finTexte) {
+  const debut = new Date(debutTexte);
+  const fin = finTexte === null ? new Date() : new Date(finTexte);
+  if (!Number.isFinite(debut.getTime()) || !Number.isFinite(fin.getTime())) return null;
+
+  const minuitDebut = minuitLocal(debut);
+  const minuitFin = minuitLocal(fin);
+  return Math.max(1, Math.floor((minuitFin.getTime() - minuitDebut.getTime()) / JOUR_MS) + 1);
+}
+
+function minuitLocal(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function formaterDistance(valeur) {
+  if (typeof valeur !== "number" || !Number.isFinite(valeur)) return "-";
+  if (valeur < 1000) return `${Math.round(valeur).toLocaleString("fr-FR")} m`;
+  return `${(valeur / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km`;
+}
+
+function formaterDateDepart(valeur) {
+  if (valeur === null) return "-";
+  const date = new Date(valeur);
+  if (!Number.isFinite(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  }).format(date);
 }
 
 /**

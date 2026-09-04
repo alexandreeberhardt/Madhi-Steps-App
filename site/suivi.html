@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Suivi technique du trajet</title>
+    <link rel="stylesheet" href="./suivi.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="entete">
+        <div>
+          <p class="eyebrow">Madhi Tracker</p>
+          <h1 id="titre">Suivi du trajet</h1>
+        </div>
+        <div class="actions">
+          <button id="rafraichir" class="bouton" type="button">Rafraichir</button>
+          <a class="lien" href="./">Carte</a>
+        </div>
+      </header>
+
+      <section id="etat" class="etat chargement">
+        <span class="pulse"></span>
+        <span id="etat-texte">Chargement des points...</span>
+      </section>
+
+      <section class="grille-stats" aria-label="Statistiques principales">
+        <article>
+          <p>Total serveur</p>
+          <strong id="stat-total">-</strong>
+        </article>
+        <article>
+          <p>Points analyses</p>
+          <strong id="stat-analyses">-</strong>
+        </article>
+        <article>
+          <p>Precision mediane</p>
+          <strong id="stat-mediane">-</strong>
+        </article>
+        <article>
+          <p>Points sous 50 m</p>
+          <strong id="stat-bons">-</strong>
+        </article>
+        <article>
+          <p>Hors carte</p>
+          <strong id="stat-hors-carte">-</strong>
+        </article>
+      </section>
+
+      <section class="grille-stats grille-voyage" aria-label="Statistiques du voyage">
+        <article>
+          <p>Distance estimee</p>
+          <strong id="stat-distance">-</strong>
+        </article>
+        <article>
+          <p>Jours de voyage</p>
+          <strong id="stat-jours">-</strong>
+        </article>
+        <article>
+          <p>Premier point</p>
+          <strong id="stat-premier">-</strong>
+        </article>
+        <article>
+          <p>Dernier point</p>
+          <strong id="stat-dernier">-</strong>
+        </article>
+        <article>
+          <p>Rythme moyen</p>
+          <strong id="stat-rythme">-</strong>
+        </article>
+      </section>
+
+      <section class="panneaux">
+        <article class="panneau panneau-large">
+          <div class="panneau-titre">
+            <div>
+              <h2>Precision par point</h2>
+              <p id="precision-detail">Ordre chronologique des derniers points bruts.</p>
+            </div>
+            <span class="badge">metres</span>
+          </div>
+          <div id="graph-precision" class="graphique"></div>
+        </article>
+
+        <article class="panneau">
+          <div class="panneau-titre">
+            <div>
+              <h2>Delai d'envoi</h2>
+              <p>Temps entre capture et reception serveur.</p>
+            </div>
+            <span class="badge">min</span>
+          </div>
+          <div id="graph-delai" class="graphique compact"></div>
+        </article>
+
+        <article class="panneau">
+          <div class="panneau-titre">
+            <div>
+              <h2>Batterie</h2>
+              <p>Niveau declare avec chaque position.</p>
+            </div>
+            <span class="badge">%</span>
+          </div>
+          <div id="graph-batterie" class="graphique compact"></div>
+        </article>
+
+        <article class="panneau">
+          <div class="panneau-titre">
+            <div>
+              <h2>Vitesse</h2>
+              <p>Valeur GPS brute quand elle existe.</p>
+            </div>
+            <span class="badge">km/h</span>
+          </div>
+          <div id="graph-vitesse" class="graphique compact"></div>
+        </article>
+
+        <article class="panneau">
+          <div class="panneau-titre">
+            <div>
+              <h2>20 derniers points</h2>
+              <p>Les plus recents, du plus ancien au plus recent.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Heure</th>
+                  <th>Precision</th>
+                  <th>Delai</th>
+                  <th>Batterie</th>
+                </tr>
+              </thead>
+              <tbody id="table-points"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./suivi.js"></script>
+  </body>
+</html>
