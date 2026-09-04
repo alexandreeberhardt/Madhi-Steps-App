@@ -35,13 +35,13 @@ private val TrackPending = Color(0xFFF57C00)
 /**
  * Le reste du voyage, dessiné en fond derrière la période choisie.
  *
- * Gris et translucide, parce qu'il n'est là que pour situer : sur « aujourd'hui »
+ * Bleu clair et translucide, parce qu'il n'est là que pour situer : sur « aujourd'hui »
  * on doit voir d'un coup d'oeil où la journée se place dans le trajet, sans que
  * le trajet vienne disputer la lecture de la journée. Il ne code aucun état, il
  * ne se touche pas, et il ne doit jamais se confondre avec les deux teintes
  * ci-dessus.
  */
-private val TrackBackground = Color(0x99616161)
+private val TrackBackground = Color(0x993F94D3)
 
 private val LightColors = lightColorScheme(
     primary = Color(0xFF1B5E7A),

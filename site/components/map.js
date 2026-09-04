@@ -29,12 +29,12 @@ const RAYON_JALON = 3;
 // L'appui, lui, continue de viser tous les points, dessines ou non.
 const MAXIMUM_JALONS_DESSINES = 2000;
 
-// Le voyage entier, dessine derriere la periode choisie. Gris et plus fin que
+// Le voyage entier, dessine derriere la periode choisie. Bleu clair et plus fin que
 // le trace : il n'est la que pour situer la periode dans le trajet, jamais pour
 // etre lu. Il ne porte pas de jalons — ce n'est pas une donnee qu'on interroge,
 // c'est un repere.
-const COULEUR_FOND = "#9aa4ae";
-const EPAISSEUR_FOND = 2;
+const COULEUR_FOND = "#3f94d3";
+const EPAISSEUR_FOND = 3;
 
 /**
  * @typedef {Object} Carte
@@ -86,7 +86,7 @@ export function creerCarte(element, ecoutes = {}) {
     rendu: L.canvas(),
     // Un rendu a part pour le fond, ajoute a la carte avant tous les autres :
     // Leaflet empile les couches dans l'ordre ou leurs conteneurs entrent dans
-    // le DOM, et c'est la seule facon d'etre certain que le gris reste sous le
+    // le DOM, et c'est la seule facon d'etre certain que le bleu clair reste sous le
     // trace de la periode, quel que soit celui des deux qui est redessine en
     // dernier.
     renduFond: L.canvas(),
@@ -281,7 +281,7 @@ export function fermerBulle(handle) {
  *
  * Le trace de fond n'y entre pas : demander « aujourd'hui » et voir la carte
  * reculer jusqu'a montrer trois pays serait exactement le contraire de ce qu'on
- * demande. Le gris se voit s'il passe par la, et tant pis s'il sort du cadre.
+ * demande. Le bleu clair se voit s'il passe par la, et tant pis s'il sort du cadre.
  *
  * @param {Carte} handle
  */

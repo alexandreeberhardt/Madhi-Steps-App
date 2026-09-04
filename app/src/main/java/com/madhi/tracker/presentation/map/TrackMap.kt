@@ -687,7 +687,7 @@ private fun Legend(hasPending: Boolean, hasBackground: Boolean, modifier: Modifi
     ) {
         LegendEntry(TrackColors.synced, "Envoyé")
         if (hasPending) LegendEntry(TrackColors.pending, "Sur le téléphone")
-        // Sans cette ligne, un trait gris apparaîtrait sur la carte sans que
+        // Sans cette ligne, un trait bleu clair apparaîtrait sur la carte sans que
         // rien ne dise ce qu'il est.
         if (hasBackground) LegendEntry(TrackColors.background, "Reste du voyage")
     }
@@ -730,7 +730,7 @@ private val TRACK_STROKE: Dp = 3.dp
  * distingue les deux sans avoir à comparer les couleurs — en plein soleil sur
  * un guidon, l'épaisseur se lit avant la teinte.
  */
-private val BACKGROUND_STROKE: Dp = 2.dp
+private val BACKGROUND_STROKE: Dp = 2.5.dp
 /**
  * Un point du tracé. Un peu plus gros qu'avant : ils sont désormais des cibles
  * qu'on vise du doigt, et non plus seulement des marques de cadence.

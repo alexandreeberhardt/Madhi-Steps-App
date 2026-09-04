@@ -94,7 +94,7 @@ let carte = null;
 // ajusterVue, qui annulerait le deplacement fait a la main par la personne qui
 // regarde.
 let cleTracee = null;
-// Ce qui est actuellement trace en gris, avec sa propre cle. Elle est separee
+// Ce qui est actuellement trace en bleu clair, avec sa propre cle. Elle est separee
 // de `cleTracee` pour une raison precise : celle-la commande aussi `ajusterVue`,
 // et un fond qui change pendant que la periode ne bouge pas recadrerait la carte
 // sous les doigts de la personne qui regarde.
@@ -196,7 +196,7 @@ async function recupererVoyage() {
 }
 
 /**
- * Le voyage entier, celui qui se dessine en gris derriere la periode choisie.
+ * Le voyage entier, celui qui se dessine en bleu clair derriere la periode choisie.
  *
  * Rend `[]` sur « tout le voyage » : le fond y serait le trace lui-meme,
  * dessine deux fois et demande au serveur pour rien.
@@ -455,7 +455,7 @@ function choisirPeriode(idPeriode) {
   if (donnees.periode === idPeriode) return;
   donnees.periode = idPeriode;
   donnees.points = [];
-  // Le fond ne depend pas de la periode : on le garde, sinon le gris
+  // Le fond ne depend pas de la periode : on le garde, sinon le bleu clair
   // disparaitrait puis reviendrait a chaque changement de bouton. Sauf sur
   // « tout le voyage », ou le trace prend sa place et ou le laisser le
   // doublerait.
@@ -495,9 +495,9 @@ function majCouverture() {
     ? `depuis le départ, le ${formaterJourEtHeure(donnees.fenetre.from)}`
     : `du ${formaterJourEtHeure(donnees.fenetre.from)}`;
 
-  // Sans cette phrase, un trait gris apparaitrait sur la carte sans que rien
+  // Sans cette phrase, un trait bleu clair apparaitrait sur la carte sans que rien
   // ne dise ce qu'il est.
-  const fond = donnees.pointsFond.length > 0 ? " Le reste du voyage est tracé en gris." : "";
+  const fond = donnees.pointsFond.length > 0 ? " Le reste du voyage est tracé en bleu clair." : "";
 
   elements.couverture.hidden = false;
   elements.couverture.textContent =

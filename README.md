@@ -2,7 +2,7 @@
 
 Suivi GPS d'un voyage à vélo de la France au Cap Nord, sur un an.
 
-![Le site familial : le trajet des dernières 24 h en bleu, le reste du voyage en gris](screen_site.jpeg)
+![Le site familial : le trajet des dernières 24 h en bleu, le reste du voyage en bleu clair](screen_site.jpeg)
 
 Un téléphone Android enregistre une position toutes les cinq minutes, la
 garde en local, et l'envoie à un serveur privé dès qu'il y a du réseau. La
@@ -47,7 +47,7 @@ défaut est peut-être une case à cocher plutôt qu'un bug.
 l'âge de la dernière position. Le tracé est bleu là où le serveur détient les
 points, orange là où ils ne sont encore que sur le téléphone. Quatre périodes
 — aujourd'hui, 24 h, 7 jours, tout le voyage — et le voyage entier reste
-visible en gris sous la période choisie, pour qu'un jour de vélo ne paraisse
+visible en bleu clair sous la période choisie, pour qu'un jour de vélo ne paraisse
 jamais flotter dans le vide. Toucher un point du tracé dit quand on était là,
 et où. Les réglages tiennent en deux choses, la cadence de capture (trois
 valeurs courantes, plus « Autre ») et l'arrêt du suivi ; le diagnostic, qui

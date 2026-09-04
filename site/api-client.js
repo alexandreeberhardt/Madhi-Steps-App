@@ -17,7 +17,7 @@ const RACINE_API = "./api";
 export const POINTS_VISES = 10000;
 
 // Nombre de positions demande pour le trace de fond, celui du voyage entier
-// dessine en gris derriere la periode choisie. Bien moins que le trace
+// dessine en bleu clair derriere la periode choisie. Bien moins que le trace
 // principal : c'est un repere qu'on regarde de loin, jamais un trajet qu'on
 // examine, et il se redemande a chaque rafraichissement.
 export const POINTS_FOND = 1500;
