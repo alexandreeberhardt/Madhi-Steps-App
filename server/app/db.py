@@ -11,6 +11,9 @@ from .models import LocationPoint, parse_recorded_at
 from .security import hash_secret, new_device_token
 
 
+MAX_VISIBLE_ACCURACY_METERS = 165
+
+
 @dataclass(frozen=True)
 class DeviceAuth:
     device_id: UUID
@@ -198,11 +201,12 @@ async def history_bounds(
              where trip_id = $1
                and ($2::timestamptz is null or recorded_at >= $2)
                and ($3::timestamptz is null or recorded_at <= $3)
-               and (accuracy_meters is null or accuracy_meters <= 250)
+               and (accuracy_meters is null or accuracy_meters <= $4)
             """,
             trip_id,
             from_instant,
             to_instant,
+            MAX_VISIBLE_ACCURACY_METERS,
         )
 
 
@@ -240,7 +244,7 @@ async def location_history(
                  where trip_id = $1
                    and ($2::timestamptz is null or recorded_at >= $2)
                    and ($3::timestamptz is null or recorded_at <= $3)
-                   and (accuracy_meters is null or accuracy_meters <= 250)
+                   and (accuracy_meters is null or accuracy_meters <= $5)
             ),
             echantillon as (
                 select distinct on (floor(extract(epoch from recorded_at) / $4::bigint))
@@ -256,6 +260,7 @@ async def location_history(
             from_instant,
             to_instant,
             bucket_seconds,
+            MAX_VISIBLE_ACCURACY_METERS,
         )
 
 

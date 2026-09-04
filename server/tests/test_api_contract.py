@@ -327,7 +327,7 @@ async def test_history_hides_very_imprecise_points_without_rejecting_them():
         spike = point(2, activation["deviceId"], depart + timedelta(minutes=5))
         spike["latitude"] = 45.0
         spike["longitude"] = 4.0
-        spike["accuracyMeters"] = 600.0
+        spike["accuracyMeters"] = 200.0
         last = point(3, activation["deviceId"], depart + timedelta(minutes=10))
 
         response = await client.post(
