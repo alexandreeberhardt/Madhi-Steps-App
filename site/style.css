@@ -285,6 +285,29 @@ body {
   font-size: 0.85rem;
 }
 
+.ligne-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.code-source {
+  margin: 0;
+  color: var(--texte-doux);
+  font-size: 0.82rem;
+}
+
+.code-source a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.code-source a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* La bulle d'un point du trace : quand on etait la, et ou. Les trois lignes
    sont hierarchisees, l'heure d'abord -- c'est la question posee. */
 .bulle .leaflet-popup-content-wrapper {
@@ -347,9 +370,17 @@ body {
     gap: 1rem;
   }
 
-  .couverture {
-    flex-basis: 100%;
+  .ligne-footer {
+    flex: 1 1 100%;
     order: 3;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: baseline;
+  }
+
+  .code-source {
+    text-align: right;
   }
 
   .commandes {
