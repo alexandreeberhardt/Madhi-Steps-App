@@ -65,6 +65,15 @@
  */
 
 /**
+ * Résumé du voyage affiché dans l'en-tête.
+ *
+ * @typedef {Object} ResumeVoyage
+ * @property {number | null} distanceMetres
+ * @property {number | null} distanceAujourdhuiMetres
+ * @property {number | null} jours
+ */
+
+/**
  * L'etat complet du site, tel que `app.js` le tient et que `rendre` le lit.
  *
  * @typedef {Object} DonneesVoyage
@@ -83,7 +92,7 @@
  * @property {boolean} chargement
  * @property {import("./api-client.js").ErreurApi | null} erreur
  * @property {Date | null} derniereMajReussie
- * @property {{distanceMetres: number | null, jours: number | null}} resumeVoyage
+ * @property {ResumeVoyage} resumeVoyage
  */
 
 export {};

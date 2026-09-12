@@ -49,6 +49,7 @@ import { messagesPour, rendreBandeau, rendreMessageCentral } from "./components/
 import { formaterJourEtHeure } from "./utils/time.js";
 
 /** @typedef {import("./types.js").DonneesVoyage} DonneesVoyage */
+/** @typedef {import("./types.js").ResumeVoyage} ResumeVoyage */
 
 // Rafraichir plus vite que le telephone n'envoie fabriquerait une illusion de
 // temps reel. Deux minutes, et seulement si l'onglet est visible.
@@ -75,13 +76,14 @@ const donnees = {
   chargement: false,
   erreur: null,
   derniereMajReussie: null,
-  resumeVoyage: { distanceMetres: null, jours: null },
+  resumeVoyage: { distanceMetres: null, distanceAujourdhuiMetres: null, jours: null },
 };
 
 const elements = {
   titre: document.getElementById("titre-voyage"),
   resumeVoyage: document.getElementById("resume-voyage"),
   resumeDistance: document.getElementById("resume-distance"),
+  resumeAujourdhui: document.getElementById("resume-aujourdhui"),
   resumeJours: document.getElementById("resume-jours"),
   resumeDepart: document.getElementById("resume-depart"),
   carte: document.getElementById("carte"),
@@ -165,7 +167,7 @@ async function charger() {
 }
 
 /**
- * @returns {Promise<{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], pointsFond: import("./types.js").LocationPointV1[] | null, fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number, resumeVoyage: {distanceMetres: number | null, jours: number | null}}>}
+ * @returns {Promise<{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], pointsFond: import("./types.js").LocationPointV1[] | null, fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number, resumeVoyage: ResumeVoyage}>}
  */
 async function recupererVoyage() {
   // Le statut vient en premier : `startedAt` commande tout le reste.
@@ -181,18 +183,29 @@ async function recupererVoyage() {
       pointsFond: [],
       fenetre: null,
       resolutionSecondes: 1,
-      resumeVoyage: { distanceMetres: null, jours: null },
+      resumeVoyage: { distanceMetres: null, distanceAujourdhuiMetres: null, jours: null },
     };
   }
 
   const fenetre = bornesDePeriode(donnees.periode, statut.startedAt);
   const voyage = bornesDePeriode("TOUT_LE_VOYAGE", statut.startedAt);
+  const aujourdhui = bornesDePeriode("AUJOURDHUI", statut.startedAt);
   const historiquePromesse = getLocations(TRIP_ID, fenetre.from, fenetre.to);
   const voyagePromesse =
     donnees.periode === "TOUT_LE_VOYAGE"
       ? historiquePromesse
       : getLocations(TRIP_ID, voyage.from, voyage.to, POINTS_VISES);
-  const [dernierePosition, historique, pointsFond, voyageComplet] = await Promise.all([
+  const aujourdhuiPromesse =
+    donnees.periode === "AUJOURDHUI"
+      ? historiquePromesse
+      : getLocations(TRIP_ID, aujourdhui.from, aujourdhui.to, POINTS_VISES);
+  const [
+    dernierePosition,
+    historique,
+    pointsFond,
+    voyageComplet,
+    etapeAujourdhui,
+  ] = await Promise.all([
     // La derniere position ne vient toujours pas de l'historique. Celui-ci ne
     // coupe plus la fin, mais il l'echantillonne : sur un an, la position la
     // plus recente qu'il rende peut dater d'une demi-heure.
@@ -200,6 +213,7 @@ async function recupererVoyage() {
     historiquePromesse,
     recupererFond(statut.startedAt),
     voyagePromesse,
+    aujourdhuiPromesse,
   ]);
   return {
     statut,
@@ -210,6 +224,7 @@ async function recupererVoyage() {
     resolutionSecondes: historique.resolutionSecondes,
     resumeVoyage: {
       distanceMetres: distanceTotale(voyageComplet.points),
+      distanceAujourdhuiMetres: distanceTotale(etapeAujourdhui.points),
       jours: nombreDeJoursVoyage(statut.startedAt, statut.endedAt),
     },
   };
@@ -244,7 +259,7 @@ async function recupererFond(debutVoyage) {
 }
 
 /**
- * @param {{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], pointsFond: import("./types.js").LocationPointV1[] | null, fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number, resumeVoyage: {distanceMetres: number | null, jours: number | null}}} resultat
+ * @param {{statut: import("./types.js").TripStatusV1, dernierePosition: import("./types.js").LocationPointV1 | null, points: import("./types.js").LocationPointV1[], pointsFond: import("./types.js").LocationPointV1[] | null, fenetre: import("./types.js").FenetreTemporelle | null, resolutionSecondes: number, resumeVoyage: ResumeVoyage}} resultat
  */
 function appliquer(resultat) {
   donnees.statut = resultat.statut;
@@ -547,6 +562,9 @@ function majResumeVoyage(etat) {
 
   elements.resumeVoyage.hidden = false;
   elements.resumeDistance.textContent = formaterDistance(donnees.resumeVoyage.distanceMetres);
+  elements.resumeAujourdhui.textContent = formaterDistance(
+    donnees.resumeVoyage.distanceAujourdhuiMetres,
+  );
   elements.resumeJours.textContent = `${jours.toLocaleString("fr-FR")}ème jour`;
   elements.resumeDepart.textContent = formaterDateDepart(donnees.statut.startedAt);
 }

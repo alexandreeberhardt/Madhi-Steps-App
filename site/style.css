@@ -93,7 +93,7 @@ body {
 .resume-voyage {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(3, minmax(5.2rem, auto));
+  grid-template-columns: repeat(4, minmax(5.2rem, auto));
   gap: 0.65rem;
   align-items: center;
 }
@@ -396,7 +396,7 @@ body {
 
   .resume-voyage {
     width: 100%;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .resume-voyage div {
