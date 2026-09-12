@@ -19,7 +19,7 @@ Le critère de réussite du projet n'est pas technique :
 
 | Brique | État |
 |---|---|
-| Application Android | 1.0.2 (`versionCode 4`), fonctionnellement complète, carte comprise, en attente de validation terrain |
+| Application Android | 1.0.3 (`versionCode 5`), fonctionnellement complète, carte comprise, en attente de validation terrain |
 | Serveur | Déployé sur `madhi-server.alexeber.fr`, en HTTPS, avec sauvegarde quotidienne et surveillance |
 | Site familial | En ligne sur `madhi.alexeber.fr` depuis le 23 août 2026, derrière un segment d'URL secret et un mot de passe |
 | Notice d'installation | `site/installer.html`, servie avec le site, autonome et sans requête sortante |

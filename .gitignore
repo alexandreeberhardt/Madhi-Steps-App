@@ -37,6 +37,7 @@ dumps/
 # Private build artifacts
 *.apk
 *.aab
+Madhi-Secrets.zip
 
 # Dependency and build output
 node_modules/
