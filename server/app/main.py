@@ -183,7 +183,7 @@ async def reverse_geocode(
     raw_request: Request,
     token: Annotated[str, Depends(parse_bearer)],
 ) -> ReverseGeocodeResponse:
-    """L'adresse d'une position, pour la bulle d'un point de la carte.
+    """L'adresse et le pays d'une position pour les interfaces de suivi.
 
     Deux appelants, et eux seuls : l'application avec son jeton d'appareil, le
     site familial avec le jeton de lecture que nginx pose a sa place. Ce n'est
@@ -208,10 +208,14 @@ async def reverse_geocode(
     if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lon <= 180.0):
         raise HTTPException(status_code=400, detail={"error": "invalid_coordinates"})
 
-    address = await geocoder.lookup(lat, lon)
-    if address is None:
+    place = await geocoder.lookup_place(lat, lon)
+    if place is None or place.address is None:
         raise HTTPException(status_code=404, detail={"error": "address_not_found"})
-    return ReverseGeocodeResponse(address=address)
+    return ReverseGeocodeResponse(
+        address=place.address,
+        country=place.country,
+        countryCode=place.country_code,
+    )
 
 
 @app.get("/api/v1/trips/{trip_id}/latest-location", response_model=LocationResponse | None)

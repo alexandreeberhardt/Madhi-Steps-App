@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from app.geocoding import ReverseGeocoder, format_address
+from app.geocoding import ReverseGeocoder, format_address, parse_place
 
 
 REPONSE_PARIS = {
@@ -18,6 +18,7 @@ REPONSE_PARIS = {
         "postcode": "75002",
         "state": "Ile-de-France",
         "country": "France",
+        "country_code": "fr",
     },
 }
 
@@ -44,6 +45,14 @@ def test_l_adresse_tient_en_une_ligne_lisible():
     # Pas la hierarchie administrative complete : une bulle de carte a la
     # place de trois elements, pas de sept.
     assert format_address(REPONSE_PARIS) == "12 Rue de la Paix, Paris, France"
+
+
+def test_le_pays_et_son_code_iso_sont_conserves():
+    place = parse_place(REPONSE_PARIS)
+
+    assert place is not None
+    assert place.country == "France"
+    assert place.country_code == "FR"
 
 
 def test_sans_champs_detailles_on_retombe_sur_le_texte_brut():

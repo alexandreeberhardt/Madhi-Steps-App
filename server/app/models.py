@@ -23,6 +23,8 @@ class ActivationResponse(BaseModel):
 
 class ReverseGeocodeResponse(BaseModel):
     address: str
+    country: str | None = None
+    countryCode: str | None = None
 
 
 class LocationPoint(BaseModel):

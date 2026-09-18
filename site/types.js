@@ -89,6 +89,10 @@
  * @property {string | null} adresse        adresse de ce point, quand le serveur la donne
  * @property {boolean} rechercheAdresse
  * @property {boolean} adresseDesactivee    vrai quand le serveur a l'option eteinte
+ * @property {string | null} paysActuel     pays du dernier point de localisation
+ * @property {string | null} codePays       code ISO alpha-2 utilise pour le drapeau
+ * @property {boolean} recherchePays
+ * @property {string | null} idPointPays    point auquel le pays affiche correspond
  * @property {boolean} chargement
  * @property {import("./api-client.js").ErreurApi | null} erreur
  * @property {Date | null} derniereMajReussie

@@ -251,7 +251,14 @@ class Handler(BaseHTTPRequestHandler):
                 return
             latitude = float(parametres.get("lat", "0"))
             longitude = float(parametres.get("lon", "0"))
-            self.envoyer_json(200, {"address": scenario.adresse(latitude, longitude)})
+            self.envoyer_json(
+                200,
+                {
+                    "address": scenario.adresse(latitude, longitude),
+                    "country": "France",
+                    "countryCode": "FR",
+                },
+            )
             return
 
         if reste.endswith("/status"):

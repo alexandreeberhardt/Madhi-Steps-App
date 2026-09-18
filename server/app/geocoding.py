@@ -25,6 +25,7 @@ import time
 import urllib.parse
 import urllib.request
 from collections import OrderedDict
+from dataclasses import dataclass
 from typing import Callable
 
 logger = logging.getLogger("madhi.server")
@@ -45,6 +46,15 @@ DEFAULT_CACHE_SIZE = 1024
 DETAIL_ZOOM = 17
 
 
+@dataclass(frozen=True)
+class GeocodedPlace:
+    """Informations lisibles extraites d'une reponse Nominatim."""
+
+    address: str | None
+    country: str | None
+    country_code: str | None
+
+
 class ReverseGeocoder:
     """Adresse d'une position, en cache et a debit borne."""
 
@@ -60,7 +70,7 @@ class ReverseGeocoder:
         self._url = url
         self._user_agent = user_agent
         self._fetch = fetch or self._fetch_over_http
-        self._cache: OrderedDict[tuple[float, float], str | None] = OrderedDict()
+        self._cache: OrderedDict[tuple[float, float], GeocodedPlace | None] = OrderedDict()
         self._cache_size = cache_size
         self._min_interval = min_interval_seconds
         self._timeout = timeout_seconds
@@ -69,6 +79,11 @@ class ReverseGeocoder:
 
     async def lookup(self, latitude: float, longitude: float) -> str | None:
         """L'adresse, ou `None` si personne ne sait la dire."""
+        place = await self.lookup_place(latitude, longitude)
+        return place.address if place is not None else None
+
+    async def lookup_place(self, latitude: float, longitude: float) -> GeocodedPlace | None:
+        """L'adresse et le pays d'une position, issus d'un meme appel."""
         key = self._cache_key(latitude, longitude)
         if key in self._cache:
             self._cache.move_to_end(key)
@@ -92,10 +107,10 @@ class ReverseGeocoder:
                 logger.warning("reverse_geocode_failed")
                 return None
 
-            address = format_address(payload)
-            self._remember(key, address)
-            logger.info("reverse_geocode_resolved" if address else "reverse_geocode_empty")
-            return address
+            place = parse_place(payload)
+            self._remember(key, place)
+            logger.info("reverse_geocode_resolved" if place else "reverse_geocode_empty")
+            return place
 
     async def _wait_for_turn(self) -> None:
         elapsed = time.monotonic() - self._last_call_at
@@ -103,10 +118,10 @@ class ReverseGeocoder:
             await asyncio.sleep(self._min_interval - elapsed)
         self._last_call_at = time.monotonic()
 
-    def _remember(self, key: tuple[float, float], address: str | None) -> None:
+    def _remember(self, key: tuple[float, float], place: GeocodedPlace | None) -> None:
         # Une absence de reponse se retient aussi : sinon un point en pleine
         # mer relancerait un appel a chaque fois qu'on le touche.
-        self._cache[key] = address
+        self._cache[key] = place
         self._cache.move_to_end(key)
         while len(self._cache) > self._cache_size:
             self._cache.popitem(last=False)
@@ -143,13 +158,21 @@ def format_address(payload: dict | None) -> str | None:
     reconstruit donc a partir des champs plutot que de couper le texte tout
     fait, qui n'a pas la meme forme d'un pays a l'autre.
     """
+    place = parse_place(payload)
+    return place.address if place is not None else None
+
+
+def parse_place(payload: dict | None) -> GeocodedPlace | None:
+    """Extrait l'adresse courte, le pays et son code ISO a deux lettres."""
     if not isinstance(payload, dict):
         return None
 
     address = payload.get("address")
     if not isinstance(address, dict):
         display = payload.get("display_name")
-        return display if isinstance(display, str) and display else None
+        if not isinstance(display, str) or not display:
+            return None
+        return GeocodedPlace(address=display, country=None, country_code=None)
 
     rue = _first(address, ("road", "pedestrian", "footway", "hamlet", "neighbourhood"))
     numero = address.get("house_number")
@@ -157,14 +180,29 @@ def format_address(payload: dict | None) -> str | None:
         rue = f"{numero} {rue}"
 
     commune = _first(address, ("village", "town", "city", "municipality", "county"))
-    pays = address.get("country")
+    country = address.get("country")
+    if not isinstance(country, str) or not country:
+        country = None
+    country_code = address.get("country_code")
+    if isinstance(country_code, str) and len(country_code) == 2 and country_code.isalpha():
+        country_code = country_code.upper()
+    else:
+        country_code = None
 
-    morceaux = [part for part in (rue, commune, pays) if isinstance(part, str) and part]
-    if morceaux:
-        return ", ".join(morceaux)
+    parts = [part for part in (rue, commune, country) if isinstance(part, str) and part]
+    formatted_address = ", ".join(parts) if parts else None
 
-    display = payload.get("display_name")
-    return display if isinstance(display, str) and display else None
+    if formatted_address is None:
+        display = payload.get("display_name")
+        formatted_address = display if isinstance(display, str) and display else None
+
+    if formatted_address is None and country is None:
+        return None
+    return GeocodedPlace(
+        address=formatted_address,
+        country=country,
+        country_code=country_code,
+    )
 
 
 def _first(address: dict, keys: tuple[str, ...]) -> str | None:

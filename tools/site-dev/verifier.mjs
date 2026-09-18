@@ -25,6 +25,7 @@ const { formaterCoordonnees, ligneAdresse } = await import(
   new URL("components/point-bubble.js", RACINE)
 );
 const { messagesPour } = await import(new URL("components/status-banner.js", RACINE));
+const { drapeauDuPays } = await import(new URL("components/current-country.js", RACINE));
 const { POINTS_VISES, ErreurApi } = await import(new URL("api-client.js", RACINE));
 
 const MAINTENANT = new Date("2026-09-15T12:00:00Z");
@@ -32,6 +33,11 @@ const JOUR_MS = 24 * 60 * 60 * 1000;
 
 let reussites = 0;
 const echecs = [];
+
+verifier("le drapeau est derive du code ISO du pays", () => {
+  assert.equal(drapeauDuPays("FR"), "🇫🇷");
+  assert.equal(drapeauDuPays("invalide"), null);
+});
 
 function verifier(intitule, corps) {
   try {

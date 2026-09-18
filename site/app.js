@@ -44,6 +44,7 @@ import {
   rafraichirTaille,
 } from "./components/map.js";
 import { contenuBulle } from "./components/point-bubble.js";
+import { rendrePaysActuel } from "./components/current-country.js";
 import { rendreDernierePosition } from "./components/latest-location.js";
 import { messagesPour, rendreBandeau, rendreMessageCentral } from "./components/status-banner.js";
 import { formaterJourEtHeure } from "./utils/time.js";
@@ -73,6 +74,10 @@ const donnees = {
   adresse: null,
   rechercheAdresse: false,
   adresseDesactivee: false,
+  paysActuel: null,
+  codePays: null,
+  recherchePays: false,
+  idPointPays: null,
   chargement: false,
   erreur: null,
   derniereMajReussie: null,
@@ -81,6 +86,7 @@ const donnees = {
 
 const elements = {
   titre: document.getElementById("titre-voyage"),
+  paysActuel: document.getElementById("pays-actuel"),
   resumeVoyage: document.getElementById("resume-voyage"),
   resumeDistance: document.getElementById("resume-distance"),
   resumeAujourdhui: document.getElementById("resume-aujourdhui"),
@@ -116,6 +122,9 @@ let sequence = 0;
 // Le meme garde-fou pour la recherche d'adresse : deux points touches coup sur
 // coup, et c'est l'adresse du premier qui pourrait s'afficher sous le second.
 let sequenceAdresse = 0;
+// Le pays est recherche automatiquement pour le dernier point. Sa sequence est
+// distincte de celle de la bulle, que l'utilisateur peut ouvrir et fermer.
+let sequencePays = 0;
 
 demarrer();
 
@@ -275,6 +284,7 @@ function appliquer(resultat) {
   // resume.
   donnees.resolutionSecondes = resultat.resolutionSecondes;
   donnees.resumeVoyage = resultat.resumeVoyage;
+  actualiserPays(resultat.dernierePosition);
 
   // Le trace a change sous la bulle : un point qui n'est plus dessine ne doit
   // pas garder la sienne ouverte. On retient un identifiant et non un indice,
@@ -342,6 +352,44 @@ async function chargerAdresse(point, numero) {
   rendre();
 }
 
+/**
+ * Lance une recherche seulement quand le dernier point change. Le cache du
+ * client et celui du serveur absorbent les points voisins d'un meme lieu.
+ *
+ * @param {import("./types.js").LocationPointV1 | null} point
+ */
+function actualiserPays(point) {
+  if (point === null) {
+    sequencePays += 1;
+    donnees.idPointPays = null;
+    donnees.paysActuel = null;
+    donnees.codePays = null;
+    donnees.recherchePays = false;
+    return;
+  }
+  if (donnees.idPointPays === point.id) return;
+
+  const numero = ++sequencePays;
+  donnees.idPointPays = point.id;
+  donnees.paysActuel = null;
+  donnees.codePays = null;
+  donnees.recherchePays = true;
+  chargerPays(point, numero);
+}
+
+/**
+ * @param {import("./types.js").LocationPointV1} point
+ * @param {number} numero
+ */
+async function chargerPays(point, numero) {
+  const resultat = await getAdresse(point.latitude, point.longitude);
+  if (numero !== sequencePays || donnees.idPointPays !== point.id) return;
+  donnees.paysActuel = resultat.pays;
+  donnees.codePays = resultat.codePays;
+  donnees.recherchePays = false;
+  rendre();
+}
+
 function rendre() {
   const maintenant = new Date();
   const etat = calculerEtat(donnees, maintenant);
@@ -349,6 +397,12 @@ function rendre() {
 
   elements.titre.textContent =
     donnees.statut === null ? TITRE_PAR_DEFAUT : donnees.statut.name;
+  rendrePaysActuel(elements.paysActuel, {
+    visible: aUnePosition,
+    pays: donnees.paysActuel,
+    codePays: donnees.codePays,
+    rechercheEnCours: donnees.recherchePays,
+  });
 
   const avis = messagesPour({
     etat,
