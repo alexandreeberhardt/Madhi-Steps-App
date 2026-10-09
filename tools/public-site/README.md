@@ -46,7 +46,15 @@ Une version contient :
 - `track.json` : voyage complet, au plus 10 000 points, répartis sur sa durée ;
 - `days/YYYY-MM-DD.json` : points de chaque journée UTC, sans troncature.
 
-Les périodes de 24 h, 7 jours et 30 jours se terminent à la date de coupure.
+L'interface reprend les libellés du site familial, sans mention visible du délai.
+Le pays vient du dernier point autorisé. La distance totale est estimée depuis
+le tracé complet (jusqu'à 10 000 points), comme sur le site familial. La distance
+du jour utilise les points entre minuit local à la date de coupure et cette
+coupure. Le numéro du jour se termine à la coupure ou à la fin du voyage déjà
+publiable, jamais à l'heure réelle du visiteur.
+
+« Aujourd'hui » désigne donc la journée à la date de coupure. Les périodes de
+24 h, 7 jours et 30 jours se terminent également à cette date.
 Seuls les fichiers quotidiens correspondants sont téléchargés. Le navigateur
 limite le tracé à 10 000 points en conservant les extrémités et le signale.
 Les horodatages sont affichés dans le fuseau du visiteur avec leur vraie date.
