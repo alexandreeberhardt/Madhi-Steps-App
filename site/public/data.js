@@ -1,6 +1,8 @@
 // Only immutable public files are read here. There is no fallback to the family API.
+import { totalDistance } from './summary.js';
 const DAY_MS = 86400000;
 export const PERIODS = [
+  { id: 'TODAY', label: "Aujourd'hui", days: null },
   { id: '24H', label: '24 h publiées', days: 1 },
   { id: '7D', label: '7 jours publiés', days: 7 },
   { id: '30D', label: '30 jours publiés', days: 30 },
@@ -23,9 +25,14 @@ export function periodBounds(snapshot, period) {
   if (!selected) throw new Error('Unknown period');
   const to = new Date(snapshot.cutoffAt);
   const start = new Date(snapshot.trip.startedAt ?? snapshot.cutoffAt);
-  const from = selected.days === null
+  let from = selected.days === null
     ? start
     : new Date(Math.max(start.getTime(), to.getTime() - selected.days * DAY_MS));
+  if (period === 'TODAY') {
+    from = new Date(to);
+    from.setHours(0, 0, 0, 0);
+    if (from < start) from = start;
+  }
   return { from, to };
 }
 
@@ -73,10 +80,7 @@ export function createPublicSource() {
     const bounds = periodBounds(snapshot, period);
     // Await this first so a failing period request cannot leave an unhandled rejection.
     const overview = await handle.read('overview.json');
-    let points;
-    if (period === 'ALL') {
-      points = await handle.read('track.json');
-    } else {
+    async function readPeriod(bounds) {
       const first = bounds.from.toISOString().slice(0, 10);
       const last = bounds.to.toISOString().slice(0, 10);
       const days = snapshot.days.filter((day) => day >= first && day <= last);
@@ -88,17 +92,23 @@ export function createPublicSource() {
         ));
         chunks.push(...batch);
       }
-      points = chunks.flat().filter((point) => {
+      return chunks.flat().filter((point) => {
         const at = Date.parse(point.recordedAt);
         return at >= bounds.from.getTime() && at <= bounds.to.getTime();
       });
     }
+    const track = await handle.read('track.json');
+    let points = period === 'ALL' ? track : await readPeriod(bounds);
+    const today = period === 'TODAY' ? points : await readPeriod(periodBounds(snapshot, 'TODAY'));
     const sampled = period === 'ALL' ? snapshot.trackSampled : points.length > 10000;
     if (points.length > 10000) {
       const all = points;
       points = Array.from({ length: 10000 }, (_, index) => all[Math.floor(index * (all.length - 1) / 9999)]);
     }
-    return { snapshot, bounds, points, overview, sampled, version: handle.version };
+    return {
+      snapshot, bounds, points, overview, sampled, version: handle.version,
+      summary: { totalMetres: totalDistance(track), todayMetres: totalDistance(today) },
+    };
   }
   return { load };
 }

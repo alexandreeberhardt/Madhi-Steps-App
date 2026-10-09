@@ -33,6 +33,7 @@ services:
       - ../site/public:/usr/share/nginx/html/public:ro
       - ../site/style.css:/usr/share/nginx/html/style.css:ro
       - ../site/components/map.js:/usr/share/nginx/html/components/map.js:ro
+      - ../site/components/current-country.js:/usr/share/nginx/html/components/current-country.js:ro
       - ../site/components/point-bubble.js:/usr/share/nginx/html/components/point-bubble.js:ro
       - ../site/features/track-picking.js:/usr/share/nginx/html/features/track-picking.js:ro
       - ../site/utils/time.js:/usr/share/nginx/html/utils/time.js:ro

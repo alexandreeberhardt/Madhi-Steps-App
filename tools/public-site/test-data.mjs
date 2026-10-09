@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { totalDistance, tripDays, formatDistance } from '../../site/public/summary.js';
 import { createPublicSource, periodBounds, publicationStale } from '../../site/public/data.js';
 
 const versionA = 'a'.repeat(32);
@@ -56,10 +57,11 @@ assert.equal(next.version, versionB);
 assert.equal(next.points.length, 2);
 assert.ok(requests.filter((url) => url.includes('/versions/')).every((url) => url.includes(versionB)));
 
+const retrySource = createPublicSource();
 fail = 'days/2026-10-02.json';
-await assert.rejects(source.load('24H'), /public_data_503/);
+await assert.rejects(retrySource.load('24H'), /public_data_503/);
 fail = null;
-assert.equal((await source.load('24H')).points.length, 2);
+assert.equal((await retrySource.load('24H')).points.length, 2);
 
 const emptySource = createPublicSource();
 files['snapshot.json'] = { ...snapshot, trip: { ...snapshot.trip, startedAt: null }, days: [] };
@@ -68,3 +70,18 @@ const empty = await emptySource.load('7D');
 assert.deepEqual(empty.points, []);
 assert.equal(empty.bounds.from.getTime(), empty.bounds.to.getTime());
 console.log('Public data tests passed: delayed periods, immutable versions, no API, recovery, empty state.');
+
+const today = periodBounds(snapshot, 'TODAY');
+assert.equal(today.from.getHours(), 0);
+assert.equal(today.to.toISOString(), '2026-10-02T12:00:00.000Z');
+assert.equal(tripDays(snapshot), 32);
+assert.equal(tripDays({ ...snapshot, trip: { ...snapshot.trip, endedAt: '2026-09-10T12:00:00Z' } }), 10);
+assert.equal(tripDays({ ...snapshot, trip: { ...snapshot.trip, startedAt: null } }), null);
+assert.equal(totalDistance([]), 0);
+assert.equal(totalDistance([{ latitude: 0, longitude: 0 }]), 0);
+const metres = totalDistance([{ latitude: 0, longitude: 0 }, { latitude: 1, longitude: 0 }]);
+assert.ok(Math.abs(metres - 111195) < 1);
+assert.match(formatDistance(metres), /111,2 km/);
+assert.equal(first.summary.todayMetres, 0);
+assert.equal(first.summary.totalMetres, next.summary.totalMetres);
+console.log('Summary checks passed: cutoff day, ended trip, no departure, distances and stable totals.');
