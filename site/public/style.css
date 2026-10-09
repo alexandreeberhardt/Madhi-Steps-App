@@ -13,23 +13,6 @@
   font-size: 0.75rem;
 }
 
-.publication-note {
-  max-width: 38rem;
-}
-
-.publication-note p {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--texte-doux);
-}
-
-.publication-note .publication-delay {
-  margin-bottom: 0.2rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--accent);
-}
-
 .site-public .position-principale {
   font-variant-numeric: tabular-nums;
 }

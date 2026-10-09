@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="referrer" content="no-referrer" />
-    <meta name="description" content="Le voyage de Madhi à vélo, partagé avec sept jours de décalage." />
+    <meta name="description" content="Suivez le voyage de Madhi à vélo, son itinéraire et les pays traversés." />
     <title>Le voyage de Madhi</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./vendor/leaflet.css" />
@@ -17,33 +17,47 @@
         <p class="public-eyebrow">Madhi à vélo</p>
         <h1 id="titre-voyage">Le voyage de Madhi</h1>
       </div>
-      <div class="publication-note">
-        <p class="publication-delay">Voyage diffusé avec 7 jours de décalage</p>
-        <p>Chaque position est partagée au moins une semaine après son enregistrement.</p>
-      </div>
+      <aside id="resume-voyage" class="resume-voyage" aria-label="Résumé du voyage" hidden>
+        <section id="pays-actuel" class="pays-actuel" aria-label="Pays actuel" aria-live="polite" hidden></section>
+        <div>
+          <span class="resume-libelle">Distance totale</span>
+          <strong id="resume-distance" title="Distance estimée à partir du tracé">-</strong>
+        </div>
+        <div>
+          <span class="resume-libelle">Aujourd'hui</span>
+          <strong id="resume-aujourdhui" title="Distance estimée à partir du tracé">-</strong>
+        </div>
+        <div>
+          <span class="resume-libelle">Jour</span>
+          <strong id="resume-jours">-</strong>
+        </div>
+        <div>
+          <span class="resume-libelle">Départ</span>
+          <strong id="resume-depart">-</strong>
+        </div>
+      </aside>
     </header>
     <main class="scene">
-      <div id="carte" class="carte" role="application" aria-label="Carte du trajet publié" hidden></div>
+      <div id="carte" class="carte" role="application" aria-label="Carte du trajet" hidden></div>
       <div id="message-central" class="message-central" role="status">
         <div class="avis avis-central">
-          <h2 id="empty-title" class="avis-titre">Le voyage, une semaine plus tard</h2>
-          <p id="empty-text" class="avis-detail">Chargement du voyage publié…</p>
+          <h2 id="empty-title" class="avis-titre">Le voyage de Madhi</h2>
+          <p id="empty-text" class="avis-detail">Chargement du voyage…</p>
         </div>
       </div>
       <div class="bandeau-etat" role="status">
         <p id="publication-status" class="avis avis-attention" hidden></p>
-        <p id="map-error" class="avis avis-attention" hidden>La carte est indisponible. La dernière position publiée reste lisible ci-dessous.</p>
+        <p id="map-error" class="avis avis-attention" hidden>La carte est indisponible. La dernière position connue reste lisible ci-dessous.</p>
       </div>
     </main>
-    <section class="panneau" aria-label="Position publiée et période affichée">
+    <section class="panneau" aria-label="Position connue et période affichée">
       <div id="position" hidden>
-        <p class="resume-libelle">Dernière position publiée</p>
+        <p class="resume-libelle">Dernière position connue</p>
         <p id="position-date" class="position-principale"></p>
         <p id="position-lieu" class="position-detail"></p>
-        <p id="pays" class="position-detail"></p>
       </div>
       <div class="commandes">
-        <div id="periodes" class="periodes" role="group" aria-label="Période du trajet publié" hidden></div>
+        <div id="periodes" class="periodes" role="group" aria-label="Période du trajet" hidden></div>
         <button id="recentrer" class="bouton-recentrer" type="button" hidden>Recentrer</button>
         <button id="retry" class="bouton-recentrer" type="button" hidden>Réessayer</button>
         <span id="refresh-state" class="couverture" role="status"></span>
@@ -51,12 +65,11 @@
       <div class="ligne-footer">
         <div>
           <p id="couverture" class="couverture" hidden></p>
-          <p id="publication-date" class="couverture"></p>
         </div>
         <p class="code-source">Code source : <a href="https://github.com/alexandreeberhardt/Madhi-Steps-App" target="_blank" rel="noreferrer">GitHub</a></p>
       </div>
     </section>
-    <noscript><p class="sans-javascript">Active JavaScript pour consulter la carte et les positions publiées.</p></noscript>
+    <noscript><p class="sans-javascript">Active JavaScript pour consulter la carte et les positions.</p></noscript>
     <script src="./vendor/leaflet.js"></script>
     <script type="module" src="./public/app.js"></script>
   </body>

@@ -3,9 +3,9 @@ import { totalDistance } from './summary.js';
 const DAY_MS = 86400000;
 export const PERIODS = [
   { id: 'TODAY', label: "Aujourd'hui", days: null },
-  { id: '24H', label: '24 h publiées', days: 1 },
-  { id: '7D', label: '7 jours publiés', days: 7 },
-  { id: '30D', label: '30 jours publiés', days: 30 },
+  { id: '24H', label: '24 h', days: 1 },
+  { id: '7D', label: '7 jours', days: 7 },
+  { id: '30D', label: '30 jours', days: 30 },
   { id: 'ALL', label: 'Tout le voyage', days: null },
 ];
 

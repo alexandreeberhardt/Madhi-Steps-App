@@ -10,14 +10,20 @@ try {
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('request', (request) => requests.push(request.url()));
     await page.goto(base);
-    await page.locator('#publication-date').filter({ hasText: 'Données jusqu’au' }).waitFor();
-    assert.equal(await page.locator('.publication-delay').innerText(), 'Voyage diffusé avec 7 jours de décalage');
+    await page.locator('#resume-voyage').waitFor();
+    assert.doesNotMatch(await page.locator('body').innerText(), /décalage|retard|diffusé|semaine plus tard|publiée?s?/i);
+    assert.match(await page.locator('#pays-actuel').innerText(), /Pays actuel/);
+    assert.match(await page.locator('#resume-distance').innerText(), /km|m/);
+    assert.match(await page.locator('#resume-aujourdhui').innerText(), /km|m/);
+    assert.match(await page.locator('#resume-jours').innerText(), /jour/);
+    const totalBefore = await page.locator('#resume-distance').innerText();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     if (await page.locator('#carte').isVisible()) {
       await page.getByRole('button', { name: 'Tout le voyage', exact: true }).click();
       await page.waitForFunction(() => document.querySelector('#periodes').getAttribute('aria-busy') === 'false');
-      await page.getByRole('button', { name: '24 h publiées', exact: true }).click();
+      await page.getByRole('button', { name: '24 h', exact: true }).click();
       await page.waitForFunction(() => document.querySelector('#periodes').getAttribute('aria-busy') === 'false');
+      assert.equal(await page.locator('#resume-distance').innerText(), totalBefore);
       await page.getByRole('button', { name: 'Recentrer', exact: true }).click();
       await page.locator('.leaflet-marker-icon').click();
       await page.locator('.bulle-coordonnees').waitFor();
@@ -31,7 +37,7 @@ try {
     await page.route('**/data/manifest.json', (route) => route.fulfill({ status: 503, body: '' }));
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
     await page.locator('#retry').waitFor();
-    assert.match(await page.locator('#publication-status').innerText(), /dernière publication/);
+    assert.match(await page.locator('#publication-status').innerText(), /dernières données/);
     await page.unroute('**/data/manifest.json');
     await page.getByRole('button', { name: 'Réessayer', exact: true }).click();
     await page.locator('#retry').waitFor({ state: 'hidden' });
@@ -59,10 +65,11 @@ try {
   });
   await emptyPage.route('**/overview.json', (route) => route.fulfill({ json: [] }));
   await emptyPage.goto(base);
-  await emptyPage.locator('#publication-date').filter({ hasText: 'Données jusqu’au' }).waitFor();
+  await emptyPage.locator('#publication-status').waitFor();
   assert.match(await emptyPage.locator('#empty-text').innerText(), /premières positions/);
-  assert.match(await emptyPage.locator('#publication-status').innerText(), /trois heures/);
+  assert.match(await emptyPage.locator('#publication-status').innerText(), /pas été actualisé récemment/);
   assert.equal(await emptyPage.locator('#carte').isVisible(), false);
+  assert.equal(await emptyPage.locator('#resume-voyage').isVisible(), false);
   await emptyPage.close();
   console.log('Browser checks passed: mobile, desktop, periods, popup, request isolation, failure and recovery.');
 } finally {

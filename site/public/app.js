@@ -3,13 +3,15 @@ import {
   creerCarte, afficherDernierePosition, afficherFond, afficherTrajet,
   ajusterVue, rafraichirTaille, montrerBulle, fermerBulle,
 } from '../components/map.js';
+import { rendrePaysActuel } from '../components/current-country.js';
+import { formatDistance, tripDays } from './summary.js';
 import { contenuBulle } from '../components/point-bubble.js';
 
 const source = createPublicSource();
 const element = (id) => document.getElementById(id);
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
 const date = (value) => dateFormat.format(new Date(value));
-let period = '7D';
+let period = 'TODAY';
 let displayedPeriod = null;
 let displayedVersion = null;
 let data = null;
@@ -74,8 +76,7 @@ function renderData(changed) {
   const { snapshot, bounds, points, overview } = data;
   const latest = snapshot.latest;
   element('titre-voyage').textContent = snapshot.trip.name;
-  element('publication-date').textContent =
-    `Données jusqu’au ${date(snapshot.cutoffAt)} · Publication du ${date(snapshot.generatedAt)}`;
+  renderSummary();
   element('carte').hidden = latest === null;
   element('position').hidden = latest === null;
   element('recentrer').hidden = latest === null;
@@ -86,11 +87,10 @@ function renderData(changed) {
   const place = snapshot.latestPlace;
   element('position-lieu').textContent = place?.address
     ?? `${latest.latitude.toFixed(5)}, ${latest.longitude.toFixed(5)}`;
-  element('pays').textContent = place?.country ? `Pays à cette date : ${place.country}` : '';
   element('couverture').textContent =
     `Période du ${date(bounds.from)} au ${date(bounds.to)}.`
     + (data.sampled ? ' Tracé simplifié.' : '')
-    + (points.length === 0 ? ' Aucun point publié sur cette période.' : '')
+    + (points.length === 0 ? ' Aucun point sur cette période.' : '')
     + (snapshot.trip.endedAt ? ` Voyage terminé le ${date(snapshot.trip.endedAt)}.` : '');
   try {
     if (map === null) map = creerCarte(element('carte'), { surClicPoint: selectPoint });
@@ -108,24 +108,44 @@ function renderData(changed) {
   }
 }
 
+function renderSummary() {
+  const { snapshot, summary } = data;
+  const days = tripDays(snapshot);
+  const visible = days !== null && snapshot.latest !== null;
+  element('resume-voyage').hidden = !visible;
+  rendrePaysActuel(element('pays-actuel'), {
+    visible,
+    pays: snapshot.latestPlace?.country ?? null,
+    codePays: snapshot.latestPlace?.countryCode ?? null,
+    rechercheEnCours: false,
+  });
+  if (!visible) return;
+  element('resume-distance').textContent = formatDistance(summary.totalMetres);
+  element('resume-aujourdhui').textContent = formatDistance(summary.todayMetres);
+  element('resume-jours').textContent = days === 1 ? '1er jour' : `${days.toLocaleString('fr-FR')}ème jour`;
+  element('resume-depart').textContent = new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+  }).format(new Date(snapshot.trip.startedAt));
+}
+
 function renderStatus() {
   const empty = data?.snapshot.latest == null;
   const central = element('message-central');
   central.hidden = !empty;
   const text = error
-    ? 'La publication est momentanément indisponible. Réessaie dans quelques instants.'
+    ? 'Le voyage est momentanément indisponible. Réessaie dans quelques instants.'
     : busy && data === null
-      ? 'Chargement du voyage publié…'
-      : 'Les premières positions apparaîtront ici avec sept jours de décalage.';
+      ? 'Chargement du voyage…'
+      : 'Les premières positions du voyage apparaîtront ici.';
   element('empty-text').textContent = text;
-  element('empty-title').textContent = error ? 'Publication indisponible' : 'Le voyage, une semaine plus tard';
+  element('empty-title').textContent = error ? 'Voyage indisponible' : 'Le voyage de Madhi';
   central.classList.toggle('chargement', busy && data === null);
   const stale = data !== null && publicationStale(data.snapshot);
   const notice = element('publication-status');
   notice.hidden = !error && !stale;
   notice.textContent = error && data !== null
-    ? 'Actualisation impossible. La dernière publication chargée reste affichée.'
-    : stale ? 'La publication n’a pas été actualisée depuis plus de trois heures. Les dates affichées restent celles des données disponibles.' : '';
+    ? 'Actualisation impossible. Les dernières données chargées restent affichées.'
+    : stale ? 'Le site n’a pas été actualisé récemment. Les dernières données disponibles restent affichées.' : '';
   element('retry').hidden = !error;
   element('retry').disabled = busy;
   element('refresh-state').textContent = busy && data !== null ? 'Actualisation…' : '';
