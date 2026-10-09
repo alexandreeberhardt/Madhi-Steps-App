@@ -1,0 +1,52 @@
+name: madhi-public
+
+services:
+  exporter:
+    profiles: [jobs]
+    build:
+      context: .
+      target: runtime
+    user: "${PUBLIC_EXPORT_UID:-1001}:${PUBLIC_EXPORT_GID:-1001}"
+    env_file: public-export.env
+    environment:
+      REVERSE_GEOCODE_ENABLED: ${REVERSE_GEOCODE_ENABLED:-false}
+      REVERSE_GEOCODE_URL: ${REVERSE_GEOCODE_URL:-https://nominatim.openstreetmap.org/reverse}
+      REVERSE_GEOCODE_USER_AGENT: ${REVERSE_GEOCODE_USER_AGENT:-}
+    command: [python, -m, app.public_export]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ./public-data:/export
+    networks: [source]
+
+  site:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8114:80"
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID, NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ../tools/nginx/public-site.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../site/public:/usr/share/nginx/html/public:ro
+      - ../site/style.css:/usr/share/nginx/html/style.css:ro
+      - ../site/components/map.js:/usr/share/nginx/html/components/map.js:ro
+      - ../site/components/point-bubble.js:/usr/share/nginx/html/components/point-bubble.js:ro
+      - ../site/features/track-picking.js:/usr/share/nginx/html/features/track-picking.js:ro
+      - ../site/utils/time.js:/usr/share/nginx/html/utils/time.js:ro
+      - ../site/vendor:/usr/share/nginx/html/vendor:ro
+      - ./public-data/live:/srv/public-data:ro
+    networks: [public_site]
+    healthcheck:
+      test: [CMD-SHELL, "wget -q -O /dev/null http://127.0.0.1/data/manifest.json"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  source:
+    external: true
+    name: ${MADHI_SOURCE_NETWORK:-server_default}
+  public_site:

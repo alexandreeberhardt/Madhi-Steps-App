@@ -1,0 +1,12 @@
+[Unit]
+Description=Publication du voyage Madhi avec sept jours de retard
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/CHEMIN/DU/DEPOT
+ExecStart=/usr/bin/docker compose --env-file server/.env --env-file server/public-export.env -f server/compose.public.yml run --rm --no-deps exporter
+TimeoutStartSec=10min
+UMask=0022

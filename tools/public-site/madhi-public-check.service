@@ -1,0 +1,10 @@
+[Unit]
+Description=Verification de la publication publique Madhi
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/CHEMIN/DU/DEPOT
+ExecStart=/usr/bin/docker compose --env-file server/.env --env-file server/public-export.env -f server/compose.public.yml run --rm --no-deps exporter python -m app.public_export --check
+ExecStart=/usr/bin/curl --fail --silent --show-error --max-time 20 --output /dev/null https://travel.alexeber.fr/data/manifest.json
+TimeoutStartSec=2min

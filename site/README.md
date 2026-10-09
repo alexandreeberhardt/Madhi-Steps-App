@@ -226,5 +226,11 @@ besoin de changer, et inversement — c'est la raison d'avoir les deux.
 ## Hors périmètre
 
 Calendrier, distances et statistiques, étapes quotidiennes, état de batterie,
-vue publique retardée, masquage de zones, pagination de l'historique complet,
+masquage de zones, pagination de l'historique complet,
 polylines simplifiées, cache ou CDN. Tout cela est `arch/06_site_V2.md`.
+
+## Version publique
+
+Le site `https://travel.alexeber.fr` utilise `site/public/` et des exports
+retardés de 168 heures, avec une stack nginx indépendante. Installation,
+tests et arrêt de publication : [tools/public-site/README.md](../tools/public-site/README.md).

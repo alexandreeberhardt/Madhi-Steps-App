@@ -1,0 +1,15 @@
+# HTTP bootstrap only. Certbot adds HTTPS; never overwrite the deployed TLS vhost.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name travel.alexeber.fr;
+    server_tokens off;
+
+    location / {
+        proxy_pass http://127.0.0.1:8114;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

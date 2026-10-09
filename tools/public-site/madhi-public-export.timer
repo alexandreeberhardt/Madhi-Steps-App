@@ -1,0 +1,10 @@
+[Unit]
+Description=Publication horaire du voyage public
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
