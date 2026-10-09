@@ -59,3 +59,7 @@ arch/*.docx
 # 137 Mo dont l'essentiel decrit des continents que ce voyage ne traverse pas.
 # Seul le decoupage au corridor est versionne, dans tools/tiles/data/.
 tools/tiles/monde/
+
+# Public export credentials and generated snapshots
+server/public-export.env
+server/public-data/
