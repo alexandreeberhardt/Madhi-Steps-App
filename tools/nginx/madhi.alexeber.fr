@@ -23,6 +23,12 @@ server {
     # Ce domaine n'a pas a annoncer sa version de nginx.
     server_tokens off;
 
+    # Seule la racine publique change de domaine. Les chemins contenant le
+    # token familial continuent vers le site Madhi ci-dessous.
+    location = / {
+        return 302 https://travel.alexeber.fr/;
+    }
+
     # Pas de Strict-Transport-Security, volontairement. HSTS transformerait un
     # certificat expire en blocage total cote famille, la ou l'avertissement du
     # navigateur reste contournable. Or l'expiration en plein voyage est un
