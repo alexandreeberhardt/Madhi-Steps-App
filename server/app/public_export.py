@@ -78,7 +78,7 @@ def make_snapshot(trip: dict, rows: list, generated_at: datetime) -> dict[str, o
         'cutoffAt': instant(cutoff),
         'delayHours': 168,
         'trip': {
-            'name': trip['name'],
+            'name': 'Travel 2026',
             'startedAt': instant(started) if started else None,
             'endedAt': instant(ended) if ended else None,
         },
