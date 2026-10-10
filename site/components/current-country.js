@@ -21,11 +21,13 @@ export function rendrePaysActuel(element, vue) {
 
   const libelle = document.createElement("span");
   libelle.className = "pays-libelle";
-  libelle.textContent = "Pays actuel";
+  libelle.textContent = vue.locale === "en" ? "Current country" : "Pays actuel";
 
   const valeur = document.createElement("strong");
   valeur.className = "pays-valeur";
-  valeur.textContent = vue.rechercheEnCours ? "Recherche…" : (vue.pays ?? "Pays inconnu");
+  valeur.textContent = vue.rechercheEnCours
+    ? (vue.locale === "en" ? "Looking up…" : "Recherche…")
+    : (vue.pays ?? (vue.locale === "en" ? "Unknown country" : "Pays inconnu"));
 
   texte.append(libelle, valeur);
   element.append(drapeau, texte);

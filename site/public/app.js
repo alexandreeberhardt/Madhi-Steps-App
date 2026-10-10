@@ -9,7 +9,7 @@ import { contenuBulle } from '../components/point-bubble.js';
 
 const source = createPublicSource();
 const element = (id) => document.getElementById(id);
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
+const dateFormat = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 const date = (value) => dateFormat.format(new Date(value));
 let period = 'TODAY';
 let displayedPeriod = null;
@@ -41,7 +41,7 @@ function selectPoint(point) {
   const latestPlace = point.id === data.snapshot.latest?.id ? data.snapshot.latestPlace : null;
   montrerBulle(map, point, contenuBulle({
     point, maintenant: new Date(), adresse: latestPlace?.address ?? null,
-    rechercheEnCours: false, adresseDesactivee: false,
+    rechercheEnCours: false, adresseDesactivee: false, locale: 'en-GB',
   }));
 }
 
@@ -75,7 +75,7 @@ async function load() {
 function renderData(changed) {
   const { snapshot, bounds, points, overview } = data;
   const latest = snapshot.latest;
-  element('titre-voyage').textContent = snapshot.trip.name;
+  element('titre-voyage').textContent = 'Travel 2026';
   renderSummary();
   element('carte').hidden = latest === null;
   element('position').hidden = latest === null;
@@ -88,12 +88,12 @@ function renderData(changed) {
   element('position-lieu').textContent = place?.address
     ?? `${latest.latitude.toFixed(5)}, ${latest.longitude.toFixed(5)}`;
   element('couverture').textContent =
-    `Période du ${date(bounds.from)} au ${date(bounds.to)}.`
-    + (data.sampled ? ' Tracé simplifié.' : '')
-    + (points.length === 0 ? ' Aucun point sur cette période.' : '')
-    + (snapshot.trip.endedAt ? ` Voyage terminé le ${date(snapshot.trip.endedAt)}.` : '');
+    `Period: ${date(bounds.from)} to ${date(bounds.to)}.`
+    + (data.sampled ? ' Route simplified.' : '')
+    + (points.length === 0 ? ' No points in this period.' : '')
+    + (snapshot.trip.endedAt ? ` Trip ended on ${date(snapshot.trip.endedAt)}.` : '');
   try {
-    if (map === null) map = creerCarte(element('carte'), { surClicPoint: selectPoint });
+    if (map === null) map = creerCarte(element('carte'), { surClicPoint: selectPoint, locale: 'en' });
     rafraichirTaille(map);
     if (changed) {
       fermerBulle(map);
@@ -117,13 +117,13 @@ function renderSummary() {
     visible,
     pays: snapshot.latestPlace?.country ?? null,
     codePays: snapshot.latestPlace?.countryCode ?? null,
-    rechercheEnCours: false,
+    rechercheEnCours: false, locale: 'en',
   });
   if (!visible) return;
   element('resume-distance').textContent = formatDistance(summary.totalMetres);
   element('resume-aujourdhui').textContent = formatDistance(summary.todayMetres);
-  element('resume-jours').textContent = days === 1 ? '1er jour' : `${days.toLocaleString('fr-FR')}ème jour`;
-  element('resume-depart').textContent = new Intl.DateTimeFormat('fr-FR', {
+  element('resume-jours').textContent = days.toLocaleString('en-GB', { maximumFractionDigits: 0 });
+  element('resume-depart').textContent = new Intl.DateTimeFormat('en-GB', {
     day: '2-digit', month: '2-digit', year: '2-digit',
   }).format(new Date(snapshot.trip.startedAt));
 }
@@ -133,22 +133,22 @@ function renderStatus() {
   const central = element('message-central');
   central.hidden = !empty;
   const text = error
-    ? 'Le voyage est momentanément indisponible. Réessaie dans quelques instants.'
+    ? 'The trip is temporarily unavailable. Please try again shortly.'
     : busy && data === null
-      ? 'Chargement du voyage…'
-      : 'Les premières positions du voyage apparaîtront ici.';
+      ? 'Loading trip…'
+      : 'The first trip locations will appear here.';
   element('empty-text').textContent = text;
-  element('empty-title').textContent = error ? 'Voyage indisponible' : 'Le voyage de Madhi';
+  element('empty-title').textContent = error ? 'Trip unavailable' : 'Travel 2026';
   central.classList.toggle('chargement', busy && data === null);
   const stale = data !== null && publicationStale(data.snapshot);
   const notice = element('publication-status');
   notice.hidden = !error && !stale;
   notice.textContent = error && data !== null
-    ? 'Actualisation impossible. Les dernières données chargées restent affichées.'
-    : stale ? 'Le site n’a pas été actualisé récemment. Les dernières données disponibles restent affichées.' : '';
+    ? 'Could not refresh. The last loaded data is still shown.'
+    : stale ? 'This site has not been updated recently. The latest available data is still shown.' : '';
   element('retry').hidden = !error;
   element('retry').disabled = busy;
-  element('refresh-state').textContent = busy && data !== null ? 'Actualisation…' : '';
+  element('refresh-state').textContent = busy && data !== null ? 'Refreshing…' : '';
   for (const button of element('periodes').children) {
     button.setAttribute('aria-pressed', String(button.dataset.period === period));
   }

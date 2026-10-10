@@ -24,6 +24,6 @@ export function tripDays(snapshot) {
 
 export function formatDistance(metres) {
   if (!Number.isFinite(metres)) return '-';
-  if (metres < 1000) return `${Math.round(metres).toLocaleString('fr-FR')} m`;
-  return `${(metres / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km`;
+  if (metres < 1000) return `${Math.round(metres).toLocaleString('en-GB')} m`;
+  return `${(metres / 1000).toLocaleString('en-GB', { maximumFractionDigits: 1 })} km`;
 }

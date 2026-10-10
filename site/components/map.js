@@ -50,6 +50,7 @@ const EPAISSEUR_FOND = 3;
  * @property {((point: LocationPointV1 | null) => void) | null} surClicPoint
  * @property {LocationPointV1[]} points
  * @property {LocationPointV1 | null} dernierePosition
+ * @property {string | undefined} locale
  */
 
 /**
@@ -71,7 +72,10 @@ export function creerCarte(element, ecoutes = {}) {
     attributionControl: true,
   });
   L.control.zoom({ position: "bottomleft" }).addTo(carte);
-  L.tileLayer(URL_TUILES, { maxZoom: ZOOM_MAX, attribution: ATTRIBUTION }).addTo(carte);
+  const attribution = ecoutes.locale === "en"
+    ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+    : ATTRIBUTION;
+  L.tileLayer(URL_TUILES, { maxZoom: ZOOM_MAX, attribution }).addTo(carte);
 
   /** @type {Carte} */
   const handle = {
@@ -95,6 +99,7 @@ export function creerCarte(element, ecoutes = {}) {
     surClicPoint: ecoutes.surClicPoint ?? null,
     points: [],
     dernierePosition: null,
+    locale: ecoutes.locale,
   };
   handle.renduFond.addTo(carte);
   handle.rendu.addTo(carte);
@@ -129,7 +134,9 @@ export function afficherDernierePosition(handle, point, surClic) {
   handle.dernierePosition = point;
   const coordonnees = [point.latitude, point.longitude];
   if (handle.marqueur === null) {
-    handle.marqueur = L.marker(coordonnees, { title: "Dernière position connue" });
+    handle.marqueur = L.marker(coordonnees, {
+      title: handle.locale === "en" ? "Last known position" : "Dernière position connue",
+    });
     handle.marqueur.addTo(handle.carte);
     // Le marqueur est ce qu'on touche en premier, et il n'appartient pas au
     // trace : sans cette ecoute, le seul point qui interesse vraiment serait

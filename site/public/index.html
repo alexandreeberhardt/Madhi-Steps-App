@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="referrer" content="no-referrer" />
-    <meta name="description" content="Suivez le voyage de Madhi à vélo, son itinéraire et les pays traversés." />
-    <title>Le voyage de Madhi</title>
+    <meta name="description" content="Follow a cycling trip, its route, and the countries along the way." />
+    <title>Travel 2026</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./vendor/leaflet.css" />
     <link rel="stylesheet" href="./style.css" />
@@ -14,62 +14,66 @@
   <body class="site-public">
     <header class="entete">
       <div>
-        <p class="public-eyebrow">Madhi à vélo</p>
-        <h1 id="titre-voyage">Le voyage de Madhi</h1>
+        <p class="public-eyebrow">Cycling trip</p>
+        <h1 id="titre-voyage">Travel 2026</h1>
       </div>
-      <aside id="resume-voyage" class="resume-voyage" aria-label="Résumé du voyage" hidden>
-        <section id="pays-actuel" class="pays-actuel" aria-label="Pays actuel" aria-live="polite" hidden></section>
+      <aside id="resume-voyage" class="resume-voyage" aria-label="Trip summary" hidden>
+        <div class="delai-public">
+          <span class="resume-libelle">Public version</span>
+          <strong>7-day delay</strong>
+        </div>
+        <section id="pays-actuel" class="pays-actuel" aria-label="Current country" aria-live="polite" hidden></section>
         <div>
-          <span class="resume-libelle">Distance totale</span>
-          <strong id="resume-distance" title="Distance estimée à partir du tracé">-</strong>
+          <span class="resume-libelle">Total distance</span>
+          <strong id="resume-distance" title="Estimated from the route">-</strong>
         </div>
         <div>
-          <span class="resume-libelle">Aujourd'hui</span>
-          <strong id="resume-aujourdhui" title="Distance estimée à partir du tracé">-</strong>
+          <span class="resume-libelle">Today</span>
+          <strong id="resume-aujourdhui" title="Estimated from the route">-</strong>
         </div>
         <div>
-          <span class="resume-libelle">Jour</span>
+          <span class="resume-libelle">Day</span>
           <strong id="resume-jours">-</strong>
         </div>
         <div>
-          <span class="resume-libelle">Départ</span>
+          <span class="resume-libelle">Start</span>
           <strong id="resume-depart">-</strong>
         </div>
       </aside>
     </header>
     <main class="scene">
-      <div id="carte" class="carte" role="application" aria-label="Carte du trajet" hidden></div>
+      <div id="carte" class="carte" role="application" aria-label="Trip map" hidden></div>
       <div id="message-central" class="message-central" role="status">
         <div class="avis avis-central">
-          <h2 id="empty-title" class="avis-titre">Le voyage de Madhi</h2>
-          <p id="empty-text" class="avis-detail">Chargement du voyage…</p>
+          <h2 id="empty-title" class="avis-titre">Travel 2026</h2>
+          <p id="empty-text" class="avis-detail">Loading trip…</p>
         </div>
       </div>
       <div class="bandeau-etat" role="status">
         <p id="publication-status" class="avis avis-attention" hidden></p>
-        <p id="map-error" class="avis avis-attention" hidden>La carte est indisponible. La dernière position connue reste lisible ci-dessous.</p>
+        <p id="map-error" class="avis avis-attention" hidden>The map is unavailable. The last known position is shown below.</p>
       </div>
     </main>
-    <section class="panneau" aria-label="Position connue et période affichée">
+    <section class="panneau" aria-label="Known position and selected period">
       <div id="position" hidden>
-        <p class="resume-libelle">Dernière position connue</p>
+        <p class="resume-libelle">Last known position</p>
         <p id="position-date" class="position-principale"></p>
         <p id="position-lieu" class="position-detail"></p>
       </div>
       <div class="commandes">
-        <div id="periodes" class="periodes" role="group" aria-label="Période du trajet" hidden></div>
-        <button id="recentrer" class="bouton-recentrer" type="button" hidden>Recentrer</button>
-        <button id="retry" class="bouton-recentrer" type="button" hidden>Réessayer</button>
+        <div id="periodes" class="periodes" role="group" aria-label="Trip period" hidden></div>
+        <button id="recentrer" class="bouton-recentrer" type="button" hidden>Recenter</button>
+        <button id="retry" class="bouton-recentrer" type="button" hidden>Retry</button>
         <span id="refresh-state" class="couverture" role="status"></span>
       </div>
       <div class="ligne-footer">
         <div>
           <p id="couverture" class="couverture" hidden></p>
         </div>
-        <p class="code-source">Code source : <a href="https://github.com/alexandreeberhardt/Madhi-Steps-App" target="_blank" rel="noreferrer">GitHub</a></p>
+        <p class="code-source">Source code: <a href="https://github.com/alexandreeberhardt/Madhi-Steps-App" target="_blank" rel="noreferrer">GitHub</a></p>
       </div>
     </section>
-    <noscript><p class="sans-javascript">Active JavaScript pour consulter la carte et les positions.</p></noscript>
+    <noscript><p class="sans-javascript">Enable JavaScript to view the map and locations.</p></noscript>
     <script src="./vendor/leaflet.js"></script>
     <script type="module" src="./public/app.js"></script>
   </body>

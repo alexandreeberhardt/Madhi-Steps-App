@@ -27,7 +27,9 @@ export function contenuBulle(vue) {
   bloc.className = "bulle-point";
 
   bloc.append(
-    ligne("bulle-heure", formaterInstantDuPoint(vue.point.recordedAt, vue.maintenant)),
+    ligne("bulle-heure", vue.locale
+      ? new Intl.DateTimeFormat(vue.locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(vue.point.recordedAt))
+      : formaterInstantDuPoint(vue.point.recordedAt, vue.maintenant)),
     ligne(
       vue.adresse === null ? "bulle-adresse bulle-adresse-absente" : "bulle-adresse",
       ligneAdresse(vue),
@@ -47,6 +49,11 @@ export function contenuBulle(vue) {
  */
 export function ligneAdresse(vue) {
   if (vue.adresse !== null) return vue.adresse;
+  if (vue.locale) {
+    if (vue.rechercheEnCours) return "Looking up address…";
+    if (vue.adresseDesactivee) return "Address lookup is not configured.";
+    return "Address unavailable.";
+  }
   if (vue.rechercheEnCours) return "Recherche de l'adresse…";
   if (vue.adresseDesactivee) return "Adresse non configurée.";
   return "Adresse indisponible.";

@@ -7,6 +7,18 @@
   padding-block: 0.85rem;
 }
 
+.site-public .resume-voyage {
+  grid-template-columns: repeat(6, minmax(5.2rem, auto));
+}
+
+.site-public .delai-public strong {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.9rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
 .public-eyebrow {
   margin: 0 0 0.2rem;
   color: var(--texte-doux);
@@ -37,6 +49,10 @@
 }
 
 @media (max-width: 47.99rem) {
+  .site-public .resume-voyage {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .site-public .panneau {
     gap: 0.65rem;
   }
@@ -48,5 +64,11 @@
   .site-public .bouton-periode {
     padding-inline: 0.7rem;
     font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 30rem) {
+  .site-public .resume-voyage {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
