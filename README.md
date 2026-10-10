@@ -1,284 +1,282 @@
 # Madhi Tracker
 
-Suivi GPS d'un voyage à vélo de la France au Cap Nord, sur un an.
+GPS tracking for a year-long cycling trip from France to the North Cape.
 
-![Le site familial : le trajet des dernières 24 h en bleu, le reste du voyage en bleu clair](screen_site.jpeg)
+![The public version of the site: the route is published with a seven-day delay](screen_site.png)
 
-Un téléphone Android enregistre une position toutes les cinq minutes, la
-garde en local, et l'envoie à un serveur privé dès qu'il y a du réseau. La
-famille suit le trajet depuis un site web, derrière un lien secret et un mot
-de passe.
+An Android phone records a location every five minutes, stores it locally, and
+sends it to a private server whenever it has a network connection. The family
+can follow the trip on a website protected by a secret URL path and a password.
 
-Le critère de réussite du projet n'est pas technique :
+The project's success is not measured by its technical features:
 
-> Peut-on donner ce téléphone à quelqu'un qui part un an à vélo et avoir
-> confiance dans le fait que son trajet continuera d'être enregistré, sans
-> intervention permanente ?
+> Could you give this phone to someone setting off on a year-long cycling trip
+> and trust that it will keep recording the route without constant attention?
 
-## État
+## Status
 
-| Brique | État |
+| Component | Status |
 |---|---|
-| Application Android | 1.0.3 (`versionCode 5`), fonctionnellement complète, carte comprise, en attente de validation terrain |
-| Serveur | Déployé sur `madhi-server.alexeber.fr`, en HTTPS, avec sauvegarde quotidienne et surveillance |
-| Site familial | En ligne sur `madhi.alexeber.fr` depuis le 23 août 2026, derrière un segment d'URL secret et un mot de passe |
-| Notice d'installation | `site/installer.html`, servie avec le site, autonome et sans requête sortante |
+| Android app | 1.0.3 (`versionCode 5`), functionally complete, including the map; awaiting field validation |
+| Server | Deployed at `madhi-server.alexeber.fr`, with HTTPS, daily backups, and monitoring |
+| Family website | Online at `madhi.alexeber.fr` since August 23, 2026, behind a secret URL path and a password |
+| Public website | Online at `travel.alexeber.fr`, with a 168-hour publication delay |
+| Installation guide | `site/installer.html`, served with the site, self-contained, and makes no outgoing requests |
 
-La chaîne est complète, du téléphone au site, et la procédure de départ est
-écrite (`arch/20_depart.md`). Cela ne veut pas dire que le projet est prêt :
-l'application n'a **pas encore** été validée en conditions réelles. Tant que
-le protocole de `arch/14_protocole_test_terrain.md` n'est pas passé sur
-l'appareil cible — le Redmi Note 11, pas le OnePlus de pré-validation — elle
-repose sur une hypothèse. C'est le seul point bloquant du projet.
+The full pipeline, from phone to website, is in place, and the departure
+procedure is documented in `arch/20_depart.md`. That does not mean the project
+is ready: the app has **not yet** been validated in real-world conditions. It
+still needs to pass the protocol in `arch/14_protocole_test_terrain.md` on the
+target device, a Redmi Note 11, not the OnePlus used for pre-validation. This
+is the project's only blocking issue.
 
-Un défaut précis est déjà connu et n'est pas corrigé : **l'application ne
-repart pas toute seule après un redémarrage du téléphone.** Observé le 23 août
-2026 sur OxygenOS, il a coûté vingt-quatre heures de suivi
-(`arch/15_journal_tests_terrain.md`, session 5), et MIUI est plus hostile
-encore. La consigne donnée en clair remplace le correctif : **après chaque
-redémarrage, et après chaque mise à jour de l'APK, ouvrir l'application une
-fois.** La piste ouverte depuis le 26 août est que le réglage « Démarrage auto
-en arrière-plan » n'a jamais été appliqué au paquet `com.madhi.tracker` — le
-défaut est peut-être une case à cocher plutôt qu'un bug.
+One known issue remains unfixed: **the app does not restart tracking by itself
+after the phone reboots.** This was observed on OxygenOS on August 23, 2026,
+and cost twenty-four hours of tracking (`arch/15_journal_tests_terrain.md`,
+session 5). MIUI is even more restrictive. The current instruction is clear:
+**open the app once after every reboot and every APK update.** Since August 26,
+the working theory has been that the “Auto-start in the background” setting
+was never enabled for `com.madhi.tracker`; the issue may be a checkbox rather
+than a bug.
 
-## Ce que ça fait
+## What it does
 
-**Sur le téléphone.** Une carte à l'ouverture, le trajet dessiné dessus, et
-l'âge de la dernière position. Le tracé est bleu là où le serveur détient les
-points, orange là où ils ne sont encore que sur le téléphone. Quatre périodes
-— aujourd'hui, 24 h, 7 jours, tout le voyage — et le voyage entier reste
-visible en bleu clair sous la période choisie, pour qu'un jour de vélo ne paraisse
-jamais flotter dans le vide. Toucher un point du tracé dit quand on était là,
-et où. Les réglages tiennent en deux choses, la cadence de capture (trois
-valeurs courantes, plus « Autre ») et l'arrêt du suivi ; le diagnostic, qui
-sera lu à voix haute au téléphone, est derrière un bouton.
+**On the phone.** The app opens to a map with the route and the age of the
+latest location. The route is blue where the server has the points and orange
+where they are still only on the phone. Four time ranges are available: today,
+24 hours, 7 days, and the entire trip. The full route stays visible in light
+blue beneath the selected range, so a day's ride never looks disconnected.
+Tap a point on the route to see when and where it was recorded. The settings
+are limited to the recording interval (three common choices plus “Other”) and
+stopping tracking. Diagnostics, which can be read aloud by the phone, are
+behind a button.
 
-La période « 24 h » existe parce qu'« aujourd'hui » ment la nuit : à une heure
-du matin, la journée civile ne montre qu'une heure de trajet.
+The “24 hours” range exists because “today” can be misleading at night: at
+1 a.m., the calendar day shows only one hour of riding.
 
-**Sur le site familial.** Le même écran, en plus court : la dernière position,
-son ancienneté, le trajet de la période choisie — aujourd'hui, 24 h, 7 jours,
-30 jours, tout le voyage — et une bulle au toucher d'un point. Le site
-s'arrête à trente jours là où l'application va jusqu'au voyage entier : la
-base est locale sur le téléphone, alors que le site dépend d'une réponse du
-serveur.
+**On the family website.** A shorter version of the same screen: the latest
+location and its age, the route for the selected range (today, 24 hours, 7
+days, 30 days, or the entire trip), and a point tooltip on tap. The website
+shows up to thirty days, while the app can show the entire trip: the app's
+database is local to the phone, while the website depends on a server response.
 
-**Ce que ni l'un ni l'autre ne fait.** Pas de temps réel, pas de statistiques,
-pas de niveau de batterie, pas de vue publique. C'est `arch/06_site_V2.md`.
+**On the public website.** An English version of the route is published at
+`travel.alexeber.fr` from exports containing only approved data, with a
+168-hour delay. It offers the same time ranges as the family website. See
+`tools/public-site/README.md` for publication and privacy details.
 
-## Principes
+Neither website shows battery level or a real-time location. The functional
+scope of the family website is described in `arch/06_site_V2.md`.
 
-**Hors ligne d'abord.** Une position est écrite en base locale avant toute
-tentative réseau. Aucun chemin de code ne supprime un point non confirmé par
-le serveur : ni un timeout, ni une erreur d'authentification, ni une réponse
-illisible. Une tâche de vérification échouerait si le domaine se mettait à
-dépendre d'Android.
+## Principles
 
-**Idempotence par identifiant.** Chaque position reçoit un UUID à la capture.
-Le serveur n'insère que les identifiants inconnus, et renvoie les autres
-comme déjà détenus. Un envoi dont la réponse s'est perdue aboutit donc au
-rejeu, sans créer de doublon.
+**Offline first.** A location is written to the local database before any
+network request. No code path deletes a point until the server confirms it:
+not a timeout, an authentication error, or an unreadable response. An
+architecture check fails if the domain layer starts depending on Android.
 
-**Pas de GAFAM sur le chemin des positions.** Ni Google Play Services, ni
-Firebase, ni analytics, ni crash reporting externe. La localisation passe par
-l'API système `LocationManager`, pas par Fused Location Provider. Aucune
-coordonnée n'atteint les journaux techniques — la signature du port de
-journalisation l'interdit par construction. Côté site, ce n'est plus une
-discipline d'écriture mais une `Content-Security-Policy` : le navigateur
-refuse tout hôte extérieur, tuiles exceptées.
+**Idempotency by identifier.** Each location gets a UUID when it is recorded.
+The server inserts only identifiers it has not seen before and returns the
+others as already stored. If a response is lost, the app can safely retry
+without creating duplicates.
 
-**Personne ne parle au géocodeur à notre place.** L'adresse affichée dans la
-bulle d'un point est demandée au serveur du voyage, qui relaie la question à
-Nominatim, espace ses appels d'au moins une seconde et met les réponses en
-cache. Ni le téléphone ni le navigateur de la famille ne contacte le
-géocodeur. Le relais est désactivé par défaut, et le serveur refuse de
-démarrer si on l'allume sans donner d'identité `User-Agent` joignable :
-Nominatim est un bien commun.
+**No Big Tech services in the location data path.** No Google Play Services,
+Firebase, analytics, or external crash reporting. Location is obtained through
+the system `LocationManager` API, not the Fused Location Provider. Technical
+logs cannot contain coordinates: the logging port's signature prevents it by
+design. On the website, a `Content-Security-Policy` enforces the same boundary
+in the browser; map tiles are the only exception.
 
-**Réparable par une seule personne.** Un module Gradle, peu de dépendances,
-aucune magie d'infrastructure. Le site n'a aucune étape de build : le fichier
-du dépôt est exactement le fichier servi.
+**No direct requests to the geocoder from the phone or browser.** The address
+shown in a point's tooltip is requested from the trip server, which relays the
+request to Nominatim, spaces calls at least one second apart, and caches
+responses. Neither the phone nor the family browser contacts the geocoder.
+The relay is disabled by default, and the server refuses to start with it
+enabled unless a reachable `User-Agent` identity is configured: Nominatim is
+a shared resource.
 
-**Une carte qui marche sans réseau.** L'écran d'accueil dessine le trajet sur
-un fond de tuiles raster, sans aucune bibliothèque cartographique. Le cache
-disque est interrogé **avant** le réseau : une zone consultée une fois reste
-lisible hors ligne, ce qui est le mode normal du voyage.
+**Repairable by one person.** One Gradle module, few dependencies, and no
+infrastructure magic. The website has no build step: the files in the
+repository are exactly the files being served.
 
-La source des tuiles est une configuration hors du dépôt, jamais du code : sans
-elle la carte reste sur fond uni et n'émet aucune requête. Un fond
-auto-hébergé, fabriqué par `tools/tiles` depuis des données du domaine public,
-reste déployé en repli — c'est la seule source que le projet contrôle de bout
-en bout (ADR-006, `arch/18`).
+**A map that works offline.** The home screen draws the route over raster map
+tiles without a mapping library. The disk cache is checked **before** the
+network, so an area viewed once remains available offline, which is the normal
+mode during the trip.
+
+The tile source is configured outside the repository, never in code. Without
+that configuration, the map uses a plain background and makes no requests. A
+self-hosted tile source, built by `tools/tiles` from public-domain data, remains
+deployed as a fallback; it is the only source the project controls end to end
+(ADR-006, `arch/18`).
 
 ## Architecture
 
-Hexagonale, avec des frontières logiques plutôt que des modules Gradle
-séparés tant que la taille du projet ne le justifie pas.
+Hexagonal architecture, with logical boundaries rather than separate Gradle
+modules until the project needs them.
 
     presentation/     Compose, ViewModels
-    adapter/input/    service de premier plan, receveurs, worker
-    application/      use cases et ports
-    domain/           modèles et règles, sans Android
+    adapter/input/    foreground service, receivers, worker
+    application/      use cases and ports
+    domain/           models and rules, without Android
     adapter/output/   Room, DataStore, OkHttp, LocationManager, AlarmManager
-    infrastructure/   racine de composition Hilt, configuration, journalisation
+    infrastructure/   Hilt composition root, configuration, logging
 
-Le domaine et les use cases ne connaissent ni Android, ni Room, ni OkHttp.
-La tâche Gradle `checkCoreIsFrameworkFree`, branchée sur `check`, échoue si
-un import de framework s'y glisse.
+The domain and use cases know nothing about Android, Room, or OkHttp. The
+Gradle task `checkCoreIsFrameworkFree`, attached to `check`, fails if a
+framework import appears there.
 
-## Construire
+## Build
 
-Prérequis : JDK 17 ou plus récent, SDK Android.
+Requirements: JDK 17 or newer and the Android SDK.
 
-    ./gradlew assembleDebug        # APK de développement
-    ./gradlew assembleRelease      # APK du voyage, signé et minifié par R8
-    ./gradlew check                # tests et vérifications d'architecture
+    ./gradlew assembleDebug        # development APK
+    ./gradlew assembleRelease      # trip APK, signed and minified by R8
+    ./gradlew check                # tests and architecture checks
 
-Les tests tournent sur la JVM, sans émulateur ni téléphone : Robolectric
-couvre Room et DataStore, le reste s'appuie sur des doubles simples.
+The tests run on the JVM, without an emulator or phone. Robolectric covers
+Room and DataStore; the rest use simple fakes.
 
-Le build release **échoue volontairement** si l'URL de l'API n'est pas
-configurée, plutôt que de produire un APK pointant vers une valeur factice. Il
-échoue aussi sans matériel de signature, pour ne pas livrer un APK signé avec la
-clé de debug.
+The release build **intentionally fails** if the API URL is not configured,
+rather than producing an APK that points to a placeholder. It also fails if
+signing materials are missing, so a release APK is never signed with the debug
+key.
 
-C'est le build release qui part en voyage (`arch/01` §2), donc c'est lui qui
-doit passer les tests terrain : R8 supprime du code que le build debug conserve.
+The release build is the one used on the trip (`arch/01` §2), so it is the one
+that must pass field testing: R8 removes code that the debug build keeps.
 
 ## Configuration
 
-Aucune valeur réelle n'est versionnée. Copier les exemples :
+No real values are committed. Copy the example files:
 
     cp local.properties.example local.properties
     cp keystore.properties.example keystore.properties
 
-Les variables d'environnement `MADHI_API_BASE_URL_*`,
-`MADHI_UPDATE_PAGE_URL_*` et `ANDROID_SIGNING_*` ont la priorité sur ces
-fichiers, ce qui évite d'avoir à les créer en CI.
+The environment variables `MADHI_API_BASE_URL_*`,
+`MADHI_UPDATE_PAGE_URL_*`, and `ANDROID_SIGNING_*` take precedence over these
+files, so they do not need to be created in CI.
 
-## Publier une version
+## Releasing a version
 
-Le `versionCode` monte à chaque APK réellement installé : deux binaires
-différents ne doivent jamais porter le même nom, sans quoi le `mapping.txt`
-conservé ne se rattache plus à rien.
+Increment `versionCode` for every APK that is actually installed. Different
+binaries must never share a name, or the retained `mapping.txt` file will no
+longer match the APK.
 
-Chaque version publiée laisse trois fichiers, gardés hors du dépôt
-(`dist/` est ignoré par git) :
+Each release produces three files kept outside the repository (`dist/` is
+ignored by git):
 
-    dist/<version>/madhi-tracker-<version>.apk    l'APK envoyé
-    dist/<version>/mapping-<version>.txt          la table de renommage R8
-    dist/<version>/SHA256SUMS                     l'empreinte de l'APK publié
+    dist/<version>/madhi-tracker-<version>.apk    the distributed APK
+    dist/<version>/mapping-<version>.txt          the R8 mapping file
+    dist/<version>/SHA256SUMS                     the APK's checksum
 
-**Conserver le `mapping.txt`** sous un nom qui porte la version, hors du
-répertoire de build : R8 renomme tout, une pile d'appel remontée du voyage
-sans lui est illisible, et un `./gradlew clean` l'efface sans prévenir.
+**Keep `mapping.txt`** under a versioned name outside the build directory. R8
+renames everything; without the mapping file, a stack trace from the trip is
+unreadable. `./gradlew clean` deletes the build copy without warning.
 
-L'APK est publié en *release* GitHub, sous son nom versionné et sous le nom
-stable `madhi-tracker-latest.apk`, utilisé par `site/mise_a_jour.html`. La
-notice d'installation peut pointer droit sur un fichier `.apk` précis — sur
-Android le téléchargement part tout seul. L'empreinte affichée par la notice est
-celle de l'APK **téléchargé puis recalculé**, pas celle d'une reconstruction
-locale : deux builds du même code ne sont pas identiques octet pour octet, et
-une empreinte qui ne correspond pas serait pire que pas d'empreinte du tout.
+The APK is published as a GitHub *release*, under its versioned name and the
+stable name `madhi-tracker-latest.apk`, which is used by
+`site/mise_a_jour.html`. The installation guide can link directly to a
+specific `.apk` file; Android starts the download automatically. The checksum
+shown by the guide must be calculated from the **downloaded APK**, not a local
+rebuild: two builds of the same code are not byte-for-byte identical, and a
+mismatched checksum would be worse than no checksum.
 
-L'icône du lanceur est engendrée depuis `art/icone-source.jpeg` — une gravure
-de Madhi — en trois calques (premier plan, fond, monochrome d'Android 13+) et
-cinq densités. Le JPEG source est versionné parce que sans lui les densités ne
-sont pas reconstructibles.
+The launcher icon is generated from `art/icone-source.jpeg`—an engraving of
+Madhi—in three layers (foreground, background, and Android 13+ monochrome) and
+five densities. The JPEG source is committed because the density variants
+cannot be reproduced without it.
 
-## Site familial
+## Family website
 
-Le site que regarde la famille est dans `site/` : des fichiers statiques, sans
-étape de build, servis par un conteneur nginx de la même stack que le serveur,
-derrière un segment d'URL secret et un mot de passe. Il n'embarque aucun
-secret — le token de lecture exigé par l'API est posé par le conteneur, et le
-répertoire `site/` du dépôt est monté tel quel, sans copie intermédiaire.
+The family website is in `site/`: static files with no build step, served by
+an nginx container in the same stack as the server, behind a secret URL path
+and a password. It contains no secret; the read token required by the API is
+provided by the container, and the repository's `site/` directory is mounted
+directly, with no intermediate copy.
 
-    docker compose -f server/docker-compose.yml up -d   # la stack complete
-    python3 tools/site-dev/serve.py            # le site seul, donnees fabriquees
-    node tools/site-dev/verifier.mjs           # les verifications sans navigateur
+    docker compose -f server/docker-compose.yml up -d   # the full stack
+    python3 tools/site-dev/serve.py                     # site only, with mock data
+    node tools/site-dev/verifier.mjs                    # checks without a browser
 
-`site/installer.html` y est déposée pour la même raison : le répertoire est
-déjà monté, la notice sort donc sous le segment secret et derrière le mot de
-passe familial — à savoir avant d'envoyer le lien à Madhi, qui n'a pas
-forcément ce mot de passe.
+`site/installer.html` is served from the same mounted directory, so the
+installation guide is also behind the secret path and family password. Keep
+this in mind before sending the link to Madhi, who may not have that password.
 
-Le déploiement sur `madhi.alexeber.fr` et les vérifications à faire ensuite
-sont dans `site/README.md`.
+Deployment to `madhi.alexeber.fr` and the follow-up checks are documented in
+`site/README.md`.
 
-## Serveur
+## Server
 
-FastAPI et PostgreSQL, en conteneurs, sur un VPS. Il reçoit les positions,
-sert l'historique au site, et relaie le géocodage inverse. L'installation, les
-variables d'environnement, la sauvegarde et le resserrement des droits sont
-dans `SERVER_DEPLOYMENT.md`.
+FastAPI and PostgreSQL run in containers on a VPS. The server receives
+locations, serves history to the website, and relays reverse geocoding.
+Installation, environment variables, backups, and permission hardening are
+documented in `SERVER_DEPLOYMENT.md`.
 
-Une limite corrigée mérite d'être connue : l'historique n'est plus tronqué mais
-**échantillonné**. La réponse plafonnait à dix mille points en coupant les plus
-récents, donc au bout de trente-cinq jours de voyage le site aurait affiché une
-dernière position figée, avec un statut vert (`arch/17` §4.1).
+One fixed limitation is worth knowing: history is now **sampled**, not
+truncated. The response used to stop at ten thousand points by dropping the
+newest ones. After thirty-five days of travel, the website would have shown a
+frozen last location with a green status (`arch/17` §4.1).
 
-## Surveillance
+## Monitoring
 
-Cinq sondes tournent sur le VPS tous les quarts d'heure — API, site, disque,
-âge de la dernière sauvegarde, âge de la dernière position — et alertent sur le
-téléphone. Elles existent parce qu'une panne silencieuse est la panne coûteuse :
-le script de sauvegarde pouvait échouer trente jours d'affilée sans que
-personne le sache.
+Five checks run on the VPS every fifteen minutes—API, website, disk, backup
+age, and age of the latest location—and send alerts to the phone. They exist
+because a silent failure is costly: the backup script could fail for thirty
+days without anyone knowing.
 
-Aucune alerte ne porte de coordonnée. La sonde de position lit `/status`, qui
-ne renvoie que des horodatages, jamais `/latest-location`.
+Alerts contain no coordinates. The location check reads `/status`, which
+returns timestamps only, never `/latest-location`.
 
     sudo tools/monitoring/madhi-check.sh --dry-run
     sudo tools/monitoring/madhi-check.sh --test-alert
 
-Deux certificats expirent pendant le voyage — `madhi-server.alexeber.fr` le
-17 novembre 2026, `madhi.alexeber.fr` le 21 novembre. La surveillance ne
-prévient pas à l'avance : elle passe au rouge le jour même. Le renouvellement
-est donc à prouver avant novembre (`arch/20` §7).
+Two certificates expire during the trip: `madhi-server.alexeber.fr` on
+November 17, 2026, and `madhi.alexeber.fr` on November 21. Monitoring does not
+warn in advance; it turns red on the expiry date. Renewal must therefore be
+verified before November (`arch/20` §7).
 
-Voir `tools/monitoring/README.md`, et `SERVER_DEPLOYMENT.md` pour la place de
-cette surveillance dans l'exploitation.
+See `tools/monitoring/README.md`, and `SERVER_DEPLOYMENT.md` for how monitoring
+fits into operations.
 
-## Serveur de simulation
+## Simulation server
 
-Le serveur réel est déployé (voir `SERVER_DEPLOYMENT.md`) et les builds le
-visent désormais. Le serveur de simulation reste utile pour travailler hors
-ligne et sert de spécification exécutable de l'idempotence.
+The real server is deployed (see `SERVER_DEPLOYMENT.md`) and builds now target
+it. The simulation server remains useful for offline development and serves
+as an executable specification of idempotency.
 
     python3 tools/mock-server/server.py
 
-Voir `tools/mock-server/README.md`.
+See `tools/mock-server/README.md`.
 
 ## Documentation
 
-Les documents de `arch/` sont la source de vérité fonctionnelle. Les
-décisions techniques prises en cours de route sont dans `arch/adr/`, au
-format contexte / options / décision / conséquences.
+Documents in `arch/` are the source of truth for functional requirements.
+Technical decisions made along the way are in `arch/adr/`, using the
+context / options / decision / consequences format.
 
-Les plus utiles pour comprendre le projet :
+The most useful documents for understanding the project:
 
-- `arch/00_architecture_maitre.md` — contrats communs et règles d'évolution
-- `arch/13_contrat_api_android_v1.md` — contrat API détaillé
-- `arch/adr/002-execution-en-arriere-plan.md` — pourquoi un service de
-  premier plan ne suffit pas, et ce qui le complète
-- `arch/adr/007-contraintes-miui-redmi-note-11.md` — ce que la surcouche du
-  téléphone cible impose
-- `arch/adr/008-cadence-par-le-flux-de-localisation.md` — pourquoi la cadence
-  est confiée au fournisseur de localisation
-- `arch/14_protocole_test_terrain.md` — comment on prouve que ça marche
-- `arch/15_journal_tests_terrain.md` — ce que chaque session sur l'appareil a
-  montré, y compris ce qui a été perdu
-- `arch/17_plan_implementation_site_poc.md` — plan d'exécution du site, et les
-  pièges du serveur qu'il faut connaître avant de le construire
-- `arch/18_carte_embarquee_v1.md` — comment la carte est faite, et comment on
-  lui change son fond de tuiles
-- `arch/20_depart.md` — la procédure du départ, dans l'ordre : serveur, APK,
-  installation par Madhi, vérification, puis la date qui ouvre le voyage
-- `site/README.md` — comment développer, déployer et vérifier le site familial
-- `tools/monitoring/README.md` — ce qui est surveillé, ce qui ne l'est pas, et
-  comment prouver que l'alerte arrive
+- `arch/00_architecture_maitre.md` — shared contracts and change rules
+- `arch/13_contrat_api_android_v1.md` — detailed API contract
+- `arch/adr/002-execution-en-arriere-plan.md` — why a foreground service is
+  not enough, and what complements it
+- `arch/adr/007-contraintes-miui-redmi-note-11.md` — constraints imposed by
+  the target phone's Android skin
+- `arch/adr/008-cadence-par-le-flux-de-localisation.md` — why the location
+  provider controls the recording interval
+- `arch/14_protocole_test_terrain.md` — how to prove it works
+- `arch/15_journal_tests_terrain.md` — what each device session showed,
+  including what was lost
+- `arch/17_plan_implementation_site_poc.md` — the website implementation plan
+  and server pitfalls to know before building it
+- `arch/18_carte_embarquee_v1.md` — how the embedded map works and how to
+  change its tile source
+- `arch/20_depart.md` — departure procedure in order: server, APK, Madhi's
+  installation, verification, then the date the trip begins
+- `site/README.md` — how to develop, deploy, and verify the family website
+- `tools/monitoring/README.md` — what is monitored, what is not, and how to
+  verify that alerts arrive
 
-## Licence
+## License
 
-Pas encore déterminée.
+Not yet decided.
