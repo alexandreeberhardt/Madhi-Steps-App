@@ -2,7 +2,7 @@
 
 GPS tracking for a year-long cycling trip from France to the North Cape.
 
-![The public version of the site: the route is published with a seven-day delay](screen_site.png)
+![The public version of the site: the route is published with a seven-day delay](art/reference/screen_site.png)
 
 An Android phone records a location every five minutes, stores it locally, and
 sends it to a private server whenever it has a network connection. The family

@@ -39,6 +39,12 @@ dumps/
 *.aab
 Madhi-Secrets.zip
 
+# Local-only files moved out of the repository root (including signing backups)
+.local/
+
+# Fichiers systeme macOS
+.DS_Store
+
 # Dependency and build output
 node_modules/
 dist/

@@ -2,7 +2,7 @@
 
 Suivi GPS d'un voyage à vélo de la France au Cap Nord, sur un an.
 
-![La version publique du site : trajet publié avec sept jours de décalage](screen_site.png)
+![La version publique du site : trajet publié avec sept jours de décalage](art/reference/screen_site.png)
 
 Un téléphone Android enregistre une position toutes les cinq minutes, la
 garde en local, et l'envoie à un serveur privé dès qu'il y a du réseau. La
