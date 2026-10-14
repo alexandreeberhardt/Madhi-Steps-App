@@ -156,18 +156,37 @@ export function afficherDernierePosition(handle, point, surClic) {
  * ne le touche pas, et la carte ne recule jamais pour le faire tenir. Toucher
  * un de ses coudes revient a toucher la carte a cote, ce qui referme la bulle.
  *
+ * Il s'interrompt la ou passe le trace de la periode : echantillonne bien plus
+ * grossierement, il dessinerait sous lui une seconde ligne qui ne le suit pas.
+ * Les deux morceaux restants se raccordent aux extremites du trace, pour que
+ * le voyage se lise d'un seul tenant.
+ *
  * @param {Carte} handle
  * @param {LocationPointV1[]} points
+ * @param {LocationPointV1[]} [trace] Les points de la periode affichee.
  */
-export function afficherFond(handle, points) {
+export function afficherFond(handle, points, trace = []) {
   if (handle.fond !== null) {
     handle.carte.removeLayer(handle.fond);
     handle.fond = null;
   }
-  if (points.length < 2) return;
+
+  let morceaux = [points];
+  if (trace.length > 0) {
+    const premier = trace[0];
+    const dernier = trace[trace.length - 1];
+    const debut = Date.parse(premier.recordedAt);
+    const fin = Date.parse(dernier.recordedAt);
+    morceaux = [
+      [...points.filter((point) => Date.parse(point.recordedAt) < debut), premier],
+      [dernier, ...points.filter((point) => Date.parse(point.recordedAt) > fin)],
+    ];
+  }
+  morceaux = morceaux.filter((morceau) => morceau.length >= 2);
+  if (morceaux.length === 0) return;
 
   handle.fond = L.polyline(
-    points.map((point) => [point.latitude, point.longitude]),
+    morceaux.map((morceau) => morceau.map((point) => [point.latitude, point.longitude])),
     {
       renderer: handle.renduFond,
       color: COULEUR_FOND,

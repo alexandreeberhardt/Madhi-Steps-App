@@ -97,7 +97,7 @@ function renderData(changed) {
     rafraichirTaille(map);
     if (changed) {
       fermerBulle(map);
-      afficherFond(map, displayedPeriod === 'ALL' ? [] : overview);
+      afficherFond(map, displayedPeriod === 'ALL' ? [] : overview, points);
       afficherDernierePosition(map, latest, selectPoint);
       afficherTrajet(map, points);
       ajusterVue(map);

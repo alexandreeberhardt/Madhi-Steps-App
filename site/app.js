@@ -452,11 +452,11 @@ function majCarte(maintenant) {
     // hauteur nulle et n'afficherait que du gris.
     rafraichirTaille(carte);
 
-    // Le fond a sa propre decision : il se redessine quand il change, et lui
-    // seul, sans jamais toucher au cadrage.
-    const empreinteFond = signature(donnees.pointsFond);
+    // Le fond a sa propre decision : il se redessine quand il change, ou quand
+    // le trace qu'il contourne bouge, sans jamais toucher au cadrage.
+    const empreinteFond = `${signature(donnees.pointsFond)}|${signature(donnees.points)}`;
     if (empreinteFond !== cleFond) {
-      afficherFond(carte, donnees.pointsFond);
+      afficherFond(carte, donnees.pointsFond, donnees.points);
       cleFond = empreinteFond;
     }
 
