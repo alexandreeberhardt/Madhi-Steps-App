@@ -60,8 +60,8 @@ database is local to the phone, while the website depends on a server response.
 168-hour delay. It offers the same time ranges as the family website. See
 `tools/public-site/README.md` for publication and privacy details.
 
-Neither website shows battery level or a real-time location. The functional
-scope of the family website is described in `arch/06_site_V2.md`.
+Neither website shows battery level or a real-time location. See
+`docs/websites.md` for how both websites work.
 
 ## Principles
 
@@ -103,7 +103,7 @@ The tile source is configured outside the repository, never in code. Without
 that configuration, the map uses a plain background and makes no requests. A
 self-hosted tile source, built by `tools/tiles` from public-domain data, remains
 deployed as a fallback; it is the only source the project controls end to end
-(ADR-006, `arch/18`).
+(`docs/android-app.md`, `tools/tiles/README.md`).
 
 ## Architecture
 
@@ -137,7 +137,7 @@ rather than producing an APK that points to a placeholder. It also fails if
 signing materials are missing, so a release APK is never signed with the debug
 key.
 
-The release build is the one used on the trip (`arch/01` §2), so it is the one
+The release build is the one used on the trip, so it is the one
 that must pass field testing: R8 removes code that the debug build keeps.
 
 ## Configuration
@@ -210,7 +210,8 @@ documented in `SERVER_DEPLOYMENT.md`.
 One fixed limitation is worth knowing: history is now **sampled**, not
 truncated. The response used to stop at ten thousand points by dropping the
 newest ones. After thirty-five days of travel, the website would have shown a
-frozen last location with a green status (`arch/17` §4.1).
+frozen last location with a green status. The API is described in
+`docs/api.md`.
 
 ## Monitoring
 
@@ -245,32 +246,20 @@ See `tools/mock-server/README.md`.
 
 ## Documentation
 
-Documents in `arch/` are the source of truth for functional requirements.
-Technical decisions made along the way are in `arch/adr/`, using the
-context / options / decision / consequences format.
+`docs/` describes the system as it is implemented, written from the code:
 
-The most useful documents for understanding the project:
+- `docs/android-app.md` — screens, how tracking keeps running, storage,
+  synchronisation, recovery after a reboot or an update, and the map
+- `docs/api.md` — endpoints, authentication, limits, and history sampling
+- `docs/websites.md` — the family website and the delayed public website
 
-- `arch/00_architecture_maitre.md` — shared contracts and change rules
-- `arch/13_contrat_api_android_v1.md` — detailed API contract
-- `arch/adr/002-execution-en-arriere-plan.md` — why a foreground service is
-  not enough, and what complements it
-- `arch/adr/007-contraintes-miui-redmi-note-11.md` — constraints imposed by
-  the target phone's Android skin
-- `arch/adr/008-cadence-par-le-flux-de-localisation.md` — why the location
-  provider controls the recording interval
-- `arch/14_protocole_test_terrain.md` — how to prove it works
-- `arch/15_journal_tests_terrain.md` — what each device session showed,
-  including what was lost
-- `arch/17_plan_implementation_site_poc.md` — the website implementation plan
-  and server pitfalls to know before building it
-- `arch/18_carte_embarquee_v1.md` — how the embedded map works and how to
-  change its tile source
-- `arch/20_depart.md` — departure procedure in order: server, APK, Madhi's
-  installation, verification, then the date the trip begins
-- `site/README.md` — how to develop, deploy, and verify the family website
-- `tools/monitoring/README.md` — what is monitored, what is not, and how to
-  verify that alerts arrive
+Operational guides sit next to what they operate: `SERVER_DEPLOYMENT.md`,
+`site/README.md`, and the READMEs under `tools/`.
+
+`arch/` is the design archive: the specifications written before development,
+the ADRs, the field-test protocol and log (`arch/14`, `arch/15`), and the
+departure procedure (`arch/20_depart.md`). It explains past decisions; it does
+not describe current behaviour.
 
 ## License
 

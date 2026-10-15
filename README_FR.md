@@ -71,7 +71,7 @@ le site familial. Les détails de publication et de confidentialité sont dans
 `tools/public-site/README.md`.
 
 Aucune vue ne montre le niveau de batterie ni une position en temps réel.
-`arch/06_site_V2.md` décrit le périmètre fonctionnel du site familial.
+`docs/websites.md` décrit le fonctionnement des deux sites.
 
 ## Principes
 
@@ -115,7 +115,7 @@ La source des tuiles est une configuration hors du dépôt, jamais du code : san
 elle la carte reste sur fond uni et n'émet aucune requête. Un fond
 auto-hébergé, fabriqué par `tools/tiles` depuis des données du domaine public,
 reste déployé en repli — c'est la seule source que le projet contrôle de bout
-en bout (ADR-006, `arch/18`).
+en bout (`docs/android-app.md`, `tools/tiles/README.md`).
 
 ## Architecture
 
@@ -149,7 +149,7 @@ configurée, plutôt que de produire un APK pointant vers une valeur factice. Il
 échoue aussi sans matériel de signature, pour ne pas livrer un APK signé avec la
 clé de debug.
 
-C'est le build release qui part en voyage (`arch/01` §2), donc c'est lui qui
+C'est le build release qui part en voyage, donc c'est lui qui
 doit passer les tests terrain : R8 supprime du code que le build debug conserve.
 
 ## Configuration
@@ -223,7 +223,8 @@ dans `SERVER_DEPLOYMENT.md`.
 Une limite corrigée mérite d'être connue : l'historique n'est plus tronqué mais
 **échantillonné**. La réponse plafonnait à dix mille points en coupant les plus
 récents, donc au bout de trente-cinq jours de voyage le site aurait affiché une
-dernière position figée, avec un statut vert (`arch/17` §4.1).
+dernière position figée, avec un statut vert. L'API est décrite dans
+`docs/api.md`.
 
 ## Surveillance
 
@@ -259,32 +260,21 @@ Voir `tools/mock-server/README.md`.
 
 ## Documentation
 
-Les documents de `arch/` sont la source de vérité fonctionnelle. Les
-décisions techniques prises en cours de route sont dans `arch/adr/`, au
-format contexte / options / décision / conséquences.
+`docs/` décrit le système tel qu'il est implémenté, rédigé à partir du code
+(en anglais) :
 
-Les plus utiles pour comprendre le projet :
+- `docs/android-app.md` — écrans, maintien du suivi, stockage,
+  synchronisation, reprise après redémarrage ou mise à jour, carte
+- `docs/api.md` — routes, authentification, limites, échantillonnage
+- `docs/websites.md` — le site familial et le site public différé
 
-- `arch/00_architecture_maitre.md` — contrats communs et règles d'évolution
-- `arch/13_contrat_api_android_v1.md` — contrat API détaillé
-- `arch/adr/002-execution-en-arriere-plan.md` — pourquoi un service de
-  premier plan ne suffit pas, et ce qui le complète
-- `arch/adr/007-contraintes-miui-redmi-note-11.md` — ce que la surcouche du
-  téléphone cible impose
-- `arch/adr/008-cadence-par-le-flux-de-localisation.md` — pourquoi la cadence
-  est confiée au fournisseur de localisation
-- `arch/14_protocole_test_terrain.md` — comment on prouve que ça marche
-- `arch/15_journal_tests_terrain.md` — ce que chaque session sur l'appareil a
-  montré, y compris ce qui a été perdu
-- `arch/17_plan_implementation_site_poc.md` — plan d'exécution du site, et les
-  pièges du serveur qu'il faut connaître avant de le construire
-- `arch/18_carte_embarquee_v1.md` — comment la carte est faite, et comment on
-  lui change son fond de tuiles
-- `arch/20_depart.md` — la procédure du départ, dans l'ordre : serveur, APK,
-  installation par Madhi, vérification, puis la date qui ouvre le voyage
-- `site/README.md` — comment développer, déployer et vérifier le site familial
-- `tools/monitoring/README.md` — ce qui est surveillé, ce qui ne l'est pas, et
-  comment prouver que l'alerte arrive
+Les guides d'exploitation sont à côté de ce qu'ils exploitent :
+`SERVER_DEPLOYMENT.md`, `site/README.md` et les README de `tools/`.
+
+`arch/` est l'archive de conception : les spécifications écrites avant le
+développement, les ADR, le protocole et le journal des tests terrain
+(`arch/14`, `arch/15`) et la procédure de départ (`arch/20_depart.md`). Il
+explique les décisions passées ; il ne décrit pas le comportement actuel.
 
 ## Licence
 
