@@ -263,4 +263,4 @@ not describe current behaviour.
 
 ## License
 
-Not yet decided.
+MIT. See [`LICENSE`](LICENSE).

@@ -278,4 +278,4 @@ explique les décisions passées ; il ne décrit pas le comportement actuel.
 
 ## Licence
 
-Pas encore déterminée.
+MIT. Voir [`LICENSE`](LICENSE).
