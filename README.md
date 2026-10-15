@@ -2,6 +2,8 @@
 
 GPS tracking for a year-long cycling trip from France to the North Cape.
 
+[Public demo with delay available on travel.alexeber.fr](https://travel.alexeber.fr)
+
 ![The public version of the site: the route is published with a seven-day delay](art/reference/screen_site.png)
 
 An Android phone records a location every five minutes, stores it locally, and
