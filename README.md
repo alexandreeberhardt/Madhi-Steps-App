@@ -1,4 +1,4 @@
-# Madhi Tracker
+# Madhi Steps App
 
 GPS tracking for a year-long cycling trip from France to the North Cape.
 
