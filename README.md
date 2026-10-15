@@ -8,11 +8,6 @@ An Android phone records a location every five minutes, stores it locally, and
 sends it to a private server whenever it has a network connection. The family
 can follow the trip on a website protected by a secret URL path and a password.
 
-The project's success is not measured by its technical features:
-
-> Could you give this phone to someone setting off on a year-long cycling trip
-> and trust that it will keep recording the route without constant attention?
-
 ## Status
 
 | Component | Status |
