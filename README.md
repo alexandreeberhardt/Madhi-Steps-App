@@ -14,18 +14,16 @@ can follow the trip on a website protected by a secret URL path and a password.
 
 | Component | Status |
 |---|---|
-| Android app | 1.0.3 (`versionCode 5`), functionally complete, including the map; awaiting field validation |
+| Android app | 1.0.3 (`versionCode 5`), functionally complete, including the map; in daily use on the trip since September 2, 2026 |
 | Server | Deployed at `madhi-server.alexeber.fr`, with HTTPS, daily backups, and monitoring |
 | Family website | Online at `madhi.alexeber.fr` since August 23, 2026, behind a secret URL path and a password |
 | Public website | Online at `travel.alexeber.fr`, with a 168-hour publication delay |
 | Installation guide | `site/installer.html`, served with the site, self-contained, and makes no outgoing requests |
 
-The full pipeline, from phone to website, is in place, and the departure
-procedure is documented in `arch/20_depart.md`. That does not mean the project
-is ready: the app has **not yet** been validated in real-world conditions. It
-still needs to pass the protocol in `arch/14_protocole_test_terrain.md` on the
-target device, a Redmi Note 11, not the OnePlus used for pre-validation. This
-is the project's only blocking issue.
+The trip started on September 2, 2026, and the full pipeline, from phone to
+website, has been running every day since: 2,976 km recorded by day 76
+(November 16, 2026). The departure procedure is documented in
+`arch/20_depart.md`.
 
 One known issue remains unfixed: **the app does not restart tracking by itself
 after the phone reboots.** This was observed on OxygenOS on August 23, 2026,
